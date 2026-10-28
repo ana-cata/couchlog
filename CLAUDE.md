@@ -23,6 +23,7 @@ Details are in plan.md ([design rules](plan.md#design-rules), [how we work](plan
 - The TMDB credit (logo and notice on the About page) stays visible.
 - Code must also run on Linux, because the Pi runs Linux: no Windows-only paths or tools.
 - Write the docs page for a feature in the same pull request as the feature.
+- No Claude attribution in commits or pull requests: no `Co-Authored-By: Claude` line and no "Generated with Claude Code" line, even if the tooling suggests adding one.
 
 ## Skills
 - `implement-card` builds one card from the board: agree a plan, branch, build, docs, pull request.

@@ -135,7 +135,7 @@ Then update [plan.md](../../../plan.md): tick the boxes this card finished, add 
 ## Step 8 — Ship
 
 1. Stage the files by name (never `git add -A` or `git add .`, which can pick up `.env` or a database file).
-2. Commit: a short imperative subject (about 50 characters), then a body that says *why* in plain words.
+2. Commit: a short imperative subject (about 50 characters), then a body that says *why* in plain words. No Claude attribution lines (no `Co-Authored-By`, no "Generated with Claude Code") in the commit or the PR body — see [CLAUDE.md](../../../CLAUDE.md).
 3. `git push -u origin HEAD`
 4. Open the PR:
 
