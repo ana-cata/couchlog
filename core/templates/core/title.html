@@ -53,6 +53,22 @@
               </form>
             {% endif %}
           </div>
+        {% elif item.kind == 'series' %}
+          <div class="seasons">
+            {% if notice %}<p role="alert">{{ notice }}</p>{% endif %}
+            {% for season in seasons %}
+              <details id="season-{{ season.number }}"{% if season.number == open_season %} open{% endif %}>
+                <summary>{{ season.name }} <small>· {{ season.episodes|length }} episode{{ season.episodes|length|pluralize }}</small></summary>
+                <ul class="episodes">
+                  {% for episode in season.episodes %}
+                    {% include 'core/_episode_row.html' %}
+                  {% endfor %}
+                </ul>
+              </details>
+            {% empty %}
+              {% if not notice %}<p>TMDB has no episodes for this series yet.</p>{% endif %}
+            {% endfor %}
+          </div>
         {% endif %}
       </div>
     </div>

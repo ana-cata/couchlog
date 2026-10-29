@@ -34,6 +34,7 @@ urlpatterns = [
     path('to-watch/remove/', views.to_watch_remove, name='to_watch_remove'),
     path('to-watch/undo/', views.to_watch_undo, name='to_watch_undo'),
     path('watched/add/', views.watched_add, name='watched_add'),
+    path('watched/episode/add/', views.episode_watched_add, name='episode_watched_add'),
     path('watched/remove/', views.watched_remove, name='watched_remove'),
     path('<kind:kind>/<int:tmdb_id>/', views.title, name='title'),
     path('about/', views.about, name='about'),

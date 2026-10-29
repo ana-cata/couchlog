@@ -1,5 +1,7 @@
 """Server-side calls to TMDB. The key is read from the settings and never leaves the server."""
 
+import datetime
+
 import httpx
 from django.conf import settings
 
@@ -76,6 +78,38 @@ def search(query):
         for raw in data.get('results', [])
         if raw.get('media_type') in kinds
     ]
+
+
+def _day(text):
+    """A TMDB date such as 2011-04-17 as a date, or None when TMDB has none (or it makes no sense)."""
+    try:
+        return datetime.date.fromisoformat(text or '')
+    except ValueError:
+        return None
+
+
+def get_episodes(tmdb_id):
+    """Every episode of a series, specials included. Nothing is saved.
+
+    One call lists the seasons, then there is one call per season, so a long series takes a moment.
+    """
+    episodes = []
+    for season in _get(f'/tv/{tmdb_id}').get('seasons', []):
+        number = season['season_number']
+        try:
+            data = _get(f'/tv/{tmdb_id}/season/{number}')
+        except TmdbNotFound:
+            continue  # TMDB lists a season it has no details for: skip it, do not lose the others
+        for raw in data.get('episodes', []):
+            episodes.append({
+                'tmdb_id': raw['id'],
+                'season_number': raw.get('season_number', number),
+                'episode_number': raw['episode_number'],
+                'name': raw.get('name') or '',
+                'air_date': _day(raw.get('air_date')),
+                'runtime': raw.get('runtime') or None,
+            })
+    return episodes
 
 
 def get_title(kind, tmdb_id):

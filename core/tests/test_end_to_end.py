@@ -194,3 +194,44 @@ def test_mark_a_movie_as_watched_see_it_in_history_then_undo(live_server, page, 
     expect(page.get_by_text('Nothing in your history yet')).to_be_visible()
     page.get_by_role('link', name='To Watch', exact=True).click()
     expect(page.locator('.tile')).to_contain_text('Made-up Movie')
+
+
+def test_open_a_series_tick_an_episode_and_untick_it(live_server, page, respx_mock, settings):
+    settings.TMDB_API_KEY = 'made-up-secret-key'
+    user = User.objects.create_user(username='made-up-user', password='made-up-password')
+    Profile.objects.create(user=user, timezone='Europe/Lisbon')
+    show = Title.objects.create(kind='series', tmdb_id=1399, title='Made-up Series', year='2011')
+    ToWatchItem.objects.create(user=user, title=show)
+    respx_mock.get('https://api.themoviedb.org/3/tv/1399').respond(
+        json={'id': 1399, 'name': 'Made-up Series', 'seasons': [{'season_number': 1}]}
+    )
+    episodes = [
+        {'id': 6001, 'season_number': 1, 'episode_number': 1, 'name': 'Made-up pilot', 'air_date': '2011-04-17'},
+        {'id': 6002, 'season_number': 1, 'episode_number': 2, 'name': 'Made-up future', 'air_date': '2999-01-01'},
+    ]
+    respx_mock.get('https://api.themoviedb.org/3/tv/1399/season/1').respond(
+        json={'season_number': 1, 'episodes': episodes}
+    )
+    page.route('https://image.tmdb.org/**', lambda route: route.abort())
+
+    page.goto(live_server.url)
+    page.get_by_label('Username').fill('made-up-user')
+    page.get_by_label('Password').fill('made-up-password')
+    page.get_by_role('button', name='Log in').click()
+
+    # Open the series from the Series section: its season is listed, and only the episode that has aired has a button.
+    page.get_by_role('link', name='Series', exact=True).click()
+    page.locator('.tile').click()
+    expect(page.get_by_text('Made-up pilot')).to_be_visible()
+    expect(page.get_by_text('Airs 1 Jan 2999')).to_be_visible()
+    expect(page.get_by_role('button', name=re.compile(r'Mark episode \d as watched'))).to_have_count(1)
+
+    # Tick it: the circle turns green (the button now offers "not watched"), and it is still green after reloading.
+    page.get_by_role('button', name='Mark episode 1 as watched').click()
+    expect(page.get_by_role('button', name='Mark episode 1 as not watched')).to_be_visible()
+    page.reload()
+    expect(page.get_by_role('button', name='Mark episode 1 as not watched')).to_be_visible()
+
+    # Untick it: back to gray.
+    page.get_by_role('button', name='Mark episode 1 as not watched').click()
+    expect(page.get_by_role('button', name='Mark episode 1 as watched')).to_be_visible()
