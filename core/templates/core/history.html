@@ -3,7 +3,8 @@
 {% block title %}History · Couchlog{% endblock %}
 
 {% block content %}
-  <h1>History</h1>
+  <h1>Movies</h1>
+  {% include 'core/_section_tabs.html' with tab='history' %}
 
   {% if watches %}
     <ul class="results">

@@ -1,12 +1,14 @@
-# To Watch list
+# To Watch lists
 
 ## What it does
 
-- **To Watch screen** (`/to-watch/`, linked as "To Watch" in the header). The movies and series you want to see, as tiles (poster, name, year, movie or series), newest added first. With an empty list it says so and links to Search.
+- **Two lists, one per section.** The header has **Movies** and **Series**. Each opens on its **To Watch** tab: **Movies → To Watch** (`/movies/`) lists only films and **Series → To Watch** (`/series/`) lists only series. Each shows tiles (poster, name, year, movie or series), newest added first. An empty list says so ("No movies on your To Watch list yet" / "No series on your To Watch list yet") and links to Search.
+- **Tabs.** Under the section's name there is a small tab bar with the current tab underlined. Movies has **To Watch** and **History** (see [History](history.md)). Series has only **To Watch** for now: Watching, Finished and Dropped arrive with their own cards.
+- **The old addresses still work.** `/to-watch/` sends you to `/movies/` and `/history/` to `/movies/history/`, so an old bookmark is not lost.
 - **Every tile is the same size.** A name is always given two lines, and a longer one is cut with "..." (hover to see the whole name). The year line is one line, and the button is always at the bottom of the tile, so the grid looks even.
 - **Add:** every search result has an "Add to To Watch" button under its tile, and so does each movie or series page, under the poster. Press it and the button turns into "Remove from To Watch" right away, without the page reloading. The title is still on the screen after you reload, log out and back in, or restart the app.
-- **Remove:** the same button on a search result or a title page, or "Remove from To Watch" under a tile on the To Watch screen. The title leaves the list.
-- **Undo, for 10 seconds:** a title you removed appears under **Recently removed** at the top of the To Watch screen, with an Undo button. Undo puts it back in its old place in the list (the date it was added is kept). A removal can only be undone during those 10 seconds. When the time is up the title **disappears from Recently removed by itself**, even if you leave the page open and do nothing. It is then gone from the To Watch list for good, and the only way back is to search for it and add it again from Search (or its page). That puts it back as newly added (at the top of the list).
+- **Remove:** the same button on a search result or a title page, or "Remove from To Watch" under a tile on a To Watch list. The title leaves the list.
+- **Undo, for 10 seconds:** a title you removed appears under **Recently removed** at the top of its own list (a film in Movies, a series in Series), with an Undo button. Each list only shows removals of its own kind. Undo puts it back in its old place in the list (the date it was added is kept). A removal can only be undone during those 10 seconds. When the time is up the title **disappears from Recently removed by itself**, even if you leave the page open and do nothing. It is then gone from the To Watch list for good, and the only way back is to search for it and add it again from Search (or its page). That puts it back as newly added (at the top of the list).
 - **No "Removed ..." notice.** Removing a title shows no message at the top. The title leaving the list and appearing under Recently removed is the feedback, and that block says how long Undo lasts ("You can undo a removal for 10 seconds.").
 - **A movie you mark as watched leaves the list** by itself (see [History](history.md)). It is not under "Recently removed": its undo is "Mark as not watched", which puts it back here exactly as it was.
 - **The same title twice:** pressing Add on something already on the list does nothing but say so. There is never a second entry.
@@ -22,13 +24,20 @@
 
 | Address | What | Needs login |
 |---|---|---|
-| `/to-watch/` | The To Watch screen | Yes |
-| `/to-watch/removed/` | Only the "Recently removed" block, which the screen asks for when time runs out (GET) | Yes |
+| `/movies/` | Movies → To Watch: the films on your list | Yes |
+| `/series/` | Series → To Watch: the series on your list | Yes |
+| `/to-watch/` | Old address: redirects to `/movies/` | Yes |
+| `/to-watch/removed/?kind=movie` (or `series`) | Only the "Recently removed" block of one section, which its screen asks for when time runs out (GET). Without a real `kind` it is refused with a 400 | Yes |
 | `/to-watch/add/` | Add a title (button, POST only) | Yes |
 | `/to-watch/remove/` | Remove a title (button, POST only) | Yes |
 | `/to-watch/undo/` | Put a removed title back (button, POST only) | Yes |
 
-Each button sends `kind` (`movie` or `series`), `tmdb_id` and `next` (the page to come back to). Anything else is refused with a 400, and `next` is only followed if it is a page of this site.
+The three buttons serve both sections, so they keep their addresses. Each sends `kind` (`movie` or `series`), `tmdb_id` and `next` (the page to come back to). Anything else is refused with a 400, and `next` is only followed if it is a page of this site. With no usable `next`, the browser goes back to the section of the title's kind (`SECTION_OF_KIND` in `core/views.py`).
+
+**The two sections** (`movies` and `series` in `core/views.py`)
+- Both are the same screen (`to_watch.html`) filtered by the title's kind: `ToWatchItem` entries of this account, with an empty `removed_at`, whose `title.kind` is `movie` (or `series`), newest `added_at` first. No table changed for this.
+- The tab bar is one small partial (`_section_tabs.html`) used by the To Watch screen and by History. Pico's `aria-current="page"` marks the current tab, and `couchlog.css` underlines it.
+- "Recently removed" is built per kind (`_recently_removed(request, kind)`), and its undo buttons come back to that section.
 
 **Tables** (see [data model](data-model.md))
 - `core_title`: the TMDB details saved when a title is first added: kind, TMDB id, name, year, poster address, description. One row per title, shared by every account, so later features (watches, episodes, calendar) can point to it. Unique on kind + TMDB id (a movie and a series can have the same number).
@@ -40,8 +49,8 @@ Each button sends `kind` (`movie` or `series`), `tmdb_id` and `next` (the page t
 
 **Remove and undo**
 - Remove only fills in `removed_at`. Undo clears it again and does not touch `added_at`, so the entry comes back exactly as it was (design rule 5; the test `test_undo_puts_everything_back_as_it_was` checks this).
-- The undo window is one setting, `UNDO_WINDOW` (10 seconds) in `core/views.py`; the number shown on the screen comes from it. The To Watch screen lists entries with an empty `removed_at`, newest `added_at` first, and offers Undo for entries whose `removed_at` is inside the window. The server checks the window again when Undo is pressed, so an old removal can never be undone.
-- **The list empties by itself.** The "Recently removed" block (`_recently_removed.html`) carries an htmx timer (`hx-trigger="load delay:Ns"`): N is the seconds left for the oldest removal plus one. When it fires, the block asks `/to-watch/removed/` for itself again, gets back only what is still undoable (nothing, once time is up), and replaces itself. The time is always worked out by the server, never by the browser's clock. While something is still undoable the new block sets the next timer; when nothing is left it has no timer. The answer is never cached.
+- The undo window is one setting, `UNDO_WINDOW` (10 seconds) in `core/views.py`; the number shown on the screen comes from it. A To Watch list lists entries with an empty `removed_at`, newest `added_at` first, and offers Undo for entries whose `removed_at` is inside the window. The server checks the window again when Undo is pressed, so an old removal can never be undone.
+- **The list empties by itself.** The "Recently removed" block (`_recently_removed.html`) carries an htmx timer (`hx-trigger="load delay:Ns"`): N is the seconds left for the oldest removal plus one. When it fires, the block asks `/to-watch/removed/?kind=...` (its own kind) for itself again, gets back only what is still undoable (nothing, once time is up), and replaces itself. The time is always worked out by the server, never by the browser's clock. While something is still undoable the new block sets the next timer; when nothing is left it has no timer. The answer is never cached.
 - After the window nothing is erased: the row stays with its `removed_at`, and adding the title again clears `removed_at` and sets `added_at` to now.
 
 **Live buttons on the search page and the title pages**
@@ -57,5 +66,5 @@ Each button sends `kind` (`movie` or `series`), `tmdb_id` and `next` (the page t
 - A title's saved details are not refreshed yet. Changes on TMDB (a new poster, a fixed year) do not reach titles already saved. Refreshing comes with later cards.
 - After the 10 seconds there is no undo, only adding the title again, which resets its date added.
 - Without JavaScript the block cannot empty itself. It still goes away when the page is reloaded, and Undo is refused by the server after the 10 seconds.
-- A removal made on a search or title page (not on this screen) is only offered for undo here if you open the To Watch screen within the 10 seconds. On those pages the button turns back into "Add to To Watch", which is the same as undoing it except that the date added is reset.
+- A removal made on a search or title page (not on a To Watch list) is only offered for undo here if you open that title's list (Movies or Series) within the 10 seconds. On those pages the button turns back into "Add to To Watch", which is the same as undoing it except that the date added is reset.
 - The date added is stored but not shown on screen.

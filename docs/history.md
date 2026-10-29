@@ -5,7 +5,7 @@
 - **Mark a movie as watched.** On a movie's page (not a series' page) there is a **Watched on** date box and a **Mark as watched** button. The box starts on today, in your own time zone (the one on your Profile page), and you can pick an earlier day. Tick **Date unknown** for an old watch you cannot place; the box is then ignored.
 - **A day in the future is refused**, with a message, and nothing is saved. Whether a day is "in the future" follows your time zone: late in the evening in Lisbon it is already tomorrow in Auckland.
 - **After marking,** the page shows "Watched on 5 Mar 2026" (or "Watched (date unknown)") and a **Mark as not watched** button instead of the form. Pressing Mark as watched on a movie that is already marked changes nothing and says so. Watching a movie again is a later feature (Rewatch).
-- **History screen** (`/history/`, linked as "History" in the header). Every movie you marked, as tiles with the date under each: newest watched day first, "Date unknown" at the bottom (among those, the one saved last first). Empty: "Nothing in your history yet".
+- **History screen** (`/movies/history/`, the **History** tab of the Movies section; the old `/history/` sends you there). Every movie you marked, as tiles with the date under each: newest watched day first, "Date unknown" at the bottom (among those, the one saved last first). Empty: "Nothing in your history yet".
 - **It leaves To Watch.** If the movie was on your To Watch list it is taken off it. It does not show under "Recently removed", because you did not remove it.
 - **Undo: Mark as not watched**, on the movie page and under each tile in History. It works right after marking and any time later (no time limit, unlike the 10 seconds for To Watch removals). The watch is erased, and if marking it took the movie off To Watch, the movie goes back on the list exactly as it was, with its old date added. A movie that was not on the list stays off it. After an undo you can mark the movie again.
 - **Your own history:** each account sees only its own watches and can only undo its own.
@@ -17,7 +17,8 @@
 
 | Address | What | Needs login |
 |---|---|---|
-| `/history/` | The History screen | Yes |
+| `/movies/history/` | The History screen (a tab of Movies) | Yes |
+| `/history/` | Old address: redirects to `/movies/history/` | Yes |
 | `/watched/add/` | Mark a movie as watched (button, POST only) | Yes |
 | `/watched/remove/` | Mark as not watched, the undo (button, POST only) | Yes |
 
@@ -43,7 +44,7 @@ The buttons are normal forms, not htmx: the server saves, then sends the browser
 **Screens**: `title.html` (the form or the "Watched" line, movies only), `history.html`, and `_tile_link.html` (the clickable poster, name and year, shared by To Watch, search and History).
 
 **Known limits**
-- Only movies for now; series episodes come with features 5 and 6.
+- Only movies for now; series episodes come with features 5 and 6. History belongs to the Movies section and lists films only (`history` in `core/views.py` filters on the title's kind), so episode watches will not show here.
 - One watch per movie in the screens. Pressing Mark twice at the very same moment (a double click) could still save two; Mark as not watched then removes one at a time.
 - The title page still reads TMDB every time it is opened, so it shows an error if TMDB is down (History does not need TMDB).
 - History has no search, filter or paging yet.

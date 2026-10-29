@@ -1,5 +1,6 @@
 from django.contrib.auth import views as auth_views
 from django.urls import path, register_converter
+from django.views.generic import RedirectView
 
 from . import views
 
@@ -21,12 +22,17 @@ register_converter(KindConverter, 'kind')
 urlpatterns = [
     path('', views.home, name='home'),
     path('search/', views.search, name='search'),
-    path('to-watch/', views.to_watch, name='to_watch'),
+    path('movies/', views.movies, name='movies'),
+    path('movies/history/', views.history, name='history'),
+    path('series/', views.series, name='series'),
+    # The addresses these two screens had before they moved into Movies, so old bookmarks still work.
+    path('to-watch/', RedirectView.as_view(pattern_name='movies')),
+    path('history/', RedirectView.as_view(pattern_name='history')),
+    # The buttons serve both sections, so they keep their addresses.
     path('to-watch/removed/', views.to_watch_removed, name='to_watch_removed'),
     path('to-watch/add/', views.to_watch_add, name='to_watch_add'),
     path('to-watch/remove/', views.to_watch_remove, name='to_watch_remove'),
     path('to-watch/undo/', views.to_watch_undo, name='to_watch_undo'),
-    path('history/', views.history, name='history'),
     path('watched/add/', views.watched_add, name='watched_add'),
     path('watched/remove/', views.watched_remove, name='watched_remove'),
     path('<kind:kind>/<int:tmdb_id>/', views.title, name='title'),

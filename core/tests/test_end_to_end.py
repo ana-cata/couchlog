@@ -55,12 +55,16 @@ def test_log_in_search_add_a_title_then_remove_it_and_undo(live_server, page, re
     page.get_by_role('button', name='Add to To Watch').click()
     expect(page.get_by_role('button', name='Remove from To Watch')).to_be_visible()
 
-    # It is on the To Watch screen, and still there after reloading.
-    page.get_by_role('link', name='To Watch', exact=True).click()
+    # It is on the Movies section's To Watch tab, and still there after reloading. The Series section is empty.
+    page.get_by_role('link', name='Movies', exact=True).click()
     expect(page.locator('.tile')).to_have_count(1)
     expect(page.locator('.tile')).to_contain_text('Made-up Movie')
     page.reload()
     expect(page.locator('.tile')).to_have_count(1)
+    page.get_by_role('link', name='Series', exact=True).click()
+    expect(page.get_by_text('No series on your To Watch list yet')).to_be_visible()
+    expect(page.locator('.tile')).to_have_count(0)
+    page.get_by_role('link', name='Movies', exact=True).click()
 
     # Remove it: it leaves the list and is offered under "Recently removed".
     page.get_by_role('button', name='Remove from To Watch').click()
@@ -139,7 +143,7 @@ def test_a_page_left_open_stops_offering_undo_when_time_is_up(live_server, page,
     page.get_by_label('Username').fill('made-up-user')
     page.get_by_label('Password').fill('made-up-password')
     page.get_by_role('button', name='Log in').click()
-    page.get_by_role('link', name='To Watch', exact=True).click()
+    page.get_by_role('link', name='Series', exact=True).click()
     page.get_by_role('button', name='Remove from To Watch').click()
     expect(page.get_by_role('heading', name='Recently removed')).to_be_visible()
     expect(page.get_by_role('button', name='Undo')).to_be_visible()
@@ -151,7 +155,7 @@ def test_a_page_left_open_stops_offering_undo_when_time_is_up(live_server, page,
     expect(page.locator('.tile')).to_have_count(0)
     page.reload()
     expect(page.get_by_role('heading', name='Recently removed')).to_have_count(0)
-    expect(page.get_by_text('Nothing on your To Watch list yet')).to_be_visible()
+    expect(page.get_by_text('No series on your To Watch list yet')).to_be_visible()
 
 
 def test_mark_a_movie_as_watched_see_it_in_history_then_undo(live_server, page, respx_mock, settings):
@@ -169,13 +173,14 @@ def test_mark_a_movie_as_watched_see_it_in_history_then_undo(live_server, page, 
     page.get_by_role('button', name='Log in').click()
 
     # Open the movie from the To Watch list and mark it as watched (the date box starts on today).
-    page.get_by_role('link', name='To Watch', exact=True).click()
+    page.get_by_role('link', name='Movies', exact=True).click()
     page.locator('.tile').click()
     page.get_by_role('button', name='Mark as watched').click()
     expect(page.get_by_text('Marked “Made-up Movie” as watched.')).to_be_visible()
     expect(page.get_by_role('button', name='Mark as not watched')).to_be_visible()
 
-    # It is in History with a date, and it has left the To Watch list.
+    # It is in History (a tab of Movies) with a date, and it has left the To Watch tab.
+    page.get_by_role('link', name='Movies', exact=True).click()
     page.get_by_role('link', name='History', exact=True).click()
     expect(page.locator('.tile')).to_contain_text('Made-up Movie')
     expect(page.get_by_text(re.compile(r'Watched \d{1,2} \w{3} \d{4}'))).to_be_visible()

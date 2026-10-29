@@ -9,6 +9,22 @@ header nav li {
   white-space: nowrap;
 }
 
+/* The tabs under the Movies and Series headings: the one you are on is underlined. */
+.tabs {
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--pico-muted-border-color);
+}
+
+/* Every tab has the line (invisible unless current), so the current one does not sit lower than the rest. */
+.tabs a {
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+}
+
+.tabs a[aria-current="page"] {
+  border-bottom-color: var(--pico-primary);
+}
+
 /* Search results: tiles with the poster on top and the name below. */
 .results {
   list-style: none;
