@@ -80,6 +80,8 @@
               {% if not notice %}<p>TMDB has no episodes for this series yet.</p>{% endif %}
             {% endfor %}
             <div id="bulk-notice" aria-live="polite">{% include 'core/_bulk_notice.html' with text=bulk.text batch=bulk.batch %}</div>
+            {# The pop-up question after the first episode marked in a series. Empty until then. #}
+            <div id="ask">{% if ask %}{% include 'core/_ask_earlier.html' %}{% endif %}</div>
           </div>
         {% endif %}
       </div>

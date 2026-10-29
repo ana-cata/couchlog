@@ -272,6 +272,8 @@ def test_ticking_an_episode_does_not_move_the_page(live_server, page, respx_mock
     scrolled_before = page.evaluate('window.scrollY')
     assert scrolled_before > 500  # it really is scrolled down
     button.click()
+    # It is the first episode marked in the series, so the pop-up asks about the earlier ones. Only this one.
+    page.get_by_role('dialog').get_by_role('button', name='No, only S1E40').click()
     expect(page.get_by_role('button', name='Mark episode 40 as not watched')).to_be_visible()
 
     # Nothing moved: same place on the page, same address (no jump to the episode), and no reload.
@@ -283,7 +285,7 @@ def test_ticking_an_episode_does_not_move_the_page(live_server, page, respx_mock
     assert abs(page.evaluate('window.scrollY') - scrolled_before) < 2
 
 
-def test_marking_up_to_here_and_a_whole_season_does_not_move_the_page_and_can_be_undone(
+def test_the_first_mark_asks_about_the_earlier_episodes_and_a_whole_season_does_not_move_the_page_and_can_be_undone(
     live_server, page, respx_mock, settings
 ):
     settings.TMDB_API_KEY = 'made-up-secret-key'
@@ -322,16 +324,30 @@ def test_marking_up_to_here_and_a_whole_season_does_not_move_the_page_and_can_be
     page.wait_for_load_state('load')  # htmx starts when the page has loaded
     watched = page.locator('.check.watched')
 
-    # Scroll down the long season and press "Up to here" on episode 30.
-    button = page.get_by_role('button', name='Up to here: mark every episode up to episode 30 as watched')
-    button.scroll_into_view_if_needed()
+    # Scroll down the long season and press the circle of episode 30, the first episode marked in the series.
+    circle = page.get_by_role('button', name='Mark episode 30 as watched')
+    circle.scroll_into_view_if_needed()
     address_before = page.url
     scrolled_before = page.evaluate('window.scrollY')
     open_before = page.locator('details[open]').count()
     assert scrolled_before > 500  # it really is scrolled down
-    button.click()
+    circle.click()
 
-    # Episodes 1 to 30 are green, and the notice with Undo is in view right where we are.
+    # A pop-up asks about the earlier episodes. Nothing is saved yet, and Cancel closes it and changes nothing.
+    question = page.get_by_role('dialog')
+    expect(question.get_by_text('Did you watch the earlier episodes too?')).to_be_visible()
+    expect(watched).to_have_count(0)
+    question.get_by_role('button', name='Cancel').click()
+    expect(question).to_be_hidden()
+    expect(watched).to_have_count(0)
+    assert abs(page.evaluate('window.scrollY') - scrolled_before) < 2
+
+    # Pressing it again asks again; "Yes" marks episodes 1 to 30.
+    circle.click()
+    question.get_by_role('button', name='Yes, mark all 30').click()
+
+    # Episodes 1 to 30 are green, the question is gone, and the notice with Undo is in view right where we are.
+    expect(question).to_be_hidden()
     expect(page.get_by_text('Marked 30 episodes up to S1E30 as watched.')).to_be_visible()
     expect(watched).to_have_count(30)
     expect(page.locator('.bulk-notice')).to_be_in_viewport()
@@ -346,6 +362,15 @@ def test_marking_up_to_here_and_a_whole_season_does_not_move_the_page_and_can_be
     expect(watched).to_have_count(0)
     expect(page.get_by_role('button', name='Undo')).to_have_count(0)
     assert abs(page.evaluate('window.scrollY') - scrolled_before) < 2
+
+    # With nothing marked again, the first mark asks again. "No" marks just that episode, with no notice to undo.
+    circle.click()
+    question.get_by_role('button', name='No, only S1E30').click()
+    expect(question).to_be_hidden()
+    expect(watched).to_have_count(1)
+    expect(page.locator('.bulk-notice')).to_have_count(0)
+    page.get_by_role('button', name='Mark episode 30 as not watched').click()
+    expect(watched).to_have_count(0)
 
     # Mark the whole first season from its button at the top, then undo that too.
     page.evaluate('window.scrollTo(0, 0)')

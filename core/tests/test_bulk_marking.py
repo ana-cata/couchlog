@@ -111,7 +111,8 @@ def eid(tmdb_id):
 
 
 def mark_one(client, tmdb_id):
-    return client.post('/watched/episode/add/', {'episode_id': eid(tmdb_id)})
+    """Press one episode's circle and say "No, only this one" if asked, so it is just a single mark."""
+    return client.post('/watched/episode/add/', {'episode_id': eid(tmdb_id), 'only_this': 1})
 
 
 def unmark_one(client, tmdb_id):
@@ -260,7 +261,7 @@ def test_what_has_aired_follows_the_accounts_time_zone(opened):
     assert {watch.watched_on for watch in Watch.objects.filter(user=auckland.user)} == {datetime.date(2026, 10, 29)}
 
 
-# --- watched up to here -----------------------------------------------------------------------
+# --- watched up to here (what "Yes" on the question below does) -------------------------------
 
 
 def test_up_to_here_marks_every_aired_episode_before_it_across_seasons(opened):
@@ -483,28 +484,19 @@ def test_the_page_offers_a_season_button_where_something_has_aired(opened):
     assert 'season/add' not in season_block(html, 3)  # season 3 has not started: nothing to mark
 
 
-def test_the_page_offers_up_to_here_only_on_regular_episodes_that_have_aired(opened):
+def test_an_episode_has_only_its_circle_and_no_up_to_here_button(opened):
     html = page(opened)
 
-    for tmdb_id in (6001, 6002, 6003, 6101, 6103):
-        assert 'Up to here' in row(html, tmdb_id)
-    for tmdb_id in (6000, 6102, 6104, 6201):  # a special, no date, airs tomorrow, season 3
-        assert 'Up to here' not in row(html, tmdb_id)
-
-
-def test_up_to_here_is_there_on_a_marked_episode_too(opened):
-    mark_one(opened, 6003)
-
-    assert 'Up to here' in row(page(opened), 6003)
+    assert 'Up to here' not in html and 'up-to' not in html
+    for tmdb_id in (6001, 6002, 6003, 6101, 6103):  # aired: the circle is the only button
+        assert row(html, tmdb_id).count('<button') == 1
 
 
 def test_the_buttons_use_htmx_so_the_page_does_not_reload(opened):
-    mark_season(opened, 1)
     html = page(opened)
 
     assert 'hx-post="/watched/season/add/" hx-target="#bulk-notice" hx-swap="innerHTML"' in html
-    assert 'hx-post="/watched/up-to/add/" hx-target="#bulk-notice" hx-swap="innerHTML"' in html
-    assert '<div id="bulk-notice"' in html
+    assert '<div id="bulk-notice"' in html and '<div id="ask"></div>' in html
 
 
 # --- without htmx the page comes back with its notice and an Undo button ---------------------
@@ -556,7 +548,8 @@ def test_with_htmx_up_to_here_answers_with_every_row_that_changed(opened):
     body = up_to_here(opened, 6103, **HTMX).content.decode()
 
     assert 'Marked 5 episodes up to S2E3 as watched.' in body
-    assert body.count('<li') == 5 and body.count('hx-swap-oob="true"') == 5
+    # Every row goes in place of the one already on the page.
+    assert body.count('<li') == 5 and len(re.findall(r'<li id="episode-\d+" hx-swap-oob="true">', body)) == 5
     assert body.count('class="check watched"') == 5
 
 
@@ -583,7 +576,7 @@ def test_with_htmx_undo_answers_with_the_notice_and_the_rows_back_to_gray(opened
     body = undo(opened, last_batch(), **HTMX).content.decode()
 
     assert 'Undone: 3 episodes marked as not watched.' in body
-    assert body.count('<li') == 3 and body.count('hx-swap-oob="true"') == 3
+    assert body.count('<li') == 3 and len(re.findall(r'<li id="episode-\d+" hx-swap-oob="true">', body)) == 3
     assert 'class="check watched"' not in body
     assert 'name="batch"' not in body  # nothing left to undo
     assert snapshot() == before
@@ -599,6 +592,171 @@ def test_with_htmx_undoing_twice_says_so_and_changes_nothing(opened):
 
     assert 'Nothing to undo' in body and '<li' not in body
     assert snapshot() == before
+
+
+# --- the question after the first episode marked in a series ----------------------------------
+
+
+def press_circle(client, tmdb_id, next=SERIES_PAGE, **options):
+    """Press an episode's gray circle, as the page does (no "only this one": that is the question's answer)."""
+    return client.post('/watched/episode/add/', {'episode_id': eid(tmdb_id), 'next': next}, **options)
+
+
+def question(html):
+    """The pop-up question on the page, or an empty string when there is none."""
+    return re.search(r'<div id="ask">(.*?)</div>', html, re.DOTALL).group(1).strip()
+
+
+def test_the_first_episode_marked_in_a_series_asks_about_the_earlier_ones_and_saves_nothing_yet(opened):
+    where = f'{SERIES_PAGE}?season=1#episode-{eid(6003)}'
+
+    response = press_circle(opened, 6003, next=where)
+
+    assert response.status_code == 302 and response['Location'] == where
+    ask = question(after(opened, response))
+    assert '<dialog open' in ask and 'Did you watch the earlier episodes too?' in ask
+    assert 'S1E3 is the first episode you mark in Made-up Series.' in ask
+    assert 'from the beginning (S1E1)' in ask
+    assert 'Yes, mark all 3' in ask and 'No, only S1E3' in ask
+    assert '<form method="dialog">' in ask and 'Cancel' in ask  # closes the pop-up and nothing else
+    assert Watch.objects.count() == 0
+    assert question(page(opened)) == ''  # it is asked once, not again on the next visit
+
+
+def test_the_question_counts_the_episodes_across_seasons_that_have_aired(opened):
+    ask = question(after(opened, press_circle(opened, 6103)))
+
+    # Season 1 (3), the first of season 2, and this one. Not the episode without a date.
+    assert 'S2E3 is the first episode you mark' in ask and 'Yes, mark all 5' in ask
+
+
+def test_the_question_follows_the_accounts_own_day(opened):
+    auckland = make_client('auckland-user', 'Pacific/Auckland')
+    page(auckland)
+
+    ask = question(after(auckland, press_circle(auckland, 6104)))  # it aired on the 29th: today in Auckland
+
+    assert 'Yes, mark all 6' in ask
+
+
+def test_yes_marks_everything_from_the_beginning_in_one_step_and_it_can_be_undone(opened):
+    before = snapshot()
+    ask = question(after(opened, press_circle(opened, 6003)))
+    assert 'action="/watched/up-to/add/"' in ask and f'name="episode_id" value="{eid(6003)}"' in ask
+
+    html = after(opened, up_to_here(opened, 6003))
+
+    assert 'Marked 3 episodes up to S1E3 as watched.' in html
+    assert watched(opened.user) == {6001, 6002, 6003}
+    after(opened, undo(opened, last_batch()))
+    assert snapshot() == before
+
+
+def test_no_marks_only_that_episode_and_it_can_be_undone(opened):
+    before = snapshot()
+    ask = question(after(opened, press_circle(opened, 6003)))
+    assert 'action="/watched/episode/add/"' in ask and 'name="only_this" value="1"' in ask
+
+    opened.post('/watched/episode/add/', {'episode_id': eid(6003), 'only_this': 1, 'next': SERIES_PAGE})
+
+    watch = Watch.objects.get()
+    assert (watch.episode.tmdb_id, watch.watched_on, watch.batch) == (6003, TODAY, None)
+    unmark_one(opened, 6003)
+    assert snapshot() == before
+
+
+def test_the_very_first_episode_has_nothing_before_it_so_it_is_marked_without_asking(opened):
+    html = after(opened, press_circle(opened, 6001))
+
+    assert question(html) == '' and watched(opened.user) == {6001}
+
+
+def test_once_an_episode_is_marked_the_next_ones_do_not_ask(opened):
+    mark_one(opened, 6001)
+
+    html = after(opened, press_circle(opened, 6003))  # 6002 is skipped, and that is fine
+
+    assert question(html) == '' and watched(opened.user) == {6001, 6003}
+
+
+def test_a_special_is_marked_without_asking(opened):
+    html = after(opened, press_circle(opened, 6000))
+
+    assert question(html) == '' and watched(opened.user) == {6000}
+
+
+def test_a_marked_special_does_not_count_as_having_started_the_series(opened):
+    mark_one(opened, 6000)
+
+    ask = question(after(opened, press_circle(opened, 6002)))
+
+    assert 'Yes, mark all 2' in ask and watched(opened.user) == {6000}
+
+
+@pytest.mark.parametrize('tmdb_id', [6104, 6102])  # airs tomorrow, has no date
+def test_an_episode_that_cannot_be_marked_is_refused_without_asking(opened, tmdb_id):
+    html = after(opened, press_circle(opened, tmdb_id))
+
+    assert question(html) == '' and Watch.objects.count() == 0
+    assert 'cannot be marked' in html
+
+
+def test_an_episode_already_marked_is_not_asked_about(opened):
+    mark_one(opened, 6003)
+
+    html = after(opened, press_circle(opened, 6003))
+
+    assert question(html) == '' and 'already marked as watched' in html
+
+
+def test_after_everything_is_undone_the_next_first_mark_asks_again(opened):
+    up_to_here(opened, 6003)
+    undo(opened, last_batch())
+
+    assert 'Yes, mark all 3' in question(after(opened, press_circle(opened, 6003)))
+
+
+def test_another_accounts_marks_do_not_count(opened):
+    other = make_client('other-user')
+    mark_one(other, 6001)
+
+    assert 'Yes, mark all 3' in question(after(opened, press_circle(opened, 6003)))
+
+
+def test_a_page_that_is_out_of_date_does_not_show_the_question(opened):
+    press_circle(opened, 6003)
+    mark_one(opened, 6001)  # in another tab, say: the series has been started since
+
+    assert question(page(opened)) == ''
+
+
+def test_with_htmx_the_question_is_the_whole_answer_and_goes_into_the_page(opened):
+    response = press_circle(opened, 6003, **HTMX)
+
+    body = response.content.decode()
+    assert response.status_code == 200 and '<html' not in body
+    assert response['HX-Retarget'] == '#ask' and response['HX-Reswap'] == 'innerHTML'
+    assert '<dialog open' in body and 'Yes, mark all 3' in body
+    assert '<li' not in body and Watch.objects.count() == 0
+
+
+def test_with_htmx_no_answers_with_the_row_and_takes_the_question_off(opened):
+    response = opened.post(
+        '/watched/episode/add/', {'episode_id': eid(6003), 'only_this': 1, 'next': SERIES_PAGE}, **HTMX
+    )
+
+    body = response.content.decode()
+    assert re.findall(r'<li id="episode-(\d+)" hx-swap-oob="true">', body) == [str(eid(6003))]
+    assert is_watched(body, 3) and '<div id="ask" hx-swap-oob="true"></div>' in body
+    assert 'class="bulk-notice"' not in body  # nothing to undo: the circle is its undo
+    assert watched(opened.user) == {6003}
+
+
+def test_with_htmx_yes_answers_with_the_notice_and_the_rows_and_takes_the_question_off(opened):
+    body = up_to_here(opened, 6003, **HTMX).content.decode()
+
+    assert 'Marked 3 episodes up to S1E3 as watched.' in body and 'name="batch"' in body
+    assert body.count('<li') == 3 and '<div id="ask" hx-swap-oob="true"></div>' in body
 
 
 # --- safety -----------------------------------------------------------------------------------
@@ -671,6 +829,8 @@ def test_the_buttons_need_the_csrf_token(db, tmdb_series, address):
 
 @pytest.mark.parametrize('elsewhere', ['https://evil.example/', '//evil.example/', 'javascript:alert(1)'])
 def test_a_button_never_sends_you_to_another_site(opened, elsewhere):
+    asked = opened.post('/watched/episode/add/', {'episode_id': eid(6003), 'next': elsewhere})  # the question
+    assert asked['Location'] == '/series/'
     pressed = opened.post('/watched/season/add/', {'tmdb_id': 1399, 'season': 1, 'next': elsewhere})
     assert pressed['Location'] == '/series/'
     up_to = opened.post('/watched/up-to/add/', {'episode_id': eid(6103), 'next': elsewhere})

@@ -150,21 +150,6 @@ header nav li {
   flex: none;
 }
 
-/* "Up to here" and the round check button, side by side on the right of the row. */
-.episode-actions {
-  display: flex;
-  align-items: center;
-  flex: none;
-  gap: 0.75rem;
-}
-
-.up-to {
-  margin: 0;
-  padding: 0.25rem 0.6rem;
-  font-size: 0.8rem;
-  white-space: nowrap;
-}
-
 /* "Mark Season 2 as watched", above the episodes of the season. */
 .season-action {
   margin: 0.5rem 0;
@@ -177,7 +162,25 @@ header nav li {
   font-size: 0.85rem;
 }
 
-/* What a season or "up to here" press says, with Undo. The container takes no room in the page (so putting
+/* The pop-up after the first episode marked in a series ("did you watch the earlier episodes too?"). Pico draws
+   the pop-up itself; this only lines the buttons up side by side (they wrap on a narrow screen). */
+#ask footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+#ask footer form {
+  margin: 0;
+}
+
+#ask footer button {
+  width: auto;
+  margin: 0;
+}
+
+/* What a season or "Yes" press says, with Undo. The container takes no room in the page (so putting
    the notice in it moves nothing) and sticks to the bottom of the window, so the notice is seen even deep in
    a long season. At the end of the list it rests below the last season. */
 #bulk-notice {

@@ -48,8 +48,24 @@ def episodes_up_to(episode):
     return up_to
 
 
+def earlier_to_ask_about(user, episode, today):
+    """The episodes to ask about when `episode` is the first one this account marks in its series.
+
+    Marking a regular episode that has aired, with nothing marked in the series yet, is a sign the earlier
+    episodes were watched too, so the page asks. These are the episodes before it that have aired, in page
+    order. It is empty (nothing to ask) for a special, for an episode that is not aired, when the series
+    already has a marked episode, or when nothing aired before it.
+    """
+    if episode.season_number == 0 or episode.air_date is None or episode.air_date > today:
+        return []
+    if Watch.objects.filter(user=user, title_id=episode.title_id, episode__season_number__gt=0).exists():
+        return []
+    before = episodes_up_to(episode)[:-1]
+    return [earlier for earlier in before if earlier.air_date is not None and earlier.air_date <= today]
+
+
 def mark_episodes(user, episodes, today):
-    """Mark many episodes as watched at once, for "mark a season" and "watched up to here".
+    """Mark many episodes as watched at once, for "mark a season" and the question's "Yes" (everything up to here).
 
     Only an episode that has aired (on or before `today`, the account's own day) and that the account
     has not marked yet gets a watch, dated `today` like a single mark. The rest are left alone, so an
