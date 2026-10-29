@@ -188,8 +188,8 @@ Goal: on my PC, only I can log in, and tests run automatically on every pull req
 - [ ] Set up Django's built-in login (username and password) and a page that only logged-in users can open
 - [ ] Create my account in Django's admin page, since there is no public sign-up page
 - [ ] At the first login, pick my time zone from a list (the browser's time zone is suggested) and save it
-- [ ] Set up GitHub Actions: lint (ruff) and tests run on every pull request
-- [ ] Add the first simple test so the checks have something to run
+- [x] Set up GitHub Actions: lint (ruff) and tests run on every pull request
+- [x] Add the first simple test so the checks have something to run
 
 Done when: I can log in and out on my PC, the pages are closed when I am logged out, my time zone is saved, and a pull request shows green checks.
 
@@ -433,3 +433,4 @@ Sorted by when each item matters.
 | 2026-10-27 | Stack changed from Next.js to Python: Django with htmx, Pico CSS, uv, pytest and ruff, running in a Python Docker image on the Pi. Login is Django's built-in login (username and password), with accounts created in Django's admin page. Node.js is no longer needed. Plan PR #1 was merged into `main`; this change is on the branch `docs/django-stack`. |
 | 2026-10-28 | Profile page added (account, time zone, later statistics; favorites as a Could feature). Calendar clarified: it shows the series I am watching and the titles on my To Watch list. |
 | 2026-10-29 | Card #3 built (pull request open): Django skeleton with a placeholder page, Pico CSS and htmx saved in the project, `.env` for the TMDB key, and the `tmdb_check` command, which worked with my real key. Cards #4 and #6 rewritten for Django. Week 1 is done once it is merged. |
+| 2026-10-29 | Card #3 merged, so Week 1 is done. Card #4 built (pull request open): ruff added to the dev tools and a GitHub Actions workflow that runs the lint and the tests on every pull request. The first simple tests came with card #3. |

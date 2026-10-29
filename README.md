@@ -18,7 +18,12 @@ You need [uv](https://docs.astral.sh/uv/) (it installs Python and the packages).
 
 - `uv run python manage.py tmdb_check` makes one request to TMDB and says whether your key works.
 - `uv run pytest` runs the tests. They use made-up TMDB answers and a temporary database, never the real TMDB.
+- `uv run ruff check .` runs the lint (it looks for mistakes and untidy code).
 - `uv run python manage.py makemigrations` and `uv run python manage.py migrate` change the database tables (from the first card that adds tables).
+
+## Automatic checks
+
+On every pull request, GitHub runs the lint and the tests (`.github/workflows/checks.yml`) on a Linux machine, with no `.env` and no TMDB key. A pull request is merged only when both are green. Run the same two commands on the PC before pushing to catch problems early.
 
 ## Open it from the phone
 

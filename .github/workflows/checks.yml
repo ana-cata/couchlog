@@ -1,0 +1,22 @@
+name: Checks
+
+# Runs on every pull request: lint, then tests. There is no build step.
+on:
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # Installs uv. It reads the Python version from .python-version.
+      - uses: astral-sh/setup-uv@v10
+
+      # --locked fails if uv.lock does not match pyproject.toml.
+      - run: uv sync --locked
+
+      - run: uv run ruff check .
+
+      # No .env and no TMDB key here: the tests use made-up TMDB answers.
+      - run: uv run pytest
