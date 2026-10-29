@@ -1,0 +1,29 @@
+{# One series on the Home page: its poster and name, the next episode to watch, its progress bar and a round check #}
+{# button. `entry` is one item of `up_next` (core/episodes.py). Without an entry there is nothing to show, which is #}
+{# the answer when the card's series has nothing left to watch: htmx then takes the card off the page. #}
+{% if entry %}
+  <li id="up-next-{{ entry.series.id }}">
+    <a href="{% url 'title' 'series' entry.series.tmdb_id %}" class="up-next-poster" tabindex="-1" aria-hidden="true">
+      {% if entry.series.poster_url %}
+        <img class="poster" src="{{ entry.series.poster_url }}" alt="" loading="lazy">
+      {% else %}
+        <span class="poster no-poster">No poster</span>
+      {% endif %}
+    </a>
+    <div class="up-next-info">
+      <strong><a href="{% url 'title' 'series' entry.series.tmdb_id %}">{{ entry.series.title }}</a></strong>
+      <span>S{{ entry.episode.season_number }}E{{ entry.episode.episode_number }} · {{ entry.episode.name|default:"Untitled episode" }}</span>
+      <small>Aired {{ entry.episode.air_date|date:"j M Y" }}</small>
+      {% include 'core/_progress.html' with watched=entry.watched aired=entry.aired %}
+    </div>
+    {# Pressing the button marks the episode. The answer is this card again, with the next episode (or nothing). #}
+    <form method="post" action="{% url 'episode_watched_add' %}"
+          hx-post="{% url 'episode_watched_add' %}" hx-target="closest li" hx-swap="outerHTML">
+      {% csrf_token %}
+      <input type="hidden" name="episode_id" value="{{ entry.episode.id }}">
+      <input type="hidden" name="up_next" value="1">
+      <input type="hidden" name="next" value="{% url 'home' %}">
+      <button type="submit" class="check" aria-label="Mark S{{ entry.episode.season_number }}E{{ entry.episode.episode_number }} of {{ entry.series.title }} as watched" title="Mark as watched">{% include 'core/_check_icon.html' %}</button>
+    </form>
+  </li>
+{% endif %}

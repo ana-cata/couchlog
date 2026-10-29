@@ -40,6 +40,15 @@ Two ways to enter old history quickly. Both mark only the episodes that **have a
 - **The page does not move.** The pop-up floats over the page, and only the rows that changed (and the season buttons whose words changed) are swapped in place: open seasons stay open and the scroll position stays.
 - **If TMDB renumbers or adds episodes later,** the episodes you marked stay marked. A new episode that has aired in a season you marked makes its button say "as watched" again; pressing it marks only the new one.
 
+## Progress bars
+
+- **The series bar** sits above the seasons, and **each season has its own bar** in its heading, so you see it even when the season is folded. Each says "4 of 9 aired episodes watched" and fills as you watch.
+- **What counts:** episodes that have **aired** (on or before today in your time zone). Specials (season 0), episodes that have not aired and episodes with no air date are left out, so a series that is completely caught up shows a full bar. The Specials have no bar. A season or series with nothing aired yet has no bar.
+- **They move by themselves:** marking or un-marking an episode, marking a whole season, or answering the question changes the bars in place, with no reload, together with the rows and the season button.
+- **An episode counts once** however many times it was watched (design rule 2).
+- **Nothing is stored:** the bars are worked out from your watches each time, so un-marking an episode (the green circle, or the season button pressed again) takes the bar back, with no undo of their own.
+- The series bar is also on each card of [Home](home.md), where the next episode to watch is.
+
 ## The Series tabs
 
 Series has three tabs. Nothing is stored for them: each is worked out every time from your own watches and TMDB's status, so un-marking an episode moves a series back by itself (there is no separate undo).
@@ -50,7 +59,7 @@ Series has three tabs. Nothing is stored for them: each is worked out every time
 | **Watching** (`/series/watching/`) | you have marked at least one episode (any episode, a special too), and it is not finished |
 | **Finished** (`/series/finished/`) | TMDB says it **ended or was cancelled** **and** you have watched **every episode that has aired**. Both are needed |
 
-- A series you are caught up on that is **still running** stays in Watching. It is simply not in Up Next until a new episode airs (Up Next comes with a later card).
+- A series you are caught up on that is **still running** stays in Watching. It is simply not in Up Next on [Home](home.md) until a new episode airs.
 - A series that **ended but you have not watched completely** stays in Watching.
 - **Specials** (season 0) do not have to be watched to finish a series. Episodes that have not aired yet, or have no air date, do not count either. "Aired" follows your time zone.
 - If TMDB has not given a status yet (it is empty until the first refresh), the series cannot be finished: it stays in Watching.
@@ -77,7 +86,7 @@ Series has three tabs. Nothing is stored for them: each is worked out every time
 | `/series/watching/` | Series → Watching | Yes |
 | `/series/finished/` | Series → Finished | Yes |
 | `/series/<TMDB id>/` | The series page. `?season=2` opens that season instead of the first | Yes |
-| `/watched/episode/add/` | Mark one episode as watched (round button, POST only). Sends `episode_id` (our own id for the episode) and `next`, and `only_this` when it is the pop-up's "No, only this one". The first mark in a series answers with the pop-up question instead of marking | Yes |
+| `/watched/episode/add/` | Mark one episode as watched (round button, POST only). Sends `episode_id` (our own id for the episode) and `next`, and `only_this` when it is the pop-up's "No, only this one" (the check buttons on [Home](home.md) also send `up_next`). The first mark in a series answers with the pop-up question instead of marking | Yes |
 | `/watched/remove/` | Mark as not watched, the undo (round button, POST only). Sends `watch_id`, `episode_id` and `next`. The same address as the movie undo | Yes |
 | `/watched/season/add/` | Mark a whole season (POST only). Sends `tmdb_id` (the series), `season` (0 = Specials) and `next` | Yes |
 | `/watched/season/remove/` | Mark a whole season as not watched, the season button pressed again (POST only). Sends `tmdb_id`, `season` and `next` | Yes |
@@ -97,6 +106,10 @@ Series has three tabs. Nothing is stored for them: each is worked out every time
 1. The series is saved from TMDB if our table does not have it yet (the same `_saved_title` the To Watch button uses, design rule 6).
 2. If its episodes were never saved, or were saved more than a day ago (`EPISODES_REFRESH_AFTER`), they are refreshed (`refresh_episodes` in `core/episodes.py`, the same code the `refresh_series` command uses): TMDB is asked for the status and the list of seasons (`GET /tv/<id>`), then for each season (`GET /tv/<id>/season/<n>`), so a long series takes a few seconds the first time. Only after all of that answered are the rows saved, in one database step, so a failure saves nothing.
 3. The page is built from our own table. A season that TMDB lists but cannot find (404) is skipped and the others are kept.
+
+**The progress bars** (`_progress.html`, `progress_by_series` in `core/episodes.py`, `_season_info` in `core/views.py`)
+- The series bar comes from `progress_by_series` (one database count for the series). Each season's bar is counted from that season's episodes already loaded for the page (`watched_count` and `aired_count` in `_season_info`; 0 and 0 for the Specials). Both use the same rule, and the test `test_the_bars_follow_what_is_watched_and_the_series_bar_is_the_seasons_added_up` checks they agree.
+- The bar is the browser's own `<progress>` element, in a `<span id="progress-series">` or `<span id="progress-season-<number>">`. The answers to the round button, the season button and the question (`_episode_answer.html`, `_bulk_result.html`) end with the new bars marked `hx-swap-oob="true"`, which htmx puts in place of the ones with the same id, like the season buttons.
 
 **Refreshing never loses a watch.** Episodes are matched with TMDB's own id and updated in place (number, name, date, runtime), new ones are added, and none is ever deleted. So if TMDB renumbers an episode, its watch stays on it. The test `test_a_renumbered_episode_keeps_its_watch_and_nothing_is_deleted` checks this.
 
@@ -124,7 +137,6 @@ Series has three tabs. Nothing is stored for them: each is worked out every time
 **The round button** (`_episode_row.html`, `_check_icon.html`, `couchlog.css`): the same circle and check in two colours, gray (`#8b93a0`) and green (`#2e7d32`). Each button has a text label for screen readers ("Mark episode 3 as watched" / "...as not watched") and a hover hint.
 
 **Known limits**
-- No progress bars and no "next episode" yet (Up Next, card #11).
 - The season button un-marks the **whole** season, including episodes you had marked one by one before. So it takes back more than the last press if you had marked some of the season before it. A season that is only partly marked can only be un-marked with the circles.
 - After "Yes" there is no one-step undo unless it marked a whole season; otherwise un-mark the episodes one at a time.
 - The question is only asked for the first mark in a series. Later, to mark many episodes you have not marked, use the season button; it marks the whole season, not only up to one episode.

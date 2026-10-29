@@ -1,6 +1,17 @@
 {% extends 'core/base.html' %}
 
 {% block content %}
-  <p>Log what you watch from the couch.</p>
-  <p>This is a placeholder page. The real screens are on their way.</p>
+  <h1>Up Next</h1>
+
+  {# The next episode to watch of each series in Watching. A series with nothing left to watch is not here. #}
+  <ul class="up-next">
+    {% for entry in entries %}
+      {% include 'core/_up_next_card.html' %}
+    {% endfor %}
+  </ul>
+  {# Shown only while the list has no card, so it also appears when the last card is checked off. #}
+  <p class="up-next-empty">
+    Nothing to watch next. Mark an episode of a series as watched and its next episode shows up here. When you are
+    caught up, a series waits until a new episode airs. Use Search in the header to find a series.
+  </p>
 {% endblock %}

@@ -21,10 +21,12 @@ from .episodes import (
     earlier_to_ask_about,
     episodes_up_to,
     mark_episodes,
+    progress_by_series,
     refresh_episodes,
     series_tabs,
     started_series,
     unmark_episodes,
+    up_next,
 )
 from .forms import TimeZoneForm, WatchedForm
 from .models import Episode, Profile, Title, ToWatchItem, Watch
@@ -42,7 +44,7 @@ SECTION_OF_KIND = {'movie': 'movies', 'series': 'series'}
 
 
 def home(request):
-    return render(request, 'core/home.html')
+    return render(request, 'core/home.html', {'entries': up_next(request.user, _today(request))})
 
 
 # The same address answers with a whole page or, for the live results, only the list.
@@ -143,6 +145,7 @@ def _series_page(request, tmdb_id):
         'notice': notice,
         'seasons': seasons,
         'open_season': open_season,
+        'progress': _series_progress(request, series),
         # Without htmx, the question after a first mark ("did you watch the earlier episodes too?") comes back
         # here and is shown once. It is worked out again here, so a page that is out of date asks nothing.
         'ask': _question(request, asked, today) if asked else None,
@@ -412,13 +415,24 @@ def _with_state(request, episodes):
     return episodes
 
 
+def _series_progress(request, series):
+    """The series' progress bar: how many of the episodes that have aired this account has watched."""
+    watched, aired = progress_by_series(request.user, [series.id], _today(request))[series.id]
+    return {'watched': watched, 'aired': aired}
+
+
 def _season_info(number, episodes):
     """What a season needs on the page, from its episodes (each with its watch and `aired` already set)."""
     aired = [episode for episode in episodes if episode.aired]
+    # Specials (season 0) are left out of progress, so their bar is always empty.
+    counted = [] if number == 0 else aired
     return {
         'number': number,
         'name': 'Specials' if number == 0 else f'Season {number}',
         'episodes': episodes,
+        'progress_id': f'progress-season-{number}',
+        'watched_count': sum(1 for episode in counted if episode.watch),
+        'aired_count': len(counted),
         # A season none of whose episodes has aired has nothing to mark, so it gets no button.
         'has_aired': bool(aired),
         # Once every episode that has aired is marked, the button un-marks the season instead.
@@ -440,7 +454,12 @@ def _episode_row(request, episode):
     """One episode's row in its current state, which htmx swaps in place so the page does not move.
     Its season's button comes with it, because this episode may have just completed (or broken) the season."""
     _with_state(request, [episode])
-    context = {'episode': episode, 'item': episode.title, 'seasons': _season_infos(request, episode.title, [episode])}
+    context = {
+        'episode': episode,
+        'item': episode.title,
+        'seasons': _season_infos(request, episode.title, [episode]),
+        'progress': _series_progress(request, episode.title),
+    }
     return render(request, 'core/_episode_answer.html', context)
 
 
@@ -463,13 +482,25 @@ def _question(request, episode, today):
     }
 
 
+def _up_next_card(request, series):
+    """One series' card on the Home page as it is now, which htmx swaps in place of the card the button was in.
+    When the series has nothing left to watch (or is not in Watching), there is no card: the answer is empty."""
+    entry = next((entry for entry in up_next(request.user, _today(request)) if entry['series'].id == series.id), None)
+    return render(request, 'core/_up_next_card.html', {'entry': entry} if entry else {})
+
+
 def _answer_episode(request, episode, text='', ok=True):
     """Reply to an episode button. With htmx: just the row, as it is now (the colour says what happened).
-    Without htmx: a redirect back to the series page, with a message (unless `text` is empty).
+    Without htmx: a redirect back to the page the button was on, with a message (unless `text` is empty).
+
+    On the Home page (`up_next` is posted) the button is a card's check, so with htmx the answer is that
+    series' card as it is now: the next episode, or nothing.
 
     When the button was "No, only this one" on the question, the question is on the page and has to go away
     too, so the answer is the one `_answer_changed` gives (the changed row, and the question taken off)."""
     if request.headers.get('HX-Request'):
+        if request.POST.get('up_next'):
+            return _up_next_card(request, episode.title)
         if request.POST.get('only_this'):
             return _answer_changed(request, episode.title, [episode])
         return _episode_row(request, episode)
@@ -511,11 +542,18 @@ def episode_watched_add(request):
         return _answer_episode(request, episode, f'{name} is already marked as watched.')
     if not request.POST.get('only_this'):
         question = _question(request, episode, today)
+        if question and request.POST.get('up_next'):
+            # Home has no place for the question, and its cards only offer an episode of a series that is
+            # already started. So this is a page that is out of date: nothing is marked, and the card
+            # comes back as it is now.
+            return _answer_episode(request, episode)
         if question:
             return _ask_earlier(request, question)
 
     Watch.objects.create(user=request.user, title=episode.title, episode=episode, watched_on=today)
-    return _answer_episode(request, episode)
+    # On the Home page the card changing to the next episode is feedback for the browser with htmx.
+    # Without htmx the page reloads, so it says what happened.
+    return _answer_episode(request, episode, f'Marked {name} as watched.' if request.POST.get('up_next') else '')
 
 
 @require_POST
@@ -560,6 +598,7 @@ def _answer_changed(request, series, episodes, text='', ok=True):
             'item': series,
             'episodes': _with_state(request, episodes),
             'seasons': _season_infos(request, series, episodes),
+            'progress': _series_progress(request, series),
         }
         return render(request, 'core/_bulk_result.html', context)
     return _redirect_back(request, text, ok, 'series')

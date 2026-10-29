@@ -5,9 +5,10 @@ import os
 import re
 
 from django.contrib.auth.models import User
+from django.utils import timezone
 from playwright.sync_api import expect
 
-from core.models import Profile, Title, ToWatchItem
+from core.models import Episode, Profile, Title, ToWatchItem, Watch
 
 # The browser's driver runs inside an event loop, and Django refuses database calls from
 # there unless told it is fine. It is fine in a test.
@@ -446,3 +447,57 @@ def test_a_series_found_in_search_and_marked_shows_up_under_watching(live_server
     page.get_by_role('link', name='Series', exact=True).click()
     page.get_by_role('link', name='Watching', exact=True).click()
     expect(page.locator('.tile')).to_contain_text('Made-up Series')
+
+
+def test_up_next_on_home_follows_the_check_buttons_and_the_series_page_bars(live_server, page):
+    user = User.objects.create_user(username='made-up-user', password='made-up-password')
+    Profile.objects.create(user=user, timezone='Europe/Lisbon')
+    # Saved a moment ago, so opening the series page does not ask TMDB (which would be made up here anyway).
+    series = Title.objects.create(
+        kind='series', tmdb_id=1399, title='Made-up Series', status='Returning Series', episodes_refreshed_at=timezone.now()
+    )
+    episodes = [
+        Episode.objects.create(
+            title=series, tmdb_id=6000 + number, season_number=1, episode_number=number, air_date=datetime.date(2011, 4, 17)
+        )
+        for number in (1, 2, 3)
+    ]
+    Watch.objects.create(user=user, title=series, episode=episodes[0], watched_on=datetime.date(2026, 10, 28))
+    page.route('https://image.tmdb.org/**', lambda route: route.abort())
+
+    page.goto(live_server.url)
+    page.get_by_label('Username').fill('made-up-user')
+    page.get_by_label('Password').fill('made-up-password')
+    page.get_by_role('button', name='Log in').click()
+    page.goto(live_server.url)
+    page.wait_for_load_state('load')
+
+    # Home: the next episode of the series being watched, and how far along it is.
+    card = page.locator('.up-next li')
+    expect(card).to_have_count(1)
+    expect(card).to_contain_text('Made-up Series')
+    expect(card).to_contain_text('S1E2')
+    expect(card).to_contain_text('1 of 3 aired episodes watched')
+
+    # Checking it off in place: the next episode appears and the bar moves, without leaving the page.
+    page.get_by_role('button', name='Mark S1E2 of Made-up Series as watched').click()
+    expect(card).to_contain_text('S1E3')
+    expect(card).to_contain_text('2 of 3 aired episodes watched')
+
+    # Checking off the last one: nothing is left, so the card goes and the note takes its place.
+    page.get_by_role('button', name='Mark S1E3 of Made-up Series as watched').click()
+    expect(card).to_have_count(0)
+    expect(page.get_by_text('Nothing to watch next')).to_be_visible()
+
+    # The series page shows the bars full. Undoing an episode there moves both bars back in place.
+    page.goto(live_server.url + '/series/1399/')
+    expect(page.locator('#progress-series')).to_contain_text('3 of 3 aired episodes watched')
+    expect(page.locator('#progress-season-1')).to_contain_text('3 of 3 aired episodes watched')
+    page.get_by_role('button', name='Mark episode 3 as not watched').click()
+    expect(page.locator('#progress-series')).to_contain_text('2 of 3 aired episodes watched')
+    expect(page.locator('#progress-season-1')).to_contain_text('2 of 3 aired episodes watched')
+
+    # And back on Home the episode is next again.
+    page.goto(live_server.url)
+    expect(card).to_contain_text('S1E3')
+    expect(card).to_contain_text('2 of 3 aired episodes watched')
