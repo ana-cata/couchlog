@@ -150,6 +150,70 @@ header nav li {
   flex: none;
 }
 
+/* "Up to here" and the round check button, side by side on the right of the row. */
+.episode-actions {
+  display: flex;
+  align-items: center;
+  flex: none;
+  gap: 0.75rem;
+}
+
+.up-to {
+  margin: 0;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+/* "Mark Season 2 as watched", above the episodes of the season. */
+.season-action {
+  margin: 0.5rem 0;
+}
+
+.season-action button {
+  width: auto;
+  margin: 0;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.85rem;
+}
+
+/* What a season or "up to here" press says, with Undo. The container takes no room in the page (so putting
+   the notice in it moves nothing) and sticks to the bottom of the window, so the notice is seen even deep in
+   a long season. At the end of the list it rests below the last season. */
+#bulk-notice {
+  position: sticky;
+  bottom: 0;
+  height: 0;
+  z-index: 2;
+}
+
+.bulk-notice {
+  position: absolute;
+  bottom: 1rem;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--pico-card-background-color);
+  border: 1px solid var(--pico-muted-border-color);
+  border-radius: var(--pico-border-radius);
+  box-shadow: var(--pico-card-box-shadow);
+}
+
+.bulk-notice form {
+  margin: 0;
+  flex: none;
+}
+
+.bulk-notice button {
+  margin: 0;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.85rem;
+}
+
 /* The round check button: the same circle and check, gray until the episode is watched, then green. */
 .check {
   display: flex;

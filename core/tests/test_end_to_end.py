@@ -283,6 +283,84 @@ def test_ticking_an_episode_does_not_move_the_page(live_server, page, respx_mock
     assert abs(page.evaluate('window.scrollY') - scrolled_before) < 2
 
 
+def test_marking_up_to_here_and_a_whole_season_does_not_move_the_page_and_can_be_undone(
+    live_server, page, respx_mock, settings
+):
+    settings.TMDB_API_KEY = 'made-up-secret-key'
+    user = User.objects.create_user(username='made-up-user', password='made-up-password')
+    Profile.objects.create(user=user, timezone='Europe/Lisbon')
+    show = Title.objects.create(kind='series', tmdb_id=1399, title='Made-up Series', year='2011')
+    ToWatchItem.objects.create(user=user, title=show)
+    respx_mock.get('https://api.themoviedb.org/3/tv/1399').respond(
+        json={'id': 1399, 'name': 'Made-up Series', 'seasons': [{'season_number': 1}, {'season_number': 2}]}
+    )
+    # A long first season, so the page is much taller than the window and has to be scrolled, and a short second one.
+    season_one = [
+        {'id': 6000 + number, 'season_number': 1, 'episode_number': number, 'name': f'Made-up episode {number}',
+         'air_date': '2011-04-17'}
+        for number in range(1, 41)
+    ]
+    season_two = [
+        {'id': 6100 + number, 'season_number': 2, 'episode_number': number, 'name': f'Made-up episode {number}',
+         'air_date': '2012-04-17'}
+        for number in range(1, 3)
+    ]
+    respx_mock.get('https://api.themoviedb.org/3/tv/1399/season/1').respond(
+        json={'season_number': 1, 'episodes': season_one}
+    )
+    respx_mock.get('https://api.themoviedb.org/3/tv/1399/season/2').respond(
+        json={'season_number': 2, 'episodes': season_two}
+    )
+    page.route('https://image.tmdb.org/**', lambda route: route.abort())
+    page.set_viewport_size({'width': 800, 'height': 600})
+
+    page.goto(live_server.url)
+    page.get_by_label('Username').fill('made-up-user')
+    page.get_by_label('Password').fill('made-up-password')
+    page.get_by_role('button', name='Log in').click()
+    page.goto(live_server.url + '/series/1399/')
+    page.wait_for_load_state('load')  # htmx starts when the page has loaded
+    watched = page.locator('.check.watched')
+
+    # Scroll down the long season and press "Up to here" on episode 30.
+    button = page.get_by_role('button', name='Up to here: mark every episode up to episode 30 as watched')
+    button.scroll_into_view_if_needed()
+    address_before = page.url
+    scrolled_before = page.evaluate('window.scrollY')
+    open_before = page.locator('details[open]').count()
+    assert scrolled_before > 500  # it really is scrolled down
+    button.click()
+
+    # Episodes 1 to 30 are green, and the notice with Undo is in view right where we are.
+    expect(page.get_by_text('Marked 30 episodes up to S1E30 as watched.')).to_be_visible()
+    expect(watched).to_have_count(30)
+    expect(page.locator('.bulk-notice')).to_be_in_viewport()
+    # Nothing moved: same place, same address, same seasons open, no reload.
+    assert abs(page.evaluate('window.scrollY') - scrolled_before) < 2
+    assert page.url == address_before
+    assert page.locator('details[open]').count() == open_before
+
+    # Undo takes all 30 back in one step, and the notice no longer offers Undo.
+    page.get_by_role('button', name='Undo').click()
+    expect(page.get_by_text('Undone: 30 episodes marked as not watched.')).to_be_visible()
+    expect(watched).to_have_count(0)
+    expect(page.get_by_role('button', name='Undo')).to_have_count(0)
+    assert abs(page.evaluate('window.scrollY') - scrolled_before) < 2
+
+    # Mark the whole first season from its button at the top, then undo that too.
+    page.evaluate('window.scrollTo(0, 0)')
+    page.get_by_role('button', name='Mark Season 1 as watched').click()
+    expect(page.get_by_text('Marked 40 episodes in Season 1 as watched.')).to_be_visible()
+    expect(watched).to_have_count(40)
+    expect(page.locator('.bulk-notice')).to_be_in_viewport()
+    page.reload()  # still marked after reloading
+    expect(watched).to_have_count(40)
+    assert page.get_by_text('Marked 40 episodes').count() == 0  # and the notice does not come back
+    # Un-mark one by hand: the circle is the undo for a single episode, whenever.
+    page.get_by_role('button', name='Mark episode 40 as not watched').click()
+    expect(watched).to_have_count(39)
+
+
 def test_a_series_found_in_search_and_marked_shows_up_under_watching(live_server, page, respx_mock, settings):
     settings.TMDB_API_KEY = 'made-up-secret-key'
     user = User.objects.create_user(username='made-up-user', password='made-up-password')

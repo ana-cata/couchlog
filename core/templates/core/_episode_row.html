@@ -1,31 +1,43 @@
-{# One episode of a series: its number, name and air date, and a round check button. #}
+{# One episode of a series: its number, name and air date, "Up to here", and a round check button. #}
 {# Gray: not watched yet (press to mark it). Green: watched (press to mark it as not watched). #}
-{# An episode that has not aired, or has no air date, has no button. #}
+{# An episode that has not aired, or has no air date, has no buttons. "Up to here" marks every episode before it too, so specials have none. #}
 {# htmx swaps just this row when a button is pressed, so the page does not reload or move. Without htmx #}
 {# the forms still work: the server redirects back to the season and episode. #}
-<li id="episode-{{ episode.id }}">
+{# `oob` is set when the row comes back with a season or "up to here" press: htmx then puts it in place of the row already on the page. #}
+<li id="episode-{{ episode.id }}"{% if oob %} hx-swap-oob="true"{% endif %}>
   <span class="episode-info">
     <span>{{ episode.episode_number }}. {{ episode.name|default:"Untitled episode" }}</span>
     <small>
       {% if not episode.air_date %}No air date yet{% elif episode.aired %}{{ episode.air_date|date:"j M Y" }}{% else %}Airs {{ episode.air_date|date:"j M Y" }}{% endif %}
     </small>
   </span>
-  {% if episode.watch %}
-    <form method="post" action="{% url 'watched_remove' %}"
-          hx-post="{% url 'watched_remove' %}" hx-target="closest li" hx-swap="outerHTML">
-      {% csrf_token %}
-      <input type="hidden" name="watch_id" value="{{ episode.watch.id }}">
-      <input type="hidden" name="episode_id" value="{{ episode.id }}">
-      <input type="hidden" name="next" value="{% url 'title' 'series' item.tmdb_id %}?season={{ episode.season_number }}#episode-{{ episode.id }}">
-      <button type="submit" class="check watched" aria-label="Mark episode {{ episode.episode_number }} as not watched" title="Watched. Press to mark it as not watched.">{% include 'core/_check_icon.html' %}</button>
-    </form>
-  {% elif episode.aired %}
-    <form method="post" action="{% url 'episode_watched_add' %}"
-          hx-post="{% url 'episode_watched_add' %}" hx-target="closest li" hx-swap="outerHTML">
-      {% csrf_token %}
-      <input type="hidden" name="episode_id" value="{{ episode.id }}">
-      <input type="hidden" name="next" value="{% url 'title' 'series' item.tmdb_id %}?season={{ episode.season_number }}#episode-{{ episode.id }}">
-      <button type="submit" class="check" aria-label="Mark episode {{ episode.episode_number }} as watched" title="Mark as watched">{% include 'core/_check_icon.html' %}</button>
-    </form>
-  {% endif %}
+  <span class="episode-actions">
+    {% if episode.aired and episode.season_number %}
+      <form method="post" action="{% url 'episodes_watched_up_to' %}"
+            hx-post="{% url 'episodes_watched_up_to' %}" hx-target="#bulk-notice" hx-swap="innerHTML">
+        {% csrf_token %}
+        <input type="hidden" name="episode_id" value="{{ episode.id }}">
+        <input type="hidden" name="next" value="{% url 'title' 'series' item.tmdb_id %}?season={{ episode.season_number }}#episode-{{ episode.id }}">
+        <button type="submit" class="up-to outline secondary" aria-label="Up to here: mark every episode up to episode {{ episode.episode_number }} as watched" title="Mark every episode up to here as watched">Up to here</button>
+      </form>
+    {% endif %}
+    {% if episode.watch %}
+      <form method="post" action="{% url 'watched_remove' %}"
+            hx-post="{% url 'watched_remove' %}" hx-target="closest li" hx-swap="outerHTML">
+        {% csrf_token %}
+        <input type="hidden" name="watch_id" value="{{ episode.watch.id }}">
+        <input type="hidden" name="episode_id" value="{{ episode.id }}">
+        <input type="hidden" name="next" value="{% url 'title' 'series' item.tmdb_id %}?season={{ episode.season_number }}#episode-{{ episode.id }}">
+        <button type="submit" class="check watched" aria-label="Mark episode {{ episode.episode_number }} as not watched" title="Watched. Press to mark it as not watched.">{% include 'core/_check_icon.html' %}</button>
+      </form>
+    {% elif episode.aired %}
+      <form method="post" action="{% url 'episode_watched_add' %}"
+            hx-post="{% url 'episode_watched_add' %}" hx-target="closest li" hx-swap="outerHTML">
+        {% csrf_token %}
+        <input type="hidden" name="episode_id" value="{{ episode.id }}">
+        <input type="hidden" name="next" value="{% url 'title' 'series' item.tmdb_id %}?season={{ episode.season_number }}#episode-{{ episode.id }}">
+        <button type="submit" class="check" aria-label="Mark episode {{ episode.episode_number }} as watched" title="Mark as watched">{% include 'core/_check_icon.html' %}</button>
+      </form>
+    {% endif %}
+  </span>
 </li>

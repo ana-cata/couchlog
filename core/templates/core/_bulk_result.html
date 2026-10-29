@@ -1,0 +1,4 @@
+{# The answer to the season, "up to here" and Undo buttons when htmx asked: the notice, which goes into #bulk-notice, #}
+{# then each row that changed, which htmx puts in place of the row on the page (hx-swap-oob). #}
+{% include 'core/_bulk_notice.html' %}
+{% for episode in episodes %}{% include 'core/_episode_row.html' with oob=True %}{% endfor %}
