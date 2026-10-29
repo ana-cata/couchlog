@@ -27,6 +27,12 @@
   margin-top: 0.5rem;
 }
 
+/* Hovering a tile (or tabbing to it) underlines its title and year, so the choice is easy to see. */
+.tile:is(:hover, :focus-visible) :is(strong, small) {
+  text-decoration: underline;
+  text-underline-offset: 0.2rem;
+}
+
 .poster {
   display: block;
   width: 100%;
