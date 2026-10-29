@@ -44,6 +44,8 @@ What this means in practice:
 | Search | One TMDB call (`search/multi`) keeps the movies and series and drops people. Results appear as you type, using htmx, 0.4 seconds after typing stops. First page only | Added in card #7. Search results are never saved. The title pages (`/movie/<id>/`, `/series/<id>/`) are read-only for now and grow into the real pages in features 4 and 5. |
 | To Watch list | Two tables: `Title` (the TMDB details, saved when a title is first added, shared by all accounts) and `ToWatchItem` (one row per account and title: date added and, if removed, `removed_at`). Removing only fills in `removed_at`, so undo restores the entry as it was. Undo is offered for 10 seconds after removing (under "Recently removed" at the top of the To Watch screen), and the title then disappears from that list by itself, even on a page left open; after that the only way back is to search for the title and add it again, which resets its date added | Added in card #8. Chosen over one table so later features (watches, episodes, calendar) can point to the same saved title. The 10 seconds is my choice and one setting (`UNDO_WINDOW`). It is an exception to rule 5's "also later"; rule 5 itself stays as written. The buttons are on search results and on the title pages. |
 | Watches | One table, `Watch` (`core_watch`): one row per watch with `user`, `title` and `watched_on`, a day, empty when the date is unknown. No "one per title" limit, so rewatches (and, in card #13, episodes with a link to the episode added then) use the same table. A movie marked as watched leaves To Watch: its `ToWatchItem` gets `removed_at` and `removed_by_watch`, so "Recently removed" skips it and "Mark as not watched" (the undo, which erases the watch) puts it back exactly as it was. That undo has no time limit. "Today" is worked out in the account's time zone, and a day after today is refused | Added in card #9. The movie screens allow one watch per movie for now; Rewatch (feature 8) lifts that. Tests freeze the clock with `time-machine` (dev only). |
+| Series tabs | To Watch, Watching and Finished are worked out from my watches and TMDB's series status, never stored. Only Dropped is stored (feature 12). A series is **Finished** only when both are true: every aired episode is watched, and TMDB says the series has ended or been cancelled | Decided 2026-10-29. Built in the "Watching and Finished" card. Because the tabs are worked out, un-marking an episode moves the series back by itself and needs no separate undo. The layout is in section 3, "How the app is organized". |
+| Series refresh | One Django command, "refresh series", asks TMDB again for each series in Watching or on To Watch and saves new episodes, air dates and the series' status (ended or still running). Episodes are matched by TMDB's own ID, so a renumbered episode keeps its watch, and nothing is deleted. Opening a series page also refreshes it when the saved copy is over a day old | Decided 2026-10-29. On the PC I run it by hand or when the app starts; on the Pi it is the same daily task as the calendar's (M4 and M6). Whether an episode has aired needs no refresh: it is the saved air date compared with today in my time zone. |
 | Browser tests | `pytest-playwright` (Playwright for Python, driving Chromium), with the same made-up TMDB answers | Added in card #8. A one-time `uv run playwright install chromium` per machine; GitHub's checks do it too. |
 | Code + tasks | GitHub (code, pull requests, project board) | |
 
@@ -55,10 +57,22 @@ Priority uses MoSCoW: Must, Should, Could, Won't. The first version (the MVP) is
 
 | Priority | Features |
 |---|---|
-| **Must** (first version, the MVP) | Login and time zone · Search movies and series · To Watch list · Mark a movie as watched · Mark episodes as watched (one, a whole season, or "up to here") · Up Next with progress bars · Calendar of upcoming releases from my list |
-| **Should** | Rewatch · Time spent watching · News section on the home page · Countdown in days · Statuses (watching / completed / dropped) · Ratings and notes · Where to watch |
+| **Must** (first version, the MVP) | Login and time zone · Search movies and series · To Watch lists (movies and series) · Mark a movie as watched · Mark episodes as watched (one, a whole season, or "up to here") · Up Next with progress bars · Calendar of upcoming releases from my list |
+| **Should** | Rewatch · Time spent watching · News section on the home page · Countdown in days · Dropped series · Ratings and notes · Where to watch |
 | **Could** | Genre and network statistics · Favorites · Similar titles · Personalized recommendations (decided later, depending on the work) |
 | **Won't (for now)** | Custom or shareable lists · Push notifications · Countdown in hours and minutes · Voting for characters · Social feed and comments · Native apps · Importing a history from another app |
+
+### How the app is organized
+
+The header has **Search**, **Movies**, **Series**, **Calendar** and **Profile** (plus About), and the Couchlog name goes to Home.
+
+- **Movies** has two tabs: **To Watch** (films I want to see) and **History** (films I have watched).
+- **Series** has four tabs:
+  - **To Watch**: on my list, with no episode watched yet.
+  - **Watching**: at least one episode watched, and not finished. A series I have caught up on that is still running stays here (it only leaves Up Next until a new episode airs), and so does a series that has ended but that I have not watched completely.
+  - **Finished**: every aired episode watched **and** TMDB says the series has ended or been cancelled. Both are needed.
+  - **Dropped**: a small list of the series I gave up on (feature 12). It is the only tab I set by hand, and it wins over the other three.
+- To Watch, Watching and Finished are worked out from my watches and TMDB's series status. Marking the first episode moves a series from To Watch to Watching, and un-marking it moves it back by itself.
 
 ### Must: the first version
 
@@ -68,16 +82,16 @@ Priority uses MoSCoW: Must, Should, Could, Won't. The first version (the MVP) is
 **2. Search movies and series.** A search box that asks TMDB and shows posters, titles and years. Search results are not stored; only what I add is saved.
 *Done when:* typing a title shows matching movies and series, and I can open one.
 
-**3. To Watch list.** The titles I want to see. I can add or remove a title from the search results or from its own page.
+**3. To Watch lists.** The titles I want to see, in two lists: Movies → To Watch and Series → To Watch. I can add or remove a title from the search results or from its own page.
 *Done when:* I add a title, reload the page and still see it, I can remove it, and I can undo the removal.
 
-**4. Mark a movie as watched.** One button on the movie page. It saves the date (today by default, and I can change it). A watched movie leaves the To Watch list and goes into my history.
+**4. Mark a movie as watched.** One button on the movie page. It saves the date (today by default, and I can change it). A watched movie leaves the To Watch list and goes into Movies → History.
 *Done when:* marking a movie moves it to my history with a date, and I can undo it.
 
-**5. Mark episodes as watched.** On the series page, each season lists its episodes with checkboxes. Three ways to mark: one episode; a whole season; or "watched up to here", which marks every episode up to the chosen one. Episodes that have not aired yet cannot be marked. Because I cannot import my old history, this is how I will enter it, so "up to here" must be quick, and a date can be left as "unknown" for old watches.
+**5. Mark episodes as watched.** On the series page, each season lists its episodes with checkboxes. Three ways to mark: one episode; a whole season; or "watched up to here", which marks every episode up to the chosen one. Episodes that have not aired yet cannot be marked. Because I cannot import my old history, this is how I will enter it, so "up to here" must be quick. Episodes have no date box: each watch saves the day I pressed the button (in my time zone), and only movies let me choose the date or leave it "unknown". Marking an episode moves the series from To Watch to Watching (see "How the app is organized").
 *Done when:* each of the three ways saves the right episodes, and each can be undone (a whole season or "up to here" in one step).
 
-**6. Up Next with progress bars.** The home screen shows, for each series I am watching, the next episode I have not seen (only episodes that have already aired). Checking it off marks it watched and the next one appears. Each series and each season shows a progress bar (watched episodes out of aired episodes).
+**6. Up Next with progress bars.** The home screen shows, for each series in the Watching tab, the next episode I have not seen (only episodes that have already aired). A dropped series is not shown. Checking it off marks it watched and the next one appears. Each series and each season shows a progress bar (watched episodes out of aired episodes).
 *Done when:* after I mark an episode, the next one appears and the bar moves; a series with nothing left to watch leaves the list until a new episode airs; and undoing a check-off brings the episode and the bar back.
 
 **7. Calendar of upcoming releases.** A calendar with the release dates of the episodes and movies I am waiting for: the series I am watching and the titles on my To Watch list. A daily task collects the dates from TMDB and saves them; the calendar screen only reads what is saved. Only the day is shown, never the hour. Dates are used exactly as TMDB gives them, with no conversion between time zones, so a day may occasionally be off by one for a show from another country. Movies use the streaming (digital) release date for the user's country (taken from the time zone). The calendar only needs to give an idea, so an approximate date is fine.
@@ -97,8 +111,8 @@ Priority uses MoSCoW: Must, Should, Could, Won't. The first version (the MVP) is
 **11. Countdown in days.** Next to an upcoming release in the calendar: the same "today", "tomorrow" or "in 3 days" label that the News section shows (feature 10). The label is built once and used in both places.
 *Done when:* the label is correct, including around midnight and across time zones.
 
-**12. Statuses.** Each series is "watching", "completed" or "dropped". Up Next only shows the ones I am watching.
-*Done when:* dropping a series removes it from Up Next but keeps its history, and I can switch the status back.
+**12. Dropped series.** A "Stop watching" button on a series' page moves it to Series → Dropped, the small list of series I gave up on. Watching and Finished are already worked out by the app (see "How the app is organized"), so this is the only status I set by hand. A dropped series is not in Up Next or the calendar, and its history stays.
+*Done when:* dropping a series removes it from Up Next and from Watching but keeps its history, it shows in the Dropped list, and bringing it back puts it in the right tab again.
 
 **13. Ratings and notes.** A star rating and a short note for each movie or series.
 *Done when:* both are saved and shown on the title's page, and I can change or remove them.
@@ -127,11 +141,11 @@ Priority uses MoSCoW: Must, Should, Could, Won't. The first version (the MVP) is
 
 ### Design rules
 
-1. **Every watch is saved as its own entry with a date** (the date can be "unknown"). This is what makes Rewatch and Time spent possible.
+1. **Every watch is saved as its own entry with a date.** For a movie I choose the date, and it can be "unknown"; for an episode the date is the day I pressed the button, in my time zone. This is what makes Rewatch and Time spent possible.
 2. **An episode counts as watched in progress if it has at least one watch entry.** Rewatches only add time.
 3. **The 7-day News window is one setting**, not repeated in several places.
 4. **The TMDB credit is shown properly:** the approved TMDB logo and the notice "This product uses the TMDB API but is not endorsed or certified by TMDB." on an About page, linked from the header next to Search and Profile. The logo is less prominent than my own app's name.
-5. **Everything can be undone.** Any action that changes my data can be reversed, because I can make a mistake: marking a movie, an episode, a season or "up to here", a rewatch, adding or removing a title on the To Watch list, changing a status, a rating or a note. Undo is available right after the action and also later (for example by un-marking an episode). A bulk action (a whole season, "up to here") is undone in one step. Undo is part of every feature's "done when".
+5. **Everything can be undone.** Any action that changes my data can be reversed, because I can make a mistake: marking a movie, an episode, a season or "up to here", a rewatch, adding or removing a title on the To Watch list, dropping a series, a rating or a note. Undo is available right after the action and also later (for example by un-marking an episode). A bulk action (a whole season, "up to here") is undone in one step. Undo is part of every feature's "done when".
 6. **Details from TMDB are saved in my own database** when I add a title (title, poster, episodes, runtimes, dates) and refreshed now and then. The app works from the saved data. Only searching and adding new titles needs TMDB to be up; if TMDB does not answer, I see a friendly message and try again later.
 
 ## 4. How we work
@@ -188,7 +202,7 @@ Done when: `runserver` shows the Couchlog placeholder page on my PC, the skeleto
 
 Goal: on my PC, only I can log in, and tests run automatically on every pull request. This is the heaviest week: if it runs over, the time zone picker moves to Week 3.
 
-- [ ] Sketch the 7 screens on paper or in Figma: Home (Up Next, and News later), Search, To Watch, Movie page, Series page (seasons with episode checkboxes), Calendar, Profile (account and time zone, statistics later)
+- [ ] Sketch the screens on paper or in Figma: Home (Up Next, and News later), Search, Movies (To Watch, History), Series (To Watch, Watching, Finished, Dropped), Movie page, Series page (seasons with episode checkboxes), Calendar, Profile (account and time zone, statistics later)
 - [x] Set up the SQLite database on the PC with Django's built-in migrations (scripted table changes, section 4)
 - [x] Set up Django's built-in login (username and password) and a page that only logged-in users can open
 - [ ] Create my account in Django's admin page, since there is no public sign-up page
@@ -230,7 +244,7 @@ Done when: I mark a movie as watched, it appears in my history with its date, an
 
 - [ ] Review: what was slower or faster than estimated? Update the weeks below
 - [ ] Try everything built so far on my phone, over the home Wi-Fi
-- [ ] Start the Series page: seasons and episodes from TMDB
+- [ ] Add the Movies and Series sections to the header, then start the Series page: seasons and episodes from TMDB (the M3 list below has the cards in order)
 - [ ] Save watched episodes in the same watches table as movies: one entry per watch of an episode (design rule 1 in section 3)
 
 ## 6. After the first weeks
@@ -249,23 +263,23 @@ Done when: I mark a movie as watched, it appears in my history with its date, an
 
 Goal: register the episodes I have seen and always know what to watch next.
 
-- [ ] Series page with seasons and episodes from TMDB
-- [ ] Mark one episode as watched
-- [ ] Mark a whole season as watched
-- [ ] "Watched up to here" marks every episode up to the chosen one
-- [ ] Un-mark an episode, and undo a whole season or "up to here" in one step; episodes that have not aired yet cannot be marked
-- [ ] Progress bars for each series and each season
-- [ ] Home screen with Up Next: the next unwatched episode that has aired, for each series I am watching
-- [ ] Tests: the "next episode" calculation; marking a season saves the right episodes; specials and episodes without an air date; episodes renumbered after I watched the season
+The cards, in this order (card #13 is split in two):
 
-Done when: features 5 and 6 of section 3 pass their "done when".
+- [ ] Movies and Series sections: the header menu, To Watch split into movies and series, History under Movies. A small card with no new data
+- [ ] Card #13, first part: series page with seasons and episodes from TMDB (saved in my database); mark and un-mark one episode, with no date box; episodes that have not aired yet cannot be marked
+- [ ] Card #13, second part: mark a whole season, and "watched up to here"; each undone in one step
+- [ ] Watching and Finished tabs, worked out automatically, plus the "refresh series" command that brings in new episodes, dates and TMDB's ended status
+- [ ] Card #11: progress bars for each series and each season, and the Home screen with Up Next (the next unwatched episode that has aired, for each series in Watching)
+- [ ] Tests: the "next episode" calculation; marking a season saves the right episodes; specials (shown last, left out of progress and Up Next) and episodes without an air date; episodes renumbered after I watched the season; a series that is caught up but still running stays in Watching; an ended series I have not fully watched stays in Watching; an ended series I have fully watched is Finished; un-marking the only watched episode puts the series back in To Watch
+
+Done when: features 5 and 6 of section 3 pass their "done when", and the Series tabs put each series in the right place.
 
 ### M4: Calendar (about 1-2 weeks)
 
 Goal: see the release days of everything on my list.
 
 - [ ] Movies: use TMDB's streaming (digital) release date for my country (decided; it only needs to give an idea)
-- [ ] A job that collects upcoming dates from TMDB and saves them. While I develop on the PC I run it by hand or when the app starts; on the Pi it becomes a daily task (M6)
+- [ ] A job that collects upcoming dates from TMDB and saves them (the "refresh series" command from M3, extended to movies). While I develop on the PC I run it by hand or when the app starts; on the Pi it becomes a daily task (M6)
 - [ ] Calendar screen that only reads the saved dates
 - [ ] Tests: episodes without a date; removing a series removes it from the calendar
 
@@ -303,7 +317,7 @@ Done when: I open Couchlog on my phone at the Pi's address on the home network a
 
 One card at a time, each merged on the PC and then deployed to the Pi. Agreed order:
 
-1. **Statuses (feature 12).** Small, and it keeps series I dropped out of Up Next while I enter my old history.
+1. **Dropped series (feature 12).** Small, and it keeps series I gave up on out of Up Next while I enter my old history.
 2. **News and Countdown in days (features 10 and 11).** Built together, since they share the same "in 3 days" label. They replace notifications and reuse the calendar data.
 3. **Rewatch and Time spent (features 8 and 9).** They belong together, and the watches table already supports them.
 4. **Where to watch (feature 14).** First check whether TMDB requires a credit for this data.
@@ -335,7 +349,7 @@ The order can change if something turns out harder or more useful than expected:
 - Specials, and episodes without an air date yet.
 - Movie release dates differ by country and type (cinema or streaming).
 - Episodes added or renumbered after a season was already watched.
-- A series with no aired episodes yet, and a series where everything is watched.
+- A series with no aired episodes yet, and a series where everything is watched (Watching if it is still running, Finished only if TMDB says it ended).
 - A rewatch must not change progress, and undo must work after reloading the page.
 - Adding the same title twice.
 - TMDB slow or not answering: a friendly message, no crash.
@@ -444,3 +458,4 @@ Sorted by when each item matters.
 | 2026-10-29 | Card #6 merged. Card #7 built (pull request open): search for movies and series with results that appear as you type, shown as tiles (poster with the name below), simple read-only title pages so a result can be opened, and the About page with the TMDB logo and notice, linked from the header next to Search and Profile. Nothing is saved by search, so there is no new table. Still open in Weeks 3-4: the To Watch list (card #8). |
 | 2026-10-29 | Card #7 merged. Card #8 built (pull request open): the To Watch list. Search results and the title pages get an Add / Remove button, there is a To Watch screen with same-size tiles, and removing a title only hides it, so Undo (under "Recently removed", for 10 seconds, after which the title leaves that list by itself) brings it back exactly as it was. The details from TMDB are saved in my own database when a title is added (new `Title` and `ToWatchItem` tables). Also the first end-to-end test: a real browser logs in, searches, adds, reloads, removes and undoes (needs a one-time `uv run playwright install chromium`; the GitHub checks do it too). Weeks 3-4 are done once it is merged. |
 | 2026-10-29 | Card #8 merged. Card #9 built (pull request open): mark a movie as watched. A movie page gets a date box (today in my time zone, or "date unknown") and a Mark as watched button; a new History screen lists the watched movies, newest first; a watched movie leaves To Watch; and "Mark as not watched" undoes it at any time and puts the movie back on To Watch as it was. New `Watch` table (one row per watch, ready for rewatches and episodes) and one new column on the To Watch entries. `time-machine` added to the dev tools to freeze "today" in tests. Week 5 is done once it is merged; the Week 6 review is next. |
+| 2026-10-29 | Card #9 merged. Before building card #13 (episodes), the app's layout was decided and written into section 3 ("How the app is organized"): a Movies section (To Watch, History) and a Series section (To Watch, Watching, Finished, Dropped). The first three Series tabs are worked out automatically; a series is Finished only if every aired episode is watched and TMDB says it ended. Episodes get no date box (the day I press the button is saved); only movies keep "Watched on". Statuses (feature 12) shrank to "Dropped series". A "refresh series" command brings in new episodes and TMDB's ended status. Card #13 is split in two and two cards are added (Movies and Series sections; Watching and Finished tabs); the order is in the M3 list. |
