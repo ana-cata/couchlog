@@ -1,0 +1,4 @@
+{# The answer to a round check button when htmx asked: the episode's row (htmx swaps it in place of the row the #}
+{# button is in), then the button of its season, in case this episode just completed or broke the season. #}
+{% include 'core/_episode_row.html' %}
+{% for season in seasons %}{% include 'core/_season_action.html' with oob=True %}{% endfor %}

@@ -272,6 +272,8 @@ def test_ticking_an_episode_does_not_move_the_page(live_server, page, respx_mock
     scrolled_before = page.evaluate('window.scrollY')
     assert scrolled_before > 500  # it really is scrolled down
     button.click()
+    # It is the first episode marked in the series, so the pop-up asks about the earlier ones. Only this one.
+    page.get_by_role('dialog').get_by_role('button', name='No, only S1E40').click()
     expect(page.get_by_role('button', name='Mark episode 40 as not watched')).to_be_visible()
 
     # Nothing moved: same place on the page, same address (no jump to the episode), and no reload.
@@ -281,6 +283,109 @@ def test_ticking_an_episode_does_not_move_the_page(live_server, page, respx_mock
     page.get_by_role('button', name='Mark episode 40 as not watched').click()
     expect(page.get_by_role('button', name='Mark episode 40 as watched')).to_be_visible()
     assert abs(page.evaluate('window.scrollY') - scrolled_before) < 2
+
+
+def test_the_first_mark_asks_and_the_season_button_marks_and_un_marks_a_season_without_moving_the_page(
+    live_server, page, respx_mock, settings
+):
+    settings.TMDB_API_KEY = 'made-up-secret-key'
+    user = User.objects.create_user(username='made-up-user', password='made-up-password')
+    Profile.objects.create(user=user, timezone='Europe/Lisbon')
+    show = Title.objects.create(kind='series', tmdb_id=1399, title='Made-up Series', year='2011')
+    ToWatchItem.objects.create(user=user, title=show)
+    respx_mock.get('https://api.themoviedb.org/3/tv/1399').respond(
+        json={'id': 1399, 'name': 'Made-up Series', 'seasons': [{'season_number': 1}, {'season_number': 2}]}
+    )
+    # A long first season, so the page is much taller than the window and has to be scrolled, and a short second one.
+    season_one = [
+        {'id': 6000 + number, 'season_number': 1, 'episode_number': number, 'name': f'Made-up episode {number}',
+         'air_date': '2011-04-17'}
+        for number in range(1, 41)
+    ]
+    season_two = [
+        {'id': 6100 + number, 'season_number': 2, 'episode_number': number, 'name': f'Made-up episode {number}',
+         'air_date': '2012-04-17'}
+        for number in range(1, 3)
+    ]
+    respx_mock.get('https://api.themoviedb.org/3/tv/1399/season/1').respond(
+        json={'season_number': 1, 'episodes': season_one}
+    )
+    respx_mock.get('https://api.themoviedb.org/3/tv/1399/season/2').respond(
+        json={'season_number': 2, 'episodes': season_two}
+    )
+    page.route('https://image.tmdb.org/**', lambda route: route.abort())
+    page.set_viewport_size({'width': 800, 'height': 600})
+
+    page.goto(live_server.url)
+    page.get_by_label('Username').fill('made-up-user')
+    page.get_by_label('Password').fill('made-up-password')
+    page.get_by_role('button', name='Log in').click()
+    page.goto(live_server.url + '/series/1399/')
+    page.wait_for_load_state('load')  # htmx starts when the page has loaded
+    watched = page.locator('.check.watched')
+
+    # Scroll down the long season and press the circle of episode 30, the first episode marked in the series.
+    circle = page.get_by_role('button', name='Mark episode 30 as watched')
+    circle.scroll_into_view_if_needed()
+    address_before = page.url
+    scrolled_before = page.evaluate('window.scrollY')
+    open_before = page.locator('details[open]').count()
+    assert scrolled_before > 500  # it really is scrolled down
+    circle.click()
+
+    # A pop-up asks about the earlier episodes. Nothing is saved yet, and Cancel closes it and changes nothing.
+    question = page.get_by_role('dialog')
+    expect(question.get_by_text('Did you watch the earlier episodes too?')).to_be_visible()
+    expect(watched).to_have_count(0)
+    question.get_by_role('button', name='Cancel').click()
+    expect(question).to_be_hidden()
+    expect(watched).to_have_count(0)
+    assert abs(page.evaluate('window.scrollY') - scrolled_before) < 2
+
+    # Pressing it again asks again; "Yes" marks episodes 1 to 30.
+    circle.click()
+    question.get_by_role('button', name='Yes, mark all 30').click()
+
+    # Episodes 1 to 30 are green and the question is gone. There is no notice and no Undo button.
+    expect(question).to_be_hidden()
+    expect(watched).to_have_count(30)
+    expect(page.get_by_role('button', name='Undo')).to_have_count(0)
+    # Nothing moved: same place, same address, same seasons open, no reload.
+    assert abs(page.evaluate('window.scrollY') - scrolled_before) < 2
+    assert page.url == address_before
+    assert page.locator('details[open]').count() == open_before
+
+    # Ten episodes are left, so the season button still says "as watched". It marks them, and then turns
+    # into "as not watched": pressing the same button again un-marks the whole season.
+    page.evaluate('window.scrollTo(0, 0)')
+    page.get_by_role('button', name='Mark Season 1 as watched').click()
+    expect(watched).to_have_count(40)
+    expect(page.get_by_role('button', name='Mark Season 1 as not watched')).to_be_visible()
+    expect(page.get_by_role('button', name='Mark Season 1 as watched')).to_have_count(0)
+    assert page.evaluate('window.scrollY') == 0
+    page.get_by_role('button', name='Mark Season 1 as not watched').click()
+    expect(watched).to_have_count(0)
+    expect(page.get_by_role('button', name='Mark Season 1 as watched')).to_be_visible()
+
+    # With nothing marked again, the first mark asks again. "No" marks just that episode.
+    circle.click()
+    question.get_by_role('button', name='No, only S1E30').click()
+    expect(question).to_be_hidden()
+    expect(watched).to_have_count(1)
+    page.get_by_role('button', name='Mark episode 30 as not watched').click()
+    expect(watched).to_have_count(0)
+
+    # Mark the whole season again and reload: still marked, and the button still says so.
+    page.evaluate('window.scrollTo(0, 0)')
+    page.get_by_role('button', name='Mark Season 1 as watched').click()
+    expect(watched).to_have_count(40)
+    page.reload()
+    expect(watched).to_have_count(40)
+    expect(page.get_by_role('button', name='Mark Season 1 as not watched')).to_be_visible()
+    # Un-mark one by hand: the season is not complete any more, so the button flips back to "as watched".
+    page.get_by_role('button', name='Mark episode 40 as not watched').click()
+    expect(watched).to_have_count(39)
+    expect(page.get_by_role('button', name='Mark Season 1 as watched')).to_be_visible()
 
 
 def test_a_series_found_in_search_and_marked_shows_up_under_watching(live_server, page, respx_mock, settings):

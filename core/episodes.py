@@ -1,5 +1,5 @@
-"""Series and their episodes, apart from the screens: keeping them up to date, and which tab of
-the Series section a series is in for an account (To Watch, Watching or Finished)."""
+"""Series and their episodes, apart from the screens: keeping them up to date, marking many episodes
+at once, and which tab of the Series section a series is in for an account (To Watch, Watching or Finished)."""
 
 from django.db import transaction
 from django.db.models import Count, Max
@@ -30,6 +30,70 @@ def refresh_episodes(series):
         series.status = details['status']
         series.episodes_refreshed_at = timezone.now()
         series.save(update_fields=['status', 'episodes_refreshed_at'])
+
+
+def episodes_up_to(episode):
+    """The episodes from season 1, episode 1 up to and including `episode`, in the order the series page lists them.
+
+    Specials (season 0) are not part of that order, so this is for a regular episode.
+    """
+    in_order = episode.title.episodes.filter(season_number__gt=0).order_by('season_number', 'episode_number', 'id')
+    up_to = []
+    for candidate in in_order:
+        up_to.append(candidate)
+        if candidate.id == episode.id:
+            break
+    return up_to
+
+
+def earlier_to_ask_about(user, episode, today):
+    """The episodes to ask about when `episode` is the first one this account marks in its series.
+
+    Marking a regular episode that has aired, with nothing marked in the series yet, is a sign the earlier
+    episodes were watched too, so the page asks. These are the episodes before it that have aired, in page
+    order. It is empty (nothing to ask) for a special, for an episode that is not aired, when the series
+    already has a marked episode, or when nothing aired before it.
+    """
+    if episode.season_number == 0 or episode.air_date is None or episode.air_date > today:
+        return []
+    if Watch.objects.filter(user=user, title_id=episode.title_id, episode__season_number__gt=0).exists():
+        return []
+    before = episodes_up_to(episode)[:-1]
+    return [earlier for earlier in before if earlier.air_date is not None and earlier.air_date <= today]
+
+
+def mark_episodes(user, episodes, today):
+    """Mark many episodes as watched at once, for "mark a season" and the question's "Yes" (everything up to here).
+
+    Only an episode that has aired (on or before `today`, the account's own day) and that the account
+    has not marked yet gets a watch, dated `today` like a single mark. The rest are left alone, so an
+    episode marked earlier keeps its watch and its date.
+
+    Returns the episodes that were newly marked (none when there was nothing new).
+    """
+    already = set(Watch.objects.filter(user=user, episode__in=episodes).values_list('episode', flat=True))
+    new = [
+        episode
+        for episode in episodes
+        if episode.air_date is not None and episode.air_date <= today and episode.id not in already
+    ]
+    Watch.objects.bulk_create(
+        [Watch(user=user, title_id=episode.title_id, episode=episode, watched_on=today) for episode in new]
+    )
+    return new
+
+
+def unmark_episodes(user, episodes):
+    """Mark many episodes as not watched at once, for the season button pressed again.
+
+    Deletes the account's own watches of `episodes` and nothing else, so it is the undo of `mark_episodes`
+    (the watches come back dated the day they are marked again). Returns the episodes that were marked
+    and are not any more.
+    """
+    watches = Watch.objects.filter(user=user, episode__in=episodes)
+    marked = set(watches.values_list('episode', flat=True))
+    watches.delete()
+    return [episode for episode in episodes if episode.id in marked]
 
 
 def started_series(user):

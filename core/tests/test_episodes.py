@@ -262,7 +262,7 @@ def test_a_refresh_brings_in_a_new_episode(logged_in_client, tmdb_series, clock)
 
 def test_a_renumbered_episode_keeps_its_watch_and_nothing_is_deleted(logged_in_client, tmdb_series, clock):
     page(logged_in_client)
-    mark(logged_in_client, 6002)
+    mark(logged_in_client, 6002, only_this=1)  # the first mark in a series asks about the earlier ones; not here
     watch = Watch.objects.get()
     # TMDB now calls that episode number 5 with another name, and has dropped episode 6003.
     renumbered = made_up_episode(1, 5, 6002, '2011-04-24', name='Made-up renamed episode')
@@ -358,7 +358,7 @@ def test_the_button_is_gray_until_the_episode_is_watched_then_green(logged_in_cl
 def test_an_episode_that_aired_today_can_be_marked(logged_in_client, tmdb_series):
     page(logged_in_client)
 
-    mark(logged_in_client, 6003)
+    mark(logged_in_client, 6003, only_this=1)
 
     assert Watch.objects.get().watched_on == datetime.date(2026, 10, 28)
 
@@ -374,7 +374,7 @@ def test_the_day_follows_the_accounts_time_zone(logged_in_client, tmdb_series):
     assert not can_mark(page(logged_in_client), 6101)  # no button for it in Lisbon...
     assert can_mark(page(auckland), 6101)  # ...but there is one in Auckland
 
-    mark(auckland, 6101)
+    mark(auckland, 6101, only_this=1)
     assert Watch.objects.get().watched_on == datetime.date(2026, 10, 29)
 
 

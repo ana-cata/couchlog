@@ -59,6 +59,7 @@
             {% for season in seasons %}
               <details id="season-{{ season.number }}"{% if season.number == open_season %} open{% endif %}>
                 <summary>{{ season.name }} <small>· {{ season.episodes|length }} episode{{ season.episodes|length|pluralize }}</small></summary>
+                {% include 'core/_season_action.html' %}
                 <ul class="episodes">
                   {% for episode in season.episodes %}
                     {% include 'core/_episode_row.html' %}
@@ -68,6 +69,8 @@
             {% empty %}
               {% if not notice %}<p>TMDB has no episodes for this series yet.</p>{% endif %}
             {% endfor %}
+            {# The pop-up question after the first episode marked in a series. Empty until then. #}
+            <div id="ask">{% if ask %}{% include 'core/_ask_earlier.html' %}{% endif %}</div>
           </div>
         {% endif %}
       </div>

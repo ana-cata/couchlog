@@ -1,0 +1,33 @@
+{# The question after the first episode marked in a series: did you watch everything before it too? #}
+{# Pico shows a <dialog open> as a pop-up over the page, so it needs no JavaScript. Nothing is saved until one of the two #}
+{# buttons is pressed. "Cancel" just closes it (a form with method="dialog"). #}
+{# With htmx both answers use hx-swap="none": their answer is only the changed rows and season buttons, and an empty #ask that takes this question off the page. #}
+<dialog open aria-labelledby="ask-title">
+  <article>
+    <h3 id="ask-title">Did you watch the earlier episodes too?</h3>
+    <p>
+      {{ ask.name }} is the first episode you mark in {{ ask.item.title }}.
+      Did you watch everything from the beginning ({{ ask.first }}) up to it?
+    </p>
+    <footer>
+      <form method="dialog">
+        <button type="submit" class="secondary outline">Cancel</button>
+      </form>
+      <form method="post" action="{% url 'episode_watched_add' %}"
+            hx-post="{% url 'episode_watched_add' %}" hx-swap="none">
+        {% csrf_token %}
+        <input type="hidden" name="episode_id" value="{{ ask.episode.id }}">
+        <input type="hidden" name="only_this" value="1">
+        <input type="hidden" name="next" value="{% url 'title' 'series' ask.item.tmdb_id %}?season={{ ask.episode.season_number }}#episode-{{ ask.episode.id }}">
+        <button type="submit" class="secondary">No, only {{ ask.name }}</button>
+      </form>
+      <form method="post" action="{% url 'episodes_watched_up_to' %}"
+            hx-post="{% url 'episodes_watched_up_to' %}" hx-swap="none">
+        {% csrf_token %}
+        <input type="hidden" name="episode_id" value="{{ ask.episode.id }}">
+        <input type="hidden" name="next" value="{% url 'title' 'series' ask.item.tmdb_id %}?season={{ ask.episode.season_number }}#episode-{{ ask.episode.id }}">
+        <button type="submit" autofocus>Yes, mark all {{ ask.count }}</button>
+      </form>
+    </footer>
+  </article>
+</dialog>

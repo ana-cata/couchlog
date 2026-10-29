@@ -17,7 +17,15 @@ from django.views.decorators.http import require_POST
 from django.views.decorators.vary import vary_on_headers
 
 from . import tmdb
-from .episodes import refresh_episodes, series_tabs, started_series
+from .episodes import (
+    earlier_to_ask_about,
+    episodes_up_to,
+    mark_episodes,
+    refresh_episodes,
+    series_tabs,
+    started_series,
+    unmark_episodes,
+)
 from .forms import TimeZoneForm, WatchedForm
 from .models import Episode, Profile, Title, ToWatchItem, Watch
 
@@ -120,16 +128,14 @@ def _series_page(request, tmdb_id):
         by_season.setdefault(episode.season_number, []).append(episode)
     # Specials (season 0) last.
     numbers = sorted(by_season, key=lambda number: (number == 0, number))
-    seasons = [
-        {'number': number, 'name': 'Specials' if number == 0 else f'Season {number}', 'episodes': by_season[number]}
-        for number in numbers
-    ]
+    seasons = [_season_info(number, by_season[number]) for number in numbers]
     try:
         open_season = int(request.GET['season'])
     except (KeyError, ValueError):
         open_season = numbers[0] if numbers else None
 
     on_list = _my_item(request, 'series', tmdb_id).filter(removed_at=None).exists()
+    asked = series.episodes.filter(id=request.session.pop('ask_earlier', 0)).first()
     context = {
         'item': series,
         'on_list': on_list,
@@ -137,6 +143,9 @@ def _series_page(request, tmdb_id):
         'notice': notice,
         'seasons': seasons,
         'open_season': open_season,
+        # Without htmx, the question after a first mark ("did you watch the earlier episodes too?") comes back
+        # here and is shown once. It is worked out again here, so a page that is out of date asks nothing.
+        'ask': _question(request, asked, today) if asked else None,
     }
     return render(request, 'core/title.html', context)
 
@@ -389,24 +398,106 @@ def _has_aired(episode, today):
     return episode.air_date is not None and episode.air_date <= today
 
 
+def _with_state(request, episodes):
+    """Give each episode what its row needs: this account's watch for it, and whether it has aired."""
+    today = _today(request)
+    # Watches are listed oldest first, so with rewatches (later) the latest one wins.
+    watches = {
+        watch.episode_id: watch
+        for watch in Watch.objects.filter(user=request.user, episode__in=episodes).order_by('created_at', 'id')
+    }
+    for episode in episodes:
+        episode.watch = watches.get(episode.id)
+        episode.aired = _has_aired(episode, today)
+    return episodes
+
+
+def _season_info(number, episodes):
+    """What a season needs on the page, from its episodes (each with its watch and `aired` already set)."""
+    aired = [episode for episode in episodes if episode.aired]
+    return {
+        'number': number,
+        'name': 'Specials' if number == 0 else f'Season {number}',
+        'episodes': episodes,
+        # A season none of whose episodes has aired has nothing to mark, so it gets no button.
+        'has_aired': bool(aired),
+        # Once every episode that has aired is marked, the button un-marks the season instead.
+        'all_marked': bool(aired) and all(episode.watch for episode in aired),
+    }
+
+
+def _season_infos(request, series, episodes):
+    """The seasons that `episodes` are in, as they are now, for the buttons htmx puts in place after a change."""
+    numbers = {episode.season_number for episode in episodes}
+    in_those = series.episodes.filter(season_number__in=numbers).order_by('season_number', 'episode_number', 'id')
+    by_season = {}
+    for episode in _with_state(request, list(in_those)):
+        by_season.setdefault(episode.season_number, []).append(episode)
+    return [_season_info(number, by_season[number]) for number in sorted(by_season)]
+
+
 def _episode_row(request, episode):
-    """One episode's row in its current state, which htmx swaps in place so the page does not move."""
-    episode.watch = Watch.objects.filter(user=request.user, episode=episode).order_by('-created_at', '-id').first()
-    episode.aired = _has_aired(episode, _today(request))
-    return render(request, 'core/_episode_row.html', {'episode': episode, 'item': episode.title})
+    """One episode's row in its current state, which htmx swaps in place so the page does not move.
+    Its season's button comes with it, because this episode may have just completed (or broken) the season."""
+    _with_state(request, [episode])
+    context = {'episode': episode, 'item': episode.title, 'seasons': _season_infos(request, episode.title, [episode])}
+    return render(request, 'core/_episode_answer.html', context)
+
+
+def _short_name(episode):
+    return f'S{episode.season_number}E{episode.episode_number}'
+
+
+def _question(request, episode, today):
+    """What to ask when `episode` is the first one marked in its series ("did you watch the earlier episodes
+    too?"), or None when there is nothing to ask."""
+    earlier = earlier_to_ask_about(request.user, episode, today)
+    if not earlier:
+        return None
+    return {
+        'item': episode.title,
+        'episode': episode,
+        'name': _short_name(episode),
+        'first': _short_name(earlier[0]),
+        'count': len(earlier) + 1,  # what "Yes" marks: the earlier ones and this one
+    }
 
 
 def _answer_episode(request, episode, text='', ok=True):
     """Reply to an episode button. With htmx: just the row, as it is now (the colour says what happened).
-    Without htmx: a redirect back to the series page, with a message (unless `text` is empty)."""
+    Without htmx: a redirect back to the series page, with a message (unless `text` is empty).
+
+    When the button was "No, only this one" on the question, the question is on the page and has to go away
+    too, so the answer is the one `_answer_changed` gives (the changed row, and the question taken off)."""
     if request.headers.get('HX-Request'):
+        if request.POST.get('only_this'):
+            return _answer_changed(request, episode.title, [episode])
         return _episode_row(request, episode)
     return _redirect_back(request, text, ok, 'series')
 
 
+def _ask_earlier(request, question):
+    """Answer a first mark with the question instead of marking. Nothing is saved until it is answered.
+
+    With htmx the question goes into the page where it is (`#ask`). Without htmx it is kept for the series
+    page to show, once, after the redirect.
+    """
+    if request.headers.get('HX-Request'):
+        response = render(request, 'core/_ask_earlier.html', {'ask': question, 'next': request.POST.get('next', '')})
+        response['HX-Retarget'] = '#ask'
+        response['HX-Reswap'] = 'innerHTML'
+        return response
+    request.session['ask_earlier'] = question['episode'].id
+    return _redirect_back(request, '', True, 'series')
+
+
 @require_POST
 def episode_watched_add(request):
-    """Mark one episode as watched, on the day the button is pressed (in the account's time zone)."""
+    """Mark one episode as watched, on the day the button is pressed (in the account's time zone).
+
+    The first episode marked in a series asks first whether the earlier ones were watched too. The question's
+    "No, only this one" sends `only_this` to skip it.
+    """
     episode = _posted_episode(request)
     name = f'“{episode.title.title}” S{episode.season_number}E{episode.episode_number}'
     today = _today(request)
@@ -418,6 +509,10 @@ def episode_watched_add(request):
     # Watching it again is a later feature (Rewatch). For now a second press changes nothing.
     if Watch.objects.filter(user=request.user, episode=episode).exists():
         return _answer_episode(request, episode, f'{name} is already marked as watched.')
+    if not request.POST.get('only_this'):
+        question = _question(request, episode, today)
+        if question:
+            return _ask_earlier(request, question)
 
     Watch.objects.create(user=request.user, title=episode.title, episode=episode, watched_on=today)
     return _answer_episode(request, episode)
@@ -450,6 +545,81 @@ def watched_remove(request):
     if back_on_list:
         text += ' It is back on your To Watch list.'
     return _redirect_back(request, text, True, 'history')
+
+
+def _answer_changed(request, series, episodes, text='', ok=True):
+    """Reply to the season buttons and to the question's "Yes" and "No". `episodes` are the ones that changed.
+
+    With htmx: just those rows and the buttons of their seasons, which htmx puts where they are on the page
+    (the form says `hx-swap="none"`, so nothing else is touched), and the question taken off the page if it
+    was open. The page does not move and the open seasons stay open.
+    Without htmx: a redirect back to the series page, with `text` as a message (unless it is empty).
+    """
+    if request.headers.get('HX-Request'):
+        context = {
+            'item': series,
+            'episodes': _with_state(request, episodes),
+            'seasons': _season_infos(request, series, episodes),
+        }
+        return render(request, 'core/_bulk_result.html', context)
+    return _redirect_back(request, text, ok, 'series')
+
+
+def _posted_season(request):
+    """The series, the season number and the season's episodes a season button was pressed for."""
+    try:
+        tmdb_id, number = int(request.POST.get('tmdb_id', '')), int(request.POST.get('season', ''))
+    except ValueError:
+        raise BadRequest from None
+    if tmdb_id < 1 or number < 0:
+        raise BadRequest
+    series = get_object_or_404(Title, kind='series', tmdb_id=tmdb_id)
+    episodes = list(series.episodes.filter(season_number=number).order_by('episode_number', 'id'))
+    if not episodes:
+        raise Http404
+    return series, number, episodes
+
+
+@require_POST
+def season_watched_add(request):
+    """Mark every episode of a season that has aired and is not marked yet, in one step.
+
+    When there is nothing new to mark, nothing happens and nothing is said (the page only offers this button
+    while something is left to mark).
+    """
+    series, _, episodes = _posted_season(request)
+    marked = mark_episodes(request.user, episodes, _today(request))
+    return _answer_changed(request, series, marked)
+
+
+@require_POST
+def season_watched_remove(request):
+    """Mark a whole season as not watched in one step: the season button, pressed again.
+
+    Every watch of this account for the season goes, so it is the undo of marking the whole season. When
+    nothing in the season is marked, nothing happens.
+    """
+    series, _, episodes = _posted_season(request)
+    unmarked = unmark_episodes(request.user, episodes)
+    return _answer_changed(request, series, unmarked)
+
+
+@require_POST
+def episodes_watched_up_to(request):
+    """Watched up to here, the "Yes" of the question on a first mark: mark every episode that has aired and is
+    not marked yet, from season 1 episode 1 up to the chosen one, in one step."""
+    episode = _posted_episode(request)
+    if episode.season_number == 0:
+        raise BadRequest  # specials are not in that order, and the page offers no question for them
+    name = _short_name(episode)
+    if episode.air_date is None:
+        text = f'{name} has no air date yet, so nothing can be marked up to it.'
+        return _answer_changed(request, episode.title, [], text, ok=False)
+    if episode.air_date > _today(request):
+        text = f'{name} has not aired yet, so nothing can be marked up to it.'
+        return _answer_changed(request, episode.title, [], text, ok=False)
+    marked = mark_episodes(request.user, episodes_up_to(episode), _today(request))
+    return _answer_changed(request, episode.title, marked)
 
 
 # Nothing private on this page, and the TMDB credit should be visible to everyone.
