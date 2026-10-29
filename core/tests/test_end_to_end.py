@@ -2,6 +2,7 @@
 
 import datetime
 import os
+import re
 
 from django.contrib.auth.models import User
 from playwright.sync_api import expect
@@ -151,3 +152,40 @@ def test_a_page_left_open_stops_offering_undo_when_time_is_up(live_server, page,
     page.reload()
     expect(page.get_by_role('heading', name='Recently removed')).to_have_count(0)
     expect(page.get_by_text('Nothing on your To Watch list yet')).to_be_visible()
+
+
+def test_mark_a_movie_as_watched_see_it_in_history_then_undo(live_server, page, respx_mock, settings):
+    settings.TMDB_API_KEY = 'made-up-secret-key'
+    user = User.objects.create_user(username='made-up-user', password='made-up-password')
+    Profile.objects.create(user=user, timezone='Europe/Lisbon')
+    title = Title.objects.create(kind='movie', tmdb_id=603, title='Made-up Movie', year='1999')
+    ToWatchItem.objects.create(user=user, title=title)
+    respx_mock.get('https://api.themoviedb.org/3/movie/603').respond(json=MADE_UP_MOVIE)
+    page.route('https://image.tmdb.org/**', lambda route: route.abort())
+
+    page.goto(live_server.url)
+    page.get_by_label('Username').fill('made-up-user')
+    page.get_by_label('Password').fill('made-up-password')
+    page.get_by_role('button', name='Log in').click()
+
+    # Open the movie from the To Watch list and mark it as watched (the date box starts on today).
+    page.get_by_role('link', name='To Watch', exact=True).click()
+    page.locator('.tile').click()
+    page.get_by_role('button', name='Mark as watched').click()
+    expect(page.get_by_text('Marked “Made-up Movie” as watched.')).to_be_visible()
+    expect(page.get_by_role('button', name='Mark as not watched')).to_be_visible()
+
+    # It is in History with a date, and it has left the To Watch list.
+    page.get_by_role('link', name='History', exact=True).click()
+    expect(page.locator('.tile')).to_contain_text('Made-up Movie')
+    expect(page.get_by_text(re.compile(r'Watched \d{1,2} \w{3} \d{4}'))).to_be_visible()
+    page.get_by_role('link', name='To Watch', exact=True).click()
+    expect(page.locator('.tile')).to_have_count(0)
+    expect(page.get_by_role('heading', name='Recently removed')).to_have_count(0)
+
+    # Undo from History: it leaves History and is back on To Watch.
+    page.get_by_role('link', name='History', exact=True).click()
+    page.get_by_role('button', name='Mark as not watched').click()
+    expect(page.get_by_text('Nothing in your history yet')).to_be_visible()
+    page.get_by_role('link', name='To Watch', exact=True).click()
+    expect(page.locator('.tile')).to_contain_text('Made-up Movie')

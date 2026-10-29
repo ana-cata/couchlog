@@ -39,7 +39,8 @@ Each card that adds a table updates this list.
 |---|---|---|
 | `core_profile` | Couchlog's own settings for an account, one row per account: `user` (links to `auth_user`, deleted with it) and `timezone` (a name like `Europe/Lisbon`, empty until chosen). | [Profile](profile.md) |
 | `core_title` | A movie or series saved from TMDB when someone first adds it: `kind` (`movie` or `series`), `tmdb_id`, `title`, `year`, `poster_url`, `overview`. One row per title, shared by all accounts. Unique on `kind` + `tmdb_id`. | [To Watch](to-watch.md) |
-| `core_towatchitem` | One title on one account's To Watch list: `user`, `title` (links to `core_title`), `added_at`, and `removed_at` (empty while on the list; filled in when removed, so undo can restore it). Unique on `user` + `title`. | [To Watch](to-watch.md), [Search](search.md) |
+| `core_towatchitem` | One title on one account's To Watch list: `user`, `title` (links to `core_title`), `added_at`, `removed_at` (empty while on the list; filled in when removed, so undo can restore it) and `removed_by_watch` (links to `core_watch`; only set when marking the title as watched took it off the list). Unique on `user` + `title`. | [To Watch](to-watch.md), [Search](search.md), [History](history.md) |
+| `core_watch` | One time an account watched a title: `user`, `title` (links to `core_title`), `watched_on` (a day; empty means date unknown) and `created_at`. No "one per title" limit, so rewatches and, later, episodes use the same table. Undo deletes the row. | [History](history.md) |
 | `auth_user` | The accounts (username, password, last login). I create them in Django's admin page. | [Login](profile.md) |
 | `auth_group`, `auth_permission` and their link tables | Groups and permissions. Not used by Couchlog for now. | Django's admin page |
 | `django_session` | Who is logged in, by browser session. | [Login](profile.md) |

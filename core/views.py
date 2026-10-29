@@ -1,9 +1,12 @@
 import math
 from datetime import timedelta
+from zoneinfo import ZoneInfo
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_not_required
 from django.core.exceptions import BadRequest
+from django.db import transaction
+from django.db.models import F
 from django.http import Http404
 from django.shortcuts import redirect, render
 from django.urls import reverse
@@ -14,8 +17,8 @@ from django.views.decorators.http import require_POST
 from django.views.decorators.vary import vary_on_headers
 
 from . import tmdb
-from .forms import TimeZoneForm
-from .models import Profile, Title, ToWatchItem
+from .forms import TimeZoneForm, WatchedForm
+from .models import Profile, Title, ToWatchItem, Watch
 
 # How long after removing a title from To Watch it can still be undone. The screen says the
 # number of seconds, which comes from here. After that, the way back is adding the title again.
@@ -61,7 +64,32 @@ def title(request, kind, tmdb_id):
     except tmdb.TmdbError as problem:
         return render(request, 'core/title.html', {'error': str(problem)})
     on_list = _my_item(request, kind, tmdb_id).filter(removed_at=None).exists()
-    return render(request, 'core/title.html', {'item': item, 'on_list': on_list, 'next': request.get_full_path()})
+    context = {'item': item, 'on_list': on_list, 'next': request.get_full_path()}
+    if kind == 'movie':
+        # Series are marked episode by episode (a later card), so only movies get this section.
+        context['watch'] = (
+            Watch.objects.filter(user=request.user, title__kind=kind, title__tmdb_id=tmdb_id)
+            .order_by('-created_at', '-id')
+            .first()
+        )
+        context['today'] = _today(request)
+    return render(request, 'core/title.html', context)
+
+
+def _today(request):
+    """Today's date in the account's own time zone. The server's time zone does not matter."""
+    name = Profile.objects.filter(user=request.user).values_list('timezone', flat=True).first()
+    return timezone.now().astimezone(ZoneInfo(name or 'UTC')).date()
+
+
+def _saved_title(kind, tmdb_id):
+    """Our own saved copy of a title. The first time anyone needs it, TMDB is asked and it is saved."""
+    title = Title.objects.filter(kind=kind, tmdb_id=tmdb_id).first()
+    if title is None:
+        details = tmdb.get_title(kind, tmdb_id)
+        saved = {key: details[key] for key in ('title', 'year', 'poster_url', 'overview')}
+        title, _ = Title.objects.get_or_create(kind=kind, tmdb_id=tmdb_id, defaults=saved)
+    return title
 
 
 def _undo_seconds():
@@ -69,9 +97,14 @@ def _undo_seconds():
 
 
 def _recently_removed(request):
-    """What the "Recently removed" block shows: only titles still inside the undo window."""
+    """What the "Recently removed" block shows: only titles still inside the undo window.
+
+    A title that left because it was marked as watched is not here: its undo is "Mark as not watched".
+    """
     removed = list(
-        ToWatchItem.objects.filter(user=request.user, removed_at__gte=timezone.now() - UNDO_WINDOW)
+        ToWatchItem.objects.filter(
+            user=request.user, removed_at__gte=timezone.now() - UNDO_WINDOW, removed_by_watch=None
+        )
         .select_related('title')
         .order_by('-removed_at')
     )
@@ -132,12 +165,17 @@ def _answer(request, kind, tmdb_id, on_list, text, ok=True):
             context['error'] = text
         return render(request, 'core/_to_watch_button.html', context)
 
+    return _redirect_back(request, text, ok, 'to_watch')
+
+
+def _redirect_back(request, text, ok, fallback):
+    """Go back to the page a button was on, with a message (unless `text` is empty)."""
     if text:
         (messages.success if ok else messages.error)(request, text)
     next_url = request.POST.get('next', '')
     # Only come back to a page of this site, never to an address someone slipped into the form.
     if not url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
-        next_url = reverse('to_watch')
+        next_url = reverse(fallback)
     return redirect(next_url)
 
 
@@ -146,22 +184,18 @@ def to_watch_add(request):
     kind, tmdb_id = _posted_title(request)
 
     # The details come from TMDB the first time anyone adds a title, then from our own table.
-    title = Title.objects.filter(kind=kind, tmdb_id=tmdb_id).first()
-    if title is None:
-        try:
-            details = tmdb.get_title(kind, tmdb_id)
-        except tmdb.TmdbNotFound:
-            raise Http404 from None
-        except tmdb.TmdbError as problem:
-            return _answer(request, kind, tmdb_id, False, str(problem), ok=False)
-        saved = {key: details[key] for key in ('title', 'year', 'poster_url', 'overview')}
-        title, _ = Title.objects.get_or_create(kind=kind, tmdb_id=tmdb_id, defaults=saved)
+    try:
+        title = _saved_title(kind, tmdb_id)
+    except tmdb.TmdbNotFound:
+        raise Http404 from None
+    except tmdb.TmdbError as problem:
+        return _answer(request, kind, tmdb_id, False, str(problem), ok=False)
 
     item, created = ToWatchItem.objects.get_or_create(user=request.user, title=title)
     if item.removed_at:
         # Adding a title again after removing it puts it back as newly added.
-        item.removed_at, item.added_at = None, timezone.now()
-        item.save(update_fields=['removed_at', 'added_at'])
+        item.removed_at, item.added_at, item.removed_by_watch = None, timezone.now(), None
+        item.save(update_fields=['removed_at', 'added_at', 'removed_by_watch'])
     elif not created:
         return _answer(request, kind, tmdb_id, True, f'“{title.title}” is already on your To Watch list.')
     return _answer(request, kind, tmdb_id, True, f'Added “{title.title}” to your To Watch list.')
@@ -183,7 +217,8 @@ def to_watch_remove(request):
 @require_POST
 def to_watch_undo(request):
     kind, tmdb_id = _posted_title(request)
-    item = _my_item(request, kind, tmdb_id).exclude(removed_at=None).first()
+    # A title that left because it was watched is brought back by "Mark as not watched", not here.
+    item = _my_item(request, kind, tmdb_id).exclude(removed_at=None).filter(removed_by_watch=None).first()
     if item is None:
         return _answer(request, kind, tmdb_id, False, 'There is nothing to undo for that title.', ok=False)
     if item.removed_at < timezone.now() - UNDO_WINDOW:
@@ -193,6 +228,71 @@ def to_watch_undo(request):
     item.removed_at = None
     item.save(update_fields=['removed_at'])
     return _answer(request, kind, tmdb_id, True, f'Put “{item.title.title}” back on your To Watch list.')
+
+
+def history(request):
+    # Newest watch first. Watches with an unknown date go last, newest saved first among themselves.
+    watches = (
+        Watch.objects.filter(user=request.user)
+        .select_related('title')
+        .order_by(F('watched_on').desc(nulls_last=True), '-created_at', '-id')
+    )
+    return render(request, 'core/history.html', {'watches': watches, 'next': reverse('history')})
+
+
+@require_POST
+def watched_add(request):
+    kind, tmdb_id = _posted_title(request)
+    if kind != 'movie':
+        raise BadRequest  # series are marked episode by episode, in a later card
+
+    form = WatchedForm(request.POST, today=_today(request))
+    if not form.is_valid():
+        problem = ' '.join(error for errors in form.errors.values() for error in errors)
+        return _redirect_back(request, problem, False, 'history')
+
+    try:
+        title = _saved_title(kind, tmdb_id)
+    except tmdb.TmdbNotFound:
+        raise Http404 from None
+    except tmdb.TmdbError as problem:
+        return _redirect_back(request, str(problem), False, 'history')
+
+    # Watching it again is a later feature (Rewatch). For now a second press changes nothing.
+    if Watch.objects.filter(user=request.user, title=title).exists():
+        return _redirect_back(request, f'“{title.title}” is already marked as watched.', True, 'history')
+
+    with transaction.atomic():
+        watch = Watch.objects.create(user=request.user, title=title, watched_on=form.cleaned_data['watched_on'])
+        # A watched movie leaves the To Watch list. The watch is remembered on the entry, so
+        # un-marking it can put the entry back exactly as it was.
+        ToWatchItem.objects.filter(user=request.user, title=title, removed_at=None).update(
+            removed_at=timezone.now(), removed_by_watch=watch
+        )
+    return _redirect_back(request, f'Marked “{title.title}” as watched.', True, 'history')
+
+
+@require_POST
+def watched_remove(request):
+    """Undo a watch, right after marking it or any time later."""
+    try:
+        watch_id = int(request.POST.get('watch_id', ''))
+    except ValueError:
+        raise BadRequest from None
+    watch = Watch.objects.select_related('title').filter(user=request.user, id=watch_id).first()
+    if watch is None:
+        return _redirect_back(request, 'That watch is not in your history.', False, 'history')
+
+    with transaction.atomic():
+        # If this watch took the title off To Watch, it goes back as it was (the date added is untouched).
+        back_on_list = ToWatchItem.objects.filter(removed_by_watch=watch).update(
+            removed_at=None, removed_by_watch=None
+        )
+        watch.delete()
+    text = f'Marked “{watch.title.title}” as not watched.'
+    if back_on_list:
+        text += ' It is back on your To Watch list.'
+    return _redirect_back(request, text, True, 'history')
 
 
 # Nothing private on this page, and the TMDB credit should be visible to everyone.

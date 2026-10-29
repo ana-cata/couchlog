@@ -22,3 +22,26 @@ class TimeZoneForm(forms.Form):
         self.fields['timezone'].choices = [('', 'Choose a time zone')] + [
             (name, name) for name in timezone_names()
         ]
+
+
+class WatchedForm(forms.Form):
+    """The date on the "Mark as watched" button: a day that has happened, or "unknown"."""
+
+    watched_on = forms.DateField(required=False)
+    date_unknown = forms.BooleanField(required=False)
+
+    def __init__(self, *args, today, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.today = today
+
+    def clean(self):
+        data = super().clean()
+        if data.get('date_unknown'):
+            data['watched_on'] = None
+        elif 'watched_on' not in self.errors:
+            day = data.get('watched_on')
+            if day is None:
+                self.add_error('watched_on', 'Pick the day you watched it, or tick “Date unknown”.')
+            elif day > self.today:
+                self.add_error('watched_on', 'That day has not happened yet.')
+        return data

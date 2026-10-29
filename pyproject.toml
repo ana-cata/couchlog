@@ -16,6 +16,7 @@ dev = [
     "pytest-playwright>=0.10.0",
     "respx>=0.23.1",
     "ruff>=0.17.3",
+    "time-machine>=3.6.0",
 ]
 
 [tool.ruff]

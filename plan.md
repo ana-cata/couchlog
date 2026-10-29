@@ -43,6 +43,7 @@ What this means in practice:
 | TMDB requests | `httpx` (Python HTTP client), called only from server code | The key is read from `.env` with `python-dotenv`. It accepts TMDB's short API key or its long read access token. Added in card #3. |
 | Search | One TMDB call (`search/multi`) keeps the movies and series and drops people. Results appear as you type, using htmx, 0.4 seconds after typing stops. First page only | Added in card #7. Search results are never saved. The title pages (`/movie/<id>/`, `/series/<id>/`) are read-only for now and grow into the real pages in features 4 and 5. |
 | To Watch list | Two tables: `Title` (the TMDB details, saved when a title is first added, shared by all accounts) and `ToWatchItem` (one row per account and title: date added and, if removed, `removed_at`). Removing only fills in `removed_at`, so undo restores the entry as it was. Undo is offered for 10 seconds after removing (under "Recently removed" at the top of the To Watch screen), and the title then disappears from that list by itself, even on a page left open; after that the only way back is to search for the title and add it again, which resets its date added | Added in card #8. Chosen over one table so later features (watches, episodes, calendar) can point to the same saved title. The 10 seconds is my choice and one setting (`UNDO_WINDOW`). It is an exception to rule 5's "also later"; rule 5 itself stays as written. The buttons are on search results and on the title pages. |
+| Watches | One table, `Watch` (`core_watch`): one row per watch with `user`, `title` and `watched_on`, a day, empty when the date is unknown. No "one per title" limit, so rewatches (and, in card #13, episodes with a link to the episode added then) use the same table. A movie marked as watched leaves To Watch: its `ToWatchItem` gets `removed_at` and `removed_by_watch`, so "Recently removed" skips it and "Mark as not watched" (the undo, which erases the watch) puts it back exactly as it was. That undo has no time limit. "Today" is worked out in the account's time zone, and a day after today is refused | Added in card #9. The movie screens allow one watch per movie for now; Rewatch (feature 8) lifts that. Tests freeze the clock with `time-machine` (dev only). |
 | Browser tests | `pytest-playwright` (Playwright for Python, driving Chromium), with the same made-up TMDB answers | Added in card #8. A one-time `uv run playwright install chromium` per machine; GitHub's checks do it too. |
 | Code + tasks | GitHub (code, pull requests, project board) | |
 
@@ -216,12 +217,12 @@ Done when: I search for a title, add it, see it on the To Watch screen after rel
 
 Goal: register the movies I have already seen.
 
-- [ ] Movie page with details from TMDB
-- [ ] "Mark as watched" with a date (today by default, and the date can be "unknown")
-- [ ] Database table for watches: one entry per watch, with its own date (design rule 1 in section 3)
-- [ ] Viewing history screen
-- [ ] A watched movie leaves the To Watch list
-- [ ] Tests for the watched/unwatched logic
+- [x] Movie page with details from TMDB (built in cards #7 and #8; card #9 added the watched section to it)
+- [x] "Mark as watched" with a date (today by default, and the date can be "unknown")
+- [x] Database table for watches: one entry per watch, with its own date (design rule 1 in section 3)
+- [x] Viewing history screen
+- [x] A watched movie leaves the To Watch list
+- [x] Tests for the watched/unwatched logic (including undo)
 
 Done when: I mark a movie as watched, it appears in my history with its date, and I can undo it.
 
@@ -442,3 +443,4 @@ Sorted by when each item matters.
 | 2026-10-29 | Card #5 merged. Card #6 built (pull request open): login and logout, every page closed to people who are not logged in, a `Profile` table with the time zone, and the Profile page where it is chosen at the first login and changed later. Creating my own account in the admin page is still mine to do (`createsuperuser`, see the README). The time zone is only saved for now; "today" and the country come with the cards that need them. |
 | 2026-10-29 | Card #6 merged. Card #7 built (pull request open): search for movies and series with results that appear as you type, shown as tiles (poster with the name below), simple read-only title pages so a result can be opened, and the About page with the TMDB logo and notice, linked from the header next to Search and Profile. Nothing is saved by search, so there is no new table. Still open in Weeks 3-4: the To Watch list (card #8). |
 | 2026-10-29 | Card #7 merged. Card #8 built (pull request open): the To Watch list. Search results and the title pages get an Add / Remove button, there is a To Watch screen with same-size tiles, and removing a title only hides it, so Undo (under "Recently removed", for 10 seconds, after which the title leaves that list by itself) brings it back exactly as it was. The details from TMDB are saved in my own database when a title is added (new `Title` and `ToWatchItem` tables). Also the first end-to-end test: a real browser logs in, searches, adds, reloads, removes and undoes (needs a one-time `uv run playwright install chromium`; the GitHub checks do it too). Weeks 3-4 are done once it is merged. |
+| 2026-10-29 | Card #8 merged. Card #9 built (pull request open): mark a movie as watched. A movie page gets a date box (today in my time zone, or "date unknown") and a Mark as watched button; a new History screen lists the watched movies, newest first; a watched movie leaves To Watch; and "Mark as not watched" undoes it at any time and puts the movie back on To Watch as it was. New `Watch` table (one row per watch, ready for rewatches and episodes) and one new column on the To Watch entries. `time-machine` added to the dev tools to freeze "today" in tests. Week 5 is done once it is merged; the Week 6 review is next. |

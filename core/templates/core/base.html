@@ -18,6 +18,7 @@
         {% if user.is_authenticated %}
           <li><a href="{% url 'search' %}">Search</a></li>
           <li><a href="{% url 'to_watch' %}">To Watch</a></li>
+          <li><a href="{% url 'history' %}">History</a></li>
           <li><a href="{% url 'profile' %}">Profile</a></li>
         {% endif %}
         {# Open to everyone, so the TMDB credit is also reachable from the login page. #}

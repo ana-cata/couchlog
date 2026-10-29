@@ -44,6 +44,23 @@ class Title(models.Model):
         return f'{self.title} ({self.kind})'
 
 
+class Watch(models.Model):
+    """One time an account watched a title, with its own date (design rule 1).
+
+    There is no "one per title" limit, so a rewatch is just another row. Episodes will use
+    this table too, with a link to the episode added when they arrive.
+    """
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    title = models.ForeignKey(Title, on_delete=models.CASCADE)
+    # The day it was watched, in the account's own time zone. Empty means "date unknown".
+    watched_on = models.DateField(null=True, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    def __str__(self):
+        return f'{self.user}: {self.title} on {self.watched_on or "unknown date"}'
+
+
 class ToWatchItem(models.Model):
     """One title on one account's To Watch list.
 
@@ -55,6 +72,9 @@ class ToWatchItem(models.Model):
     added_at = models.DateTimeField(default=timezone.now)
     # Empty while the title is on the list.
     removed_at = models.DateTimeField(null=True, blank=True)
+    # Set when the title left the list because it was marked as watched (not removed by hand).
+    # Un-marking that watch puts the title back on the list, and "Recently removed" skips it.
+    removed_by_watch = models.ForeignKey(Watch, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
 
     class Meta:
         constraints = (

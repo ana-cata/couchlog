@@ -1,0 +1,10 @@
+{# The clickable part of a tile: poster, name and year. `tile` is a search result or a saved title. #}
+<a class="tile" href="{% url 'title' tile.kind tile.tmdb_id %}" title="{{ tile.title }}">
+  {% if tile.poster_url %}
+    <img class="poster" src="{{ tile.poster_url }}" alt="" loading="lazy">
+  {% else %}
+    <span class="poster no-poster">No poster</span>
+  {% endif %}
+  <strong>{{ tile.title }}</strong>
+  <small>{{ tile.year|default:"Year unknown" }} · {{ tile.kind|capfirst }}</small>
+</a>

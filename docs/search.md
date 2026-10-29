@@ -5,7 +5,7 @@
 - **Search page** (`/search/`, linked as "Search" in the header). Type a title and matching movies and series appear below the box as you type, a moment after you stop typing. Pressing Enter also works.
 - Results are shown as **tiles** in a grid: the poster on top, the name below, then the year and whether it is a movie or a series. The whole tile is a link, and when the mouse is over a tile (or you tab to it) its title and year are underlined so the choice is easy to see. The grid fits the screen (about two tiles across on a phone, more on a wide screen), and every tile is the same size: a long name is cut with "..." (hover to see it all). People (actors, directors) that TMDB also finds are left out.
 - **Add to your list:** under each tile is an "Add to To Watch" button (or "Remove from To Watch" when the title is already on your list). See [To Watch](to-watch.md).
-- **Open one:** click a result to open its title page: poster, title, year, and TMDB's description, with the same To Watch button under the poster. For now that is all. Later cards turn it into the real movie and series pages, with the button to mark it watched.
+- **Open one:** click a result to open its title page: poster, title, year, and TMDB's description, with the same To Watch button under the poster. A movie's page also has the date box and the **Mark as watched** button (see [History](history.md)). A series page is still just the basics: episodes and their checkboxes come with a later card.
 - **Searching saves nothing.** Search results and title pages are read from TMDB each time. Only a title you add to your To Watch list is saved.
 - **If something goes wrong** you see a message instead of a crash:
   - TMDB cannot be reached, or does not accept the key: a short message under the box.
@@ -28,7 +28,7 @@
 - The box (`core/templates/core/search.html`) uses htmx. A request goes out 0.4 seconds after typing stops (`hx-trigger="input changed delay:400ms, search"`), so TMDB is not asked on every key. A newer request cancels an older one still running (`hx-sync`), so a slow old answer never replaces a newer one.
 - The address bar is updated with the search text (`hx-replace-url`), so reloading the page keeps the results.
 - The `/search/` view (`core/views.py`) answers a normal request with the whole page (`search.html`) and an htmx request with only the list (`_search_results.html`). The answer is marked `Vary: HX-Request` so the browser never shows the list-only version as a page.
-- Each tile (`_tile.html`) is a link to the title page with the To Watch button under it (`_to_watch_button.html`, which is outside the link so a click on the button never opens the page). The view checks your To Watch list to know which button to show.
+- Each tile (`_tile.html`, with the link part in `_tile_link.html`) is a link to the title page with the To Watch button under it (`_to_watch_button.html`, which is outside the link so a click on the button never opens the page). The view checks your To Watch list to know which button to show.
 - Without JavaScript, Enter sends the form and the whole page loads with the results.
 - An empty or blank search shows no results and does not call TMDB.
 
@@ -42,4 +42,4 @@
 **Known limits**
 - Only the first 20 results; there is no "more results" button.
 - Search is in English (TMDB's default).
-- The title pages show only the basics and the To Watch button. Seasons, episodes, runtimes and streaming services come with later cards.
+- The title pages show only the basics, the To Watch button and (movies) the watched section. Seasons, episodes, runtimes and streaming services come with later cards.
