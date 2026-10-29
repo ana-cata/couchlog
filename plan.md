@@ -51,13 +51,13 @@ Priority uses MoSCoW: Must, Should, Could, Won't. The first version (the MVP) is
 |---|---|
 | **Must** (first version, the MVP) | Login and time zone · Search movies and series · To Watch list · Mark a movie as watched · Mark episodes as watched (one, a whole season, or "up to here") · Up Next with progress bars · Calendar of upcoming releases from my list |
 | **Should** | Rewatch · Time spent watching · News section on the home page · Countdown in days · Statuses (watching / completed / dropped) · Ratings and notes · Where to watch |
-| **Could** | Genre and network statistics · Similar titles · Personalized recommendations (decided later, depending on the work) |
+| **Could** | Genre and network statistics · Favorites · Similar titles · Personalized recommendations (decided later, depending on the work) |
 | **Won't (for now)** | Custom or shareable lists · Push notifications · Countdown in hours and minutes · Voting for characters · Social feed and comments · Native apps · Importing a history from another app |
 
 ### Must: the first version
 
-**1. Login and time zone.** Username and password (Django's default login). I create the accounts myself in Django's admin page, with no public sign-up page. Every saved item belongs to an account. Each account also has a time zone, chosen directly from a list at the first login (the browser's time zone is suggested) and changeable later. The time zone decides what "today" means for that user, so "today", "tomorrow" and "in 3 days" are right (features 10 and 11). The country used for streaming services (feature 14) and for movie release dates is taken from the time zone (for example Europe/Lisbon means Portugal).
-*Done when:* I can log in and out, the pages that need a login are closed to everyone else, and my time zone is saved with my account.
+**1. Login and time zone.** Username and password (Django's default login). I create the accounts myself in Django's admin page, with no public sign-up page. Every saved item belongs to an account. Each account also has a time zone, chosen directly from a list at the first login (the browser's time zone is suggested) and changeable later. A **Profile page** shows my account and my time zone (where I can change it) and has the log out button; my statistics are added to it later (feature 9). The time zone decides what "today" means for that user, so "today", "tomorrow" and "in 3 days" are right (features 10 and 11). The country used for streaming services (feature 14) and for movie release dates is taken from the time zone (for example Europe/Lisbon means Portugal).
+*Done when:* I can log in and out, the pages that need a login are closed to everyone else, my time zone is saved with my account, and I can see and change it on my Profile page.
 
 **2. Search movies and series.** A search box that asks TMDB and shows posters, titles and years. Search results are not stored; only what I add is saved.
 *Done when:* typing a title shows matching movies and series, and I can open one.
@@ -74,15 +74,15 @@ Priority uses MoSCoW: Must, Should, Could, Won't. The first version (the MVP) is
 **6. Up Next with progress bars.** The home screen shows, for each series I am watching, the next episode I have not seen (only episodes that have already aired). Checking it off marks it watched and the next one appears. Each series and each season shows a progress bar (watched episodes out of aired episodes).
 *Done when:* after I mark an episode, the next one appears and the bar moves; a series with nothing left to watch leaves the list until a new episode airs; and undoing a check-off brings the episode and the bar back.
 
-**7. Calendar of upcoming releases.** A calendar with the release dates of episodes and movies from my list. A daily task collects the dates from TMDB and saves them; the calendar screen only reads what is saved. Only the day is shown, never the hour. Dates are used exactly as TMDB gives them, with no conversion between time zones, so a day may occasionally be off by one for a show from another country. Movies use the streaming (digital) release date for the user's country (taken from the time zone). The calendar only needs to give an idea, so an approximate date is fine.
-*Done when:* an upcoming episode of a series on my list appears on the air date TMDB gives, and removing the series removes it from the calendar.
+**7. Calendar of upcoming releases.** A calendar with the release dates of the episodes and movies I am waiting for: the series I am watching and the titles on my To Watch list. A daily task collects the dates from TMDB and saves them; the calendar screen only reads what is saved. Only the day is shown, never the hour. Dates are used exactly as TMDB gives them, with no conversion between time zones, so a day may occasionally be off by one for a show from another country. Movies use the streaming (digital) release date for the user's country (taken from the time zone). The calendar only needs to give an idea, so an approximate date is fine.
+*Done when:* an upcoming episode of a series I am watching or have on my To Watch list appears on the air date TMDB gives, and removing the series removes it from the calendar.
 
 ### Should: right after the first version
 
 **8. Rewatch.** After something is marked as watched, a "Watch again" button appears. Pressing it saves another watch with its own date, for a movie, an episode or a whole season. A rewatch does not change progress bars or Up Next, but it counts in the time spent.
 *Done when:* pressing it adds a new dated watch; my history shows both; time spent grows by one more runtime; progress bars stay the same; undoing the rewatch removes only that extra watch and its time.
 
-**9. Time spent watching.** A statistic with the total time I have spent watching, shown as years, months, days and hours, from TMDB runtimes and split into movies and series. Every watch counts, including rewatches. When an episode has no runtime, the series' typical episode runtime is used. The total only covers what I register in Couchlog, so it starts at zero.
+**9. Time spent watching.** A statistic with the total time I have spent watching, shown on the Profile page as years, months, days and hours, from TMDB runtimes and split into movies and series. Every watch counts, including rewatches. When an episode has no runtime, the series' typical episode runtime is used. The total only covers what I register in Couchlog, so it starts at zero.
 *Done when:* marking a 100-minute movie adds 100 minutes, a rewatch adds another 100, and undoing a watch takes its minutes off again.
 
 **10. News section on the home page ("coming soon").** A "News" section on the home page shows what is coming soon from my list. For each series or movie that comes out in less than a week (7 days, one setting I can change), it shows only the banner image and the days left until the release ("today", "tomorrow", "in 3 days"). Nothing else: no text and no details. It replaces push notifications. Days are counted in my own time, using my time zone (feature 1).
@@ -102,7 +102,8 @@ Priority uses MoSCoW: Must, Should, Could, Won't. The first version (the MVP) is
 
 ### Could: later, if I still want them
 
-- **Genre and network statistics.** My most-watched genres and networks, from TMDB data.
+- **Genre and network statistics.** My most-watched genres and networks, from TMDB data, shown on the Profile page.
+- **Favorites.** Mark movies and series as favorites and see them on the Profile page.
 - **Similar titles.** On a title's page, a list of similar titles from TMDB, each with an "add to To Watch" button.
 - **Personalized recommendations.** A "for you" list built from my ratings and watch history, with an "add to To Watch" button on each suggestion. Kept as a wish: I decide later whether it is worth the work. "Similar titles" is the simple first step towards it.
 
@@ -181,7 +182,7 @@ Done when: `runserver` shows the Couchlog placeholder page on my PC, the skeleto
 
 Goal: on my PC, only I can log in, and tests run automatically on every pull request. This is the heaviest week: if it runs over, the time zone picker moves to Week 3.
 
-- [ ] Sketch the 6 screens on paper or in Figma: Home (Up Next, and News later), Search, To Watch, Movie page, Series page (seasons with episode checkboxes), Calendar
+- [ ] Sketch the 7 screens on paper or in Figma: Home (Up Next, and News later), Search, To Watch, Movie page, Series page (seasons with episode checkboxes), Calendar, Profile (account and time zone, statistics later)
 - [ ] Set up the SQLite database on the PC with Django's built-in migrations (scripted table changes, section 4)
 - [ ] Set up Django's built-in login (username and password) and a page that only logged-in users can open
 - [ ] Create my account in Django's admin page, since there is no public sign-up page
@@ -429,3 +430,4 @@ Sorted by when each item matters.
 | 2026-10-27 | Decisions applied: data on the PC is only test data (the Pi starts fresh); backups are set up in M6 (automatic and daily, with safe SQLite settings against power cuts); TMDB details are saved in my database (design rule 6); movies use the streaming date and only need to give an idea; any feature that needs a paid service is removed; SSH works and Docker Desktop is installed. TMDB and TVmaze terms checked. TMDB credit now means the logo plus the required notice on an About page. |
 | 2026-10-27 | TVmaze dropped: TMDB is the only data source and release dates are used as TMDB gives them, with no time zone conversion (a day may be off by one, which is accepted). The time zone setting stays, for "today", "tomorrow" and the country. |
 | 2026-10-27 | Stack changed from Next.js to Python: Django with htmx, Pico CSS, uv, pytest and ruff, running in a Python Docker image on the Pi. Login is Django's built-in login (username and password), with accounts created in Django's admin page. Node.js is no longer needed. Plan PR #1 was merged into `main`; this change is on the branch `docs/django-stack`. |
+| 2026-10-28 | Profile page added (account, time zone, later statistics; favorites as a Could feature). Calendar clarified: it shows the series I am watching and the titles on my To Watch list. |
