@@ -3,7 +3,7 @@
 ## What it does
 
 - **Search page** (`/search/`, linked as "Search" in the header). Type a title and matching movies and series appear below the box as you type, a moment after you stop typing. Pressing Enter also works.
-- Each result shows the poster, the title, the year and whether it is a movie or a series. People (actors, directors) that TMDB also finds are left out.
+- Results are shown as **tiles** in a grid: the poster on top, the name below, then the year and whether it is a movie or a series. The whole tile is a link. The grid fits the screen (about two tiles across on a phone, more on a wide screen). People (actors, directors) that TMDB also finds are left out.
 - **Open one:** click a result to open its title page. For now it is a simple read-only page: poster, title, year, and TMDB's description. Later cards turn it into the real movie and series pages, with the buttons to add it to the To Watch list and mark it watched.
 - **Nothing is saved.** Search results and title pages are read from TMDB each time. Only what you add to your lists is saved, and that comes with later cards.
 - **If something goes wrong** you see a message instead of a crash:
@@ -35,7 +35,7 @@
 - `GET /movie/<id>` and `GET /tv/<id>` for a title page.
 - TMDB's 404 becomes a "not found"; other problems become a message that is fine to show to the user.
 - The year is the first four characters of TMDB's date, used as given (no time zone conversion).
-- Posters are loaded by the browser straight from TMDB's picture server (`https://image.tmdb.org/t/p/`): small ones in the list (width 185), larger on the title page (width 342). No key is involved, but it needs an internet connection.
+- Posters are loaded by the browser straight from TMDB's picture server (`https://image.tmdb.org/t/p/w342`), the same size in the tiles and on the title page. No key is involved, but it needs an internet connection.
 
 **Known limits**
 - Only the first 20 results; there is no "more results" button.

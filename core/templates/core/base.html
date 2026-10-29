@@ -14,12 +14,14 @@
       <ul>
         <li><strong><a href="{% url 'home' %}" class="contrast">Couchlog</a></strong></li>
       </ul>
-      {% if user.is_authenticated %}
-        <ul>
+      <ul>
+        {% if user.is_authenticated %}
           <li><a href="{% url 'search' %}">Search</a></li>
           <li><a href="{% url 'profile' %}">Profile</a></li>
-        </ul>
-      {% endif %}
+        {% endif %}
+        {# Open to everyone, so the TMDB credit is also reachable from the login page. #}
+        <li><a href="{% url 'about' %}">About</a></li>
+      </ul>
     </nav>
   </header>
   <main class="container">
@@ -28,8 +30,5 @@
     {% endfor %}
     {% block content %}{% endblock %}
   </main>
-  <footer class="container">
-    <small><a href="{% url 'about' %}">About</a></small>
-  </footer>
 </body>
 </html>

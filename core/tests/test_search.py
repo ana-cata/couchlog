@@ -53,13 +53,14 @@ def test_shows_movies_and_series_and_skips_people(logged_in_client, respx_mock):
     assert route.calls.last.request.url.params['query'] == 'made-up'
     assert 'Made-up Movie' in page
     assert '1999 · Movie' in page
-    assert 'https://image.tmdb.org/t/p/w185/made-up-movie.jpg' in page
+    assert 'https://image.tmdb.org/t/p/w342/made-up-movie.jpg' in page
     assert 'Made-up Series' in page
     assert '2011 · Series' in page
     assert 'Made-up Actor' not in page
-    # Each result opens its own page.
-    assert 'href="/movie/603/"' in page
-    assert 'href="/series/1399/"' in page
+    # Each result is one tile (poster with the name below) that opens its own page.
+    assert page.count('class="tile"') == 2
+    assert 'class="tile" href="/movie/603/"' in page
+    assert 'class="tile" href="/series/1399/"' in page
 
 
 def test_a_result_without_poster_or_date_still_shows(logged_in_client, respx_mock):

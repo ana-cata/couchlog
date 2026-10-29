@@ -127,7 +127,7 @@ Priority uses MoSCoW: Must, Should, Could, Won't. The first version (the MVP) is
 1. **Every watch is saved as its own entry with a date** (the date can be "unknown"). This is what makes Rewatch and Time spent possible.
 2. **An episode counts as watched in progress if it has at least one watch entry.** Rewatches only add time.
 3. **The 7-day News window is one setting**, not repeated in several places.
-4. **The TMDB credit is shown properly:** the approved TMDB logo and the notice "This product uses the TMDB API but is not endorsed or certified by TMDB." on an About page, linked from the footer. The logo is less prominent than my own app's name.
+4. **The TMDB credit is shown properly:** the approved TMDB logo and the notice "This product uses the TMDB API but is not endorsed or certified by TMDB." on an About page, linked from the header next to Search and Profile. The logo is less prominent than my own app's name.
 5. **Everything can be undone.** Any action that changes my data can be reversed, because I can make a mistake: marking a movie, an episode, a season or "up to here", a rewatch, adding or removing a title on the To Watch list, changing a status, a rating or a note. Undo is available right after the action and also later (for example by un-marking an episode). A bulk action (a whole season, "up to here") is undone in one step. Undo is part of every feature's "done when".
 6. **Details from TMDB are saved in my own database** when I add a title (title, poster, episodes, runtimes, dates) and refreshed now and then. The app works from the saved data. Only searching and adding new titles needs TMDB to be up; if TMDB does not answer, I see a friendly message and try again later.
 
@@ -205,7 +205,7 @@ Goal: find a movie or series and keep it on my To Watch list.
 - [ ] Save the details I need from TMDB in my database when I add a title (design rule 6 in section 3)
 - [ ] Add to and remove from the To Watch list
 - [ ] To Watch screen
-- [x] Add an About page with the TMDB logo and the required notice, linked from the footer
+- [x] Add an About page with the TMDB logo and the required notice, linked from the header
 - [ ] Tests: search with made-up TMDB responses (done in card #7); the To Watch list saves and removes correctly
 
 Done when: I search for a title, add it, see it on the To Watch screen after reloading, and remove it.
@@ -438,4 +438,4 @@ Sorted by when each item matters.
 | 2026-10-29 | Card #3 merged, so Week 1 is done. Card #4 built (pull request open): ruff added to the dev tools and a GitHub Actions workflow that runs the lint and the tests on every pull request. The first simple tests came with card #3. |
 | 2026-10-29 | Card #4 merged. Card #5 built (pull request open): the SQLite database and Django's built-in migrations were already working from card #3, so this card adds the proof: tests that show tests use a temporary database and never `db.sqlite3`, a test that fails if a table change has no migration file, and the first docs page (`docs/data-model.md`). |
 | 2026-10-29 | Card #5 merged. Card #6 built (pull request open): login and logout, every page closed to people who are not logged in, a `Profile` table with the time zone, and the Profile page where it is chosen at the first login and changed later. Creating my own account in the admin page is still mine to do (`createsuperuser`, see the README). The time zone is only saved for now; "today" and the country come with the cards that need them. |
-| 2026-10-29 | Card #6 merged. Card #7 built (pull request open): search for movies and series with results that appear as you type, simple read-only title pages so a result can be opened, and the About page with the TMDB logo and notice, linked from the footer. Nothing is saved by search, so there is no new table. Still open in Weeks 3-4: the To Watch list (card #8). |
+| 2026-10-29 | Card #6 merged. Card #7 built (pull request open): search for movies and series with results that appear as you type, shown as tiles (poster with the name below), simple read-only title pages so a result can be opened, and the About page with the TMDB logo and notice, linked from the header next to Search and Profile. Nothing is saved by search, so there is no new table. Still open in Weeks 3-4: the To Watch list (card #8). |

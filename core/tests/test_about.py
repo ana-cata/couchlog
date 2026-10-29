@@ -22,7 +22,7 @@ def test_the_logo_file_is_in_the_project():
 
 
 @pytest.mark.django_db
-def test_the_footer_links_to_about_on_every_page(client):
+def test_the_header_links_to_about_on_every_page(client):
     user = User.objects.create_user(username='made-up-user', password='made-up-password')
     Profile.objects.create(user=user, timezone='Europe/Lisbon')
 

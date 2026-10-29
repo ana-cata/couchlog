@@ -5,7 +5,7 @@ from django.conf import settings
 
 TMDB_BASE_URL = 'https://api.themoviedb.org/3'
 # Posters are public pictures: the browser loads them from here directly, with no key.
-IMAGE_BASE_URL = 'https://image.tmdb.org/t/p'
+IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/w342'
 
 
 class TmdbError(Exception):
@@ -49,7 +49,7 @@ def get_configuration():
     return _get('/configuration')
 
 
-def _title_from(raw, kind, poster_size):
+def _title_from(raw, kind):
     """The few fields we show, from one TMDB movie or series. `kind` is 'movie' or 'series'."""
     if kind == 'movie':
         name, date = raw.get('title'), raw.get('release_date')
@@ -62,7 +62,7 @@ def _title_from(raw, kind, poster_size):
         'title': name or '',
         # TMDB dates look like 2010-07-16, or are empty. The year is used as given.
         'year': (date or '')[:4],
-        'poster_url': f'{IMAGE_BASE_URL}/{poster_size}{poster_path}' if poster_path else '',
+        'poster_url': f'{IMAGE_BASE_URL}{poster_path}' if poster_path else '',
         'overview': raw.get('overview') or '',
     }
 
@@ -72,7 +72,7 @@ def search(query):
     kinds = {'movie': 'movie', 'tv': 'series'}  # TMDB also returns people, which we skip
     data = _get('/search/multi', {'query': query})
     return [
-        _title_from(raw, kinds[raw['media_type']], 'w185')
+        _title_from(raw, kinds[raw['media_type']])
         for raw in data.get('results', [])
         if raw.get('media_type') in kinds
     ]
@@ -81,4 +81,4 @@ def search(query):
 def get_title(kind, tmdb_id):
     """One movie or series from TMDB. Nothing is saved."""
     path = f'/movie/{tmdb_id}' if kind == 'movie' else f'/tv/{tmdb_id}'
-    return _title_from(_get(path), kind, 'w342')
+    return _title_from(_get(path), kind)
