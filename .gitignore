@@ -1,13 +1,13 @@
 # Rule of thumb: ignore what can be rebuilt, what is secret, and what is private.
 # Everything else is committed.
 
-# --- Can be rebuilt (npm install / npm run build bring these back) ---
-node_modules/
-.next/
-out/
-next-env.d.ts
-*.tsbuildinfo
-.eslintcache
+# --- Can be rebuilt (uv sync brings these back) ---
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+/staticfiles/
 
 # --- Secrets: never commit. The example file (names only, no values) is fine. ---
 .env
@@ -38,9 +38,6 @@ playwright/.cache/
 # --- Logs ---
 logs/
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
 
 # --- Computer and editor noise ---
 .DS_Store

@@ -1,0 +1,18 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Couchlog{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'core/pico.min.css' %}">
+  <script src="{% static 'core/htmx.min.js' %}" defer></script>
+</head>
+<body>
+  <header class="container">
+    <h1>Couchlog</h1>
+  </header>
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

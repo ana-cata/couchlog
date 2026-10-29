@@ -39,6 +39,7 @@ What this means in practice:
 | Development | My Windows PC | Run and test the app on the PC with Python and `uv`, and push to GitHub. Docker Desktop is installed on the PC for testing the Docker files. The Pi comes only after the MVP is finished. |
 | Calendar job | A Django command run daily by a scheduler on the Pi | Decide how at Milestone M4. It must also catch up when the Pi has been off. |
 | Movie/series data | TMDB (The Movie Database) | Free for non-commercial use with a visible credit (the logo and notice on an About page). The only data source: dates are used as TMDB gives them. |
+| TMDB requests | `httpx` (Python HTTP client), called only from server code | The key is read from `.env` with `python-dotenv`. It accepts TMDB's short API key or its long read access token. Added in card #3. |
 | Code + tasks | GitHub (code, pull requests, project board) | |
 
 ## 3. Features
@@ -168,13 +169,13 @@ Goal: an empty Couchlog app runs on my PC and the project is organized.
 - [x] Clone it to my PC
 - [x] Install Python 3.14 and `uv` (already on my PC; Node.js is not needed)
 - [x] Write this plan
-- [ ] Commit `plan.md` and merge it through a pull request (my first one)
-- [ ] Create a TMDB account and request an API key (free)
-- [ ] Create the Django project with `uv`, a first app, htmx and Pico CSS (the skeleton)
-- [ ] Run it on the PC (`uv run python manage.py runserver`) and see a Couchlog placeholder page
-- [ ] Put the TMDB key in a local `.env` file and check that Git does not track it
-- [ ] Make one test request to TMDB from the app's server code to confirm the key works
-- [ ] Create a GitHub project board (To do / Doing / Done) with one card per Must feature from section 3
+- [x] Commit `plan.md` and merge it through a pull request (my first one)
+- [x] Create a TMDB account and request an API key (free)
+- [x] Create the Django project with `uv`, a first app, htmx and Pico CSS (the skeleton)
+- [x] Run it on the PC (`uv run python manage.py runserver`) and see a Couchlog placeholder page
+- [x] Put the TMDB key in a local `.env` file and check that Git does not track it
+- [x] Make one test request to TMDB from the app's server code to confirm the key works
+- [x] Create a GitHub project board (To do / Doing / Done) with one card per Must feature from section 3
 
 Done when: `runserver` shows the Couchlog placeholder page on my PC, the skeleton is merged into `main` on GitHub, the TMDB test request returns data, and the board has the 7 Must cards.
 
@@ -431,3 +432,4 @@ Sorted by when each item matters.
 | 2026-10-27 | TVmaze dropped: TMDB is the only data source and release dates are used as TMDB gives them, with no time zone conversion (a day may be off by one, which is accepted). The time zone setting stays, for "today", "tomorrow" and the country. |
 | 2026-10-27 | Stack changed from Next.js to Python: Django with htmx, Pico CSS, uv, pytest and ruff, running in a Python Docker image on the Pi. Login is Django's built-in login (username and password), with accounts created in Django's admin page. Node.js is no longer needed. Plan PR #1 was merged into `main`; this change is on the branch `docs/django-stack`. |
 | 2026-10-28 | Profile page added (account, time zone, later statistics; favorites as a Could feature). Calendar clarified: it shows the series I am watching and the titles on my To Watch list. |
+| 2026-10-29 | Card #3 built (pull request open): Django skeleton with a placeholder page, Pico CSS and htmx saved in the project, `.env` for the TMDB key, and the `tmdb_check` command, which worked with my real key. Cards #4 and #6 rewritten for Django. Week 1 is done once it is merged. |

@@ -1,0 +1,20 @@
+[project]
+name = "couchlog"
+version = "0.1.0"
+description = "Track the movies and series you watch"
+requires-python = ">=3.14"
+dependencies = [
+    "django>=6.1.2",
+    "httpx>=0.28.1",
+    "python-dotenv>=1.2.4",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+    "pytest-django>=4.14.0",
+    "respx>=0.23.1",
+]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
