@@ -3,15 +3,16 @@
 ## What it does
 
 - **To Watch screen** (`/to-watch/`, linked as "To Watch" in the header). The movies and series you want to see, as tiles (poster, name, year, movie or series), newest added first. With an empty list it says so and links to Search.
-- **Add:** every search result has an "Add to To Watch" button under its tile. Press it and the button turns into "Remove from To Watch" right away, without the results moving. The title is still on the screen after you reload, log out and back in, or restart the app.
-- **Remove:** the same button on a search result, or "Remove from To Watch" under a tile on the To Watch screen. The title leaves the list.
-- **Undo:** a removed title appears under **Recently removed** at the bottom of the To Watch screen, with an Undo button. Undo puts it back in its old place in the list (the date it was added is kept). The section shows the last 10 removals. It still works after reloading, and later, because nothing is erased. Adding a removed title again from search also puts it back, but as newly added (at the top of the list).
+- **Every tile is the same size.** A name is always given two lines, and a longer one is cut with "..." (hover to see the whole name). The year line is one line, and the button is always at the bottom of the tile, so the grid looks even.
+- **Add:** every search result has an "Add to To Watch" button under its tile, and so does each movie or series page, under the poster. Press it and the button turns into "Remove from To Watch" right away, without the page reloading. The title is still on the screen after you reload, log out and back in, or restart the app.
+- **Remove:** the same button on a search result or a title page, or "Remove from To Watch" under a tile on the To Watch screen. The title leaves the list.
+- **Undo, for one minute:** a title you removed appears under **Recently removed** at the top of the To Watch screen, with an Undo button. Undo puts it back in its old place in the list (the date it was added is kept). The section only shows what was removed in the last minute, and a removal can only be undone during that minute. After that the section is gone, and the way back is to add the title again from Search or its page. That puts it back as newly added (at the top of the list).
 - **The same title twice:** pressing Add on something already on the list does nothing but say so. There is never a second entry.
 - **Your own list:** each account has its own list. Nobody else sees yours or can change it.
 - **If something goes wrong** you see a message, not a crash:
   - TMDB cannot be reached when you add a title: a message next to the button, and nothing is saved. Try again later.
   - A title TMDB does not have: the normal "page not found" screen.
-- The buttons are not on the title page yet. They arrive there with the movie and series pages (features 4 and 5).
+  - You press Undo after the minute is over (for example the page was left open): "It is too late to undo ... You can add it again from Search." and nothing changes.
 
 ## How it works
 
@@ -36,14 +37,19 @@ Each button sends `kind` (`movie` or `series`), `tmdb_id` and `next` (the page t
 
 **Remove and undo**
 - Remove only fills in `removed_at`. Undo clears it again and does not touch `added_at`, so the entry comes back exactly as it was (design rule 5; the test `test_undo_puts_everything_back_as_it_was` checks this).
-- The To Watch screen lists entries with an empty `removed_at`, newest `added_at` first, and offers Undo for the 10 most recent `removed_at`.
+- The undo window is one setting, `UNDO_WINDOW` (one minute) in `core/views.py`. The To Watch screen lists entries with an empty `removed_at`, newest `added_at` first, and offers Undo for entries whose `removed_at` is inside the window. The server checks the window again when Undo is pressed, so a page left open cannot undo an old removal.
+- After the window nothing is erased: the row stays with its `removed_at`, and adding the title again clears `removed_at` and sets `added_at` to now.
 
-**Live buttons on the search page**
-- The buttons on search results use htmx: the page asks the server and swaps in only the button's new state (`_to_watch_button.html`). The search results do not reload and TMDB is not searched again.
+**Live buttons on the search page and the title pages**
+- The buttons on search results and on title pages use htmx: the page asks the server and swaps in only the button's new state (`_to_watch_button.html`). The page does not reload and TMDB is not searched again.
 - Without htmx the same buttons are normal forms: the server answers with a redirect back to the page and shows a message.
-- The search page marks each result as on the list or not by looking at your own list, so the right button shows after a reload.
+- Search and the title pages check your own list to know which button to show, so the right one shows after a reload. A title page whose TMDB request failed shows the error and no button.
+
+**Same-size tiles** (`core/static/core/couchlog.css`)
+- A tile is a column that fills its grid cell, so the button sits at the bottom. The name is clamped to two lines with a fixed height, the year line does not wrap, and the button has a fixed height under a tile.
+- The smallest tile width is in `rem`, not pixels, because the text grows on a big screen (Pico scales the page font with the screen width). With pixels the year line was cut off on wide screens. A browser test (`test_every_tile_is_the_same_size_whatever_the_title`) checks that all tiles are the same size and that nothing is cut.
 
 **Known limits**
 - A title's saved details are not refreshed yet. Changes on TMDB (a new poster, a fixed year) do not reach titles already saved. Refreshing comes with later cards.
-- "Recently removed" shows only the last 10. Older removals can still be added again from Search.
+- After the minute there is no undo, only adding the title again, which resets its date added.
 - The date added is stored but not shown on screen.

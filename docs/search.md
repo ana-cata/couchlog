@@ -3,9 +3,9 @@
 ## What it does
 
 - **Search page** (`/search/`, linked as "Search" in the header). Type a title and matching movies and series appear below the box as you type, a moment after you stop typing. Pressing Enter also works.
-- Results are shown as **tiles** in a grid: the poster on top, the name below, then the year and whether it is a movie or a series. The whole tile is a link, and when the mouse is over a tile (or you tab to it) its title and year are underlined so the choice is easy to see. The grid fits the screen (about two tiles across on a phone, more on a wide screen). People (actors, directors) that TMDB also finds are left out.
+- Results are shown as **tiles** in a grid: the poster on top, the name below, then the year and whether it is a movie or a series. The whole tile is a link, and when the mouse is over a tile (or you tab to it) its title and year are underlined so the choice is easy to see. The grid fits the screen (about two tiles across on a phone, more on a wide screen), and every tile is the same size: a long name is cut with "..." (hover to see it all). People (actors, directors) that TMDB also finds are left out.
 - **Add to your list:** under each tile is an "Add to To Watch" button (or "Remove from To Watch" when the title is already on your list). See [To Watch](to-watch.md).
-- **Open one:** click a result to open its title page. For now it is a simple read-only page: poster, title, year, and TMDB's description. Later cards turn it into the real movie and series pages, with the buttons to add it to the To Watch list and mark it watched.
+- **Open one:** click a result to open its title page: poster, title, year, and TMDB's description, with the same To Watch button under the poster. For now that is all. Later cards turn it into the real movie and series pages, with the button to mark it watched.
 - **Searching saves nothing.** Search results and title pages are read from TMDB each time. Only a title you add to your To Watch list is saved.
 - **If something goes wrong** you see a message instead of a crash:
   - TMDB cannot be reached, or does not accept the key: a short message under the box.
@@ -42,4 +42,4 @@
 **Known limits**
 - Only the first 20 results; there is no "more results" button.
 - Search is in English (TMDB's default).
-- The title pages show only the basics. Seasons, episodes, runtimes and streaming services come with later cards.
+- The title pages show only the basics and the To Watch button. Seasons, episodes, runtimes and streaming services come with later cards.

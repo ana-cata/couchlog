@@ -1,6 +1,6 @@
 {# One title as a tile: poster, name, year, and the To Watch button. `tile` is a search result or a saved title. #}
 <li>
-  <a class="tile" href="{% url 'title' tile.kind tile.tmdb_id %}">
+  <a class="tile" href="{% url 'title' tile.kind tile.tmdb_id %}" title="{{ tile.title }}">
     {% if tile.poster_url %}
       <img class="poster" src="{{ tile.poster_url }}" alt="" loading="lazy">
     {% else %}

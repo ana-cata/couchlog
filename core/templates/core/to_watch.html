@@ -5,18 +5,10 @@
 {% block content %}
   <h1>To Watch</h1>
 
-  {% if items %}
-    <ul class="results">
-      {% for item in items %}
-        {% include 'core/_tile.html' with tile=item.title on_list=True %}
-      {% endfor %}
-    </ul>
-  {% else %}
-    <p>Nothing on your To Watch list yet. <a href="{% url 'search' %}">Search</a> for a movie or series and add it.</p>
-  {% endif %}
-
+  {# At the top because it only lasts a minute: a removed title can be undone until then. #}
   {% if removed %}
     <h2>Recently removed</h2>
+    <p><small>You can undo a removal for one minute.</small></p>
     <ul class="removed">
       {% for item in removed %}
         <li>
@@ -31,5 +23,15 @@
         </li>
       {% endfor %}
     </ul>
+  {% endif %}
+
+  {% if items %}
+    <ul class="results">
+      {% for item in items %}
+        {% include 'core/_tile.html' with tile=item.title on_list=True %}
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>Nothing on your To Watch list yet. <a href="{% url 'search' %}">Search</a> for a movie or series and add it.</p>
   {% endif %}
 {% endblock %}

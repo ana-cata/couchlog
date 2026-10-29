@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_not_required
 from django.core.exceptions import BadRequest
@@ -13,8 +15,9 @@ from . import tmdb
 from .forms import TimeZoneForm
 from .models import Profile, Title, ToWatchItem
 
-# How many removed titles the To Watch screen keeps offering an Undo for.
-RECENTLY_REMOVED_SHOWN = 10
+# How long after removing a title from To Watch it can still be undone. The messages and
+# the docs call this "a minute". After that, the way back is adding the title again.
+UNDO_WINDOW = timedelta(minutes=1)
 
 
 def home(request):
@@ -55,14 +58,17 @@ def title(request, kind, tmdb_id):
         raise Http404 from None
     except tmdb.TmdbError as problem:
         return render(request, 'core/title.html', {'error': str(problem)})
-    return render(request, 'core/title.html', {'item': item})
+    on_list = _my_item(request, kind, tmdb_id).filter(removed_at=None).exists()
+    return render(request, 'core/title.html', {'item': item, 'on_list': on_list, 'next': request.get_full_path()})
 
 
 def to_watch(request):
     mine = ToWatchItem.objects.filter(user=request.user).select_related('title')
+    # Only what was removed within the last minute can still be undone.
+    undo_from = timezone.now() - UNDO_WINDOW
     context = {
         'items': mine.filter(removed_at=None).order_by('-added_at'),
-        'removed': mine.exclude(removed_at=None).order_by('-removed_at')[:RECENTLY_REMOVED_SHOWN],
+        'removed': mine.filter(removed_at__gte=undo_from).order_by('-removed_at'),
         'next': request.get_full_path(),
     }
     return render(request, 'core/to_watch.html', context)
@@ -143,7 +149,7 @@ def to_watch_remove(request):
     # Only marked as removed, not erased, so Undo can bring it back as it was.
     item.removed_at = timezone.now()
     item.save(update_fields=['removed_at'])
-    text = f'Removed “{item.title.title}” from your To Watch list. Undo is under “Recently removed”.'
+    text = f'Removed “{item.title.title}” from your To Watch list. You have a minute to undo it.'
     return _answer(request, kind, tmdb_id, False, text)
 
 
@@ -153,6 +159,9 @@ def to_watch_undo(request):
     item = _my_item(request, kind, tmdb_id).exclude(removed_at=None).first()
     if item is None:
         return _answer(request, kind, tmdb_id, False, 'There is nothing to undo for that title.', ok=False)
+    if item.removed_at < timezone.now() - UNDO_WINDOW:
+        text = f'It is too late to undo removing “{item.title.title}”. You can add it again from Search.'
+        return _answer(request, kind, tmdb_id, False, text, ok=False)
     # The date added was never touched, so the title returns to its old place in the list.
     item.removed_at = None
     item.save(update_fields=['removed_at'])

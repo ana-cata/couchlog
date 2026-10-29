@@ -64,3 +64,55 @@ def test_log_in_search_add_a_title_then_remove_it_and_undo(live_server, page, re
     page.get_by_role('button', name='Undo').click()
     expect(page.locator('.tile')).to_have_count(1)
     expect(page.locator('.tile')).to_contain_text('Made-up Movie')
+
+    # Opening the title shows the same button under the poster, and it works in place.
+    page.locator('.tile').click()
+    expect(page.get_by_role('heading', name='Made-up Movie')).to_be_visible()
+    expect(page.get_by_role('button', name='Remove from To Watch')).to_be_visible()
+    page.get_by_role('button', name='Remove from To Watch').click()
+    expect(page.get_by_role('button', name='Add to To Watch')).to_be_visible()
+    page.get_by_role('button', name='Add to To Watch').click()
+    expect(page.get_by_role('button', name='Remove from To Watch')).to_be_visible()
+
+
+def test_every_tile_is_the_same_size_whatever_the_title(live_server, page, respx_mock, settings):
+    settings.TMDB_API_KEY = 'made-up-secret-key'
+    user = User.objects.create_user(username='made-up-user', password='made-up-password')
+    Profile.objects.create(user=user, timezone='Europe/Lisbon')
+    # Short, long, very long and undated titles, so the tiles would be uneven if nothing evened them out.
+    names = [
+        'Up',
+        'A made-up film with a fairly long name',
+        'A made-up title that is so long that it could never fit on two lines of a small tile',
+        'Another',
+    ]
+    found = [{'media_type': 'movie', 'id': number, 'title': name} for number, name in enumerate(names, start=1)]
+    respx_mock.get('https://api.themoviedb.org/3/search/multi').respond(json={'page': 1, 'results': found})
+    # Three narrow tiles per row (the narrowest they get), so there is more than one row to compare.
+    page.set_viewport_size({'width': 500, 'height': 900})
+
+    page.goto(live_server.url)
+    page.get_by_label('Username').fill('made-up-user')
+    page.get_by_label('Password').fill('made-up-password')
+    page.get_by_role('button', name='Log in').click()
+    page.goto(live_server.url + '/search/?q=made-up')
+    expect(page.locator('.tile')).to_have_count(4)
+
+    sizes = page.locator('.results li').evaluate_all(
+        """tiles => tiles.map(tile => {
+            const box = tile.getBoundingClientRect();
+            const button = tile.querySelector('button').getBoundingClientRect();
+            return [Math.round(box.width), Math.round(box.height),
+                    Math.round(button.top - box.top), Math.round(button.height)];
+        })"""
+    )
+
+    # Same width, same height, and the button in the same place in every tile.
+    assert len(sizes) == 4
+    assert len(set(map(tuple, sizes))) == 1, sizes
+
+    # The year line ("Year unknown · Movie" here) is never cut off. The page's text grows with the
+    # screen but the tiles stay narrow, so a wide desktop screen is where it is tightest.
+    page.set_viewport_size({'width': 1280, 'height': 900})
+    cut_off = page.locator('.tile small').evaluate_all('lines => lines.some(line => line.scrollWidth > line.clientWidth)')
+    assert not cut_off

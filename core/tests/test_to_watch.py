@@ -5,6 +5,7 @@ import httpx
 import pytest
 from django.contrib.auth.models import User
 from django.test import Client
+from django.utils import timezone
 
 from core.models import Profile, Title, ToWatchItem
 
@@ -267,24 +268,89 @@ def test_removing_and_undoing_say_what_happened(logged_in_client, respx_mock):
 
     removed = logged_in_client.post('/to-watch/remove/', {'kind': 'movie', 'tmdb_id': 603}, follow=True)
     assert 'Removed “Made-up Movie” from your To Watch list.' in removed.content.decode()
+    assert 'You have a minute to undo it.' in removed.content.decode()
 
     restored = logged_in_client.post('/to-watch/undo/', {'kind': 'movie', 'tmdb_id': 603}, follow=True)
     assert 'Put “Made-up Movie” back on your To Watch list.' in restored.content.decode()
 
 
-def test_only_the_last_ten_removed_titles_are_offered_for_undo(logged_in_client):
-    for number in range(1, 13):
-        title = Title.objects.create(kind='movie', tmdb_id=number, title=f'Made-up Movie {number}')
-        ToWatchItem.objects.create(
-            user=logged_in_client.user, title=title, removed_at=LONG_AGO + datetime.timedelta(days=number)
-        )
+def make_removed_title(user, number, removed_ago):
+    title = Title.objects.create(kind='movie', tmdb_id=number, title=f'Made-up Movie {number}')
+    return ToWatchItem.objects.create(user=user, title=title, removed_at=timezone.now() - removed_ago)
+
+
+def test_recently_removed_offers_only_what_was_removed_in_the_last_minute(logged_in_client):
+    for number, removed_ago in [
+        (1, datetime.timedelta(seconds=10)),
+        (2, datetime.timedelta(seconds=40)),
+        (3, datetime.timedelta(minutes=2)),
+        (4, datetime.timedelta(days=3)),
+    ]:
+        make_removed_title(logged_in_client.user, number, removed_ago)
 
     page = to_watch_page(logged_in_client)
 
-    assert page.count('action="/to-watch/undo/"') == 10
-    assert 'Made-up Movie 12 ' in page
-    assert 'Made-up Movie 3 ' in page
-    assert 'Made-up Movie 2 ' not in page
+    assert page.count('action="/to-watch/undo/"') == 2
+    assert 'Made-up Movie 1 ' in page
+    assert 'Made-up Movie 2 ' in page
+    assert 'Made-up Movie 3 ' not in page
+    assert 'Made-up Movie 4 ' not in page
+
+
+def test_with_nothing_removed_in_the_last_minute_there_is_no_undo_section(logged_in_client):
+    make_removed_title(logged_in_client.user, 1, datetime.timedelta(minutes=5))
+
+    page = to_watch_page(logged_in_client)
+
+    assert 'Recently removed' not in page
+    assert 'action="/to-watch/undo/"' not in page
+
+
+def test_the_undo_section_is_above_the_list(logged_in_client, respx_mock):
+    respx_mock.get(MOVIE_URL).respond(json=MADE_UP_MOVIE)
+    respx_mock.get(SERIES_URL).respond(json=MADE_UP_SERIES)
+    add(logged_in_client)
+    add(logged_in_client, kind='series', tmdb_id=1399)
+    remove(logged_in_client)
+
+    page = to_watch_page(logged_in_client)
+
+    # A long list must not push the Undo button out of sight.
+    assert page.index('Recently removed') < page.index('class="tile"')
+
+
+def test_undo_is_refused_after_a_minute(logged_in_client):
+    item = make_removed_title(logged_in_client.user, 603, datetime.timedelta(minutes=2))
+    before = snapshot()
+
+    response = undo(logged_in_client)
+
+    assert 'too late to undo' in logged_in_client.get(response['Location']).content.decode()
+    assert snapshot() == before
+    item.refresh_from_db()
+    assert item.removed_at is not None
+
+
+def test_undo_still_works_just_inside_the_minute(logged_in_client):
+    item = make_removed_title(logged_in_client.user, 603, datetime.timedelta(seconds=40))
+
+    undo(logged_in_client)
+
+    item.refresh_from_db()
+    assert item.removed_at is None
+
+
+def test_after_the_minute_a_title_comes_back_by_adding_it_again(logged_in_client):
+    item = make_removed_title(logged_in_client.user, 603, datetime.timedelta(minutes=2))
+    item.added_at = LONG_AGO
+    item.save()
+
+    add(logged_in_client)  # the details are already saved, so TMDB is not asked
+
+    item.refresh_from_db()
+    assert item.removed_at is None
+    assert item.added_at > LONG_AGO
+    assert ToWatchItem.objects.count() == 1
 
 
 def test_removing_a_title_that_is_not_on_the_list_does_not_crash(logged_in_client):
@@ -480,3 +546,87 @@ def test_the_tmdb_key_never_reaches_the_browser(logged_in_client, respx_mock):
 
 def test_the_header_links_to_the_to_watch_screen(logged_in_client):
     assert 'href="/to-watch/"' in logged_in_client.get('/').content.decode()
+
+
+# --- the button on the title page ------------------------------------------------------------
+
+
+def test_the_movie_page_has_an_add_button_below_the_poster(logged_in_client, respx_mock):
+    respx_mock.get(MOVIE_URL).respond(json=MADE_UP_MOVIE)
+
+    page = logged_in_client.get('/movie/603/').content.decode()
+
+    assert 'action="/to-watch/add/"' in page
+    assert 'Add to To Watch' in page
+    assert 'name="kind" value="movie"' in page
+    assert 'name="tmdb_id" value="603"' in page
+    # After the poster and before the description: it sits under the poster.
+    assert page.index('Poster of Made-up Movie') < page.index('Add to To Watch') < page.index('A made-up story')
+
+
+def test_the_series_page_has_an_add_button(logged_in_client, respx_mock):
+    respx_mock.get(SERIES_URL).respond(json=MADE_UP_SERIES)
+
+    page = logged_in_client.get('/series/1399/').content.decode()
+
+    assert 'Add to To Watch' in page
+    assert 'name="kind" value="series"' in page
+    assert 'name="tmdb_id" value="1399"' in page
+
+
+def test_the_title_page_shows_remove_when_the_title_is_on_the_list(logged_in_client, respx_mock):
+    respx_mock.get(MOVIE_URL).respond(json=MADE_UP_MOVIE)
+    add(logged_in_client)
+
+    page = logged_in_client.get('/movie/603/').content.decode()
+
+    assert 'action="/to-watch/remove/"' in page
+    assert 'Remove from To Watch' in page
+    assert 'action="/to-watch/add/"' not in page
+
+
+def test_the_title_page_button_is_about_your_own_list(logged_in_client, respx_mock):
+    respx_mock.get(MOVIE_URL).respond(json=MADE_UP_MOVIE)
+    add(logged_in_client)
+    other = make_client('second-user')
+
+    assert 'action="/to-watch/add/"' in other.get('/movie/603/').content.decode()
+
+
+def test_the_title_page_button_updates_without_reloading(logged_in_client, respx_mock):
+    respx_mock.get(MOVIE_URL).respond(json=MADE_UP_MOVIE)
+
+    page = logged_in_client.get('/movie/603/').content.decode()
+
+    assert 'hx-post="/to-watch/add/"' in page
+
+
+def test_adding_from_the_title_page_brings_you_back_to_it(logged_in_client, respx_mock):
+    respx_mock.get(MOVIE_URL).respond(json=MADE_UP_MOVIE)
+    page = logged_in_client.get('/movie/603/').content.decode()
+    assert 'name="next" value="/movie/603/"' in page
+
+    response = add(logged_in_client, next='/movie/603/')
+
+    assert response['Location'] == '/movie/603/'
+    assert 'action="/to-watch/remove/"' in logged_in_client.get(response['Location']).content.decode()
+
+
+def test_a_removed_title_shows_add_again_on_its_page(logged_in_client, respx_mock):
+    respx_mock.get(MOVIE_URL).respond(json=MADE_UP_MOVIE)
+    add(logged_in_client)
+    remove(logged_in_client)
+
+    page = logged_in_client.get('/movie/603/').content.decode()
+
+    assert 'action="/to-watch/add/"' in page
+
+
+def test_a_title_page_that_tmdb_cannot_show_has_no_button(logged_in_client, respx_mock):
+    respx_mock.get(MOVIE_URL).respond(500)
+
+    page = logged_in_client.get('/movie/603/').content.decode()
+
+    assert 'TMDB answered with an error' in page
+    assert 'action="/to-watch/add/"' not in page
+    assert 'action="/to-watch/remove/"' not in page
