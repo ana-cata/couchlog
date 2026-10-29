@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Couchlog{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'core/pico.min.css' %}">
+  <link rel="stylesheet" href="{% static 'core/couchlog.css' %}">
   <script src="{% static 'core/htmx.min.js' %}" defer></script>
 </head>
 <body>
@@ -15,6 +16,7 @@
       </ul>
       {% if user.is_authenticated %}
         <ul>
+          <li><a href="{% url 'search' %}">Search</a></li>
           <li><a href="{% url 'profile' %}">Profile</a></li>
         </ul>
       {% endif %}
@@ -26,5 +28,8 @@
     {% endfor %}
     {% block content %}{% endblock %}
   </main>
+  <footer class="container">
+    <small><a href="{% url 'about' %}">About</a></small>
+  </footer>
 </body>
 </html>

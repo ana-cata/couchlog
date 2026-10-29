@@ -41,6 +41,7 @@ What this means in practice:
 | Calendar job | A Django command run daily by a scheduler on the Pi | Decide how at Milestone M4. It must also catch up when the Pi has been off. |
 | Movie/series data | TMDB (The Movie Database) | Free for non-commercial use with a visible credit (the logo and notice on an About page). The only data source: dates are used as TMDB gives them. |
 | TMDB requests | `httpx` (Python HTTP client), called only from server code | The key is read from `.env` with `python-dotenv`. It accepts TMDB's short API key or its long read access token. Added in card #3. |
+| Search | One TMDB call (`search/multi`) keeps the movies and series and drops people. Results appear as you type, using htmx, 0.4 seconds after typing stops. First page only | Added in card #7. Search results are never saved. The title pages (`/movie/<id>/`, `/series/<id>/`) are read-only for now and grow into the real pages in features 4 and 5. |
 | Code + tasks | GitHub (code, pull requests, project board) | |
 
 ## 3. Features
@@ -198,14 +199,14 @@ Done when: I can log in and out on my PC, the pages are closed when I am logged 
 
 Goal: find a movie or series and keep it on my To Watch list.
 
-- [ ] Server code that asks TMDB for search results (the key never reaches the browser)
-- [ ] Search screen with results and posters
+- [x] Server code that asks TMDB for search results (the key never reaches the browser)
+- [x] Search screen with results and posters (results appear as you type)
 - [ ] Database table for the To Watch list: user, TMDB ID, movie or series, date added
 - [ ] Save the details I need from TMDB in my database when I add a title (design rule 6 in section 3)
 - [ ] Add to and remove from the To Watch list
 - [ ] To Watch screen
-- [ ] Add an About page with the TMDB logo and the required notice, linked from the footer
-- [ ] Tests: search with made-up TMDB responses; the To Watch list saves and removes correctly
+- [x] Add an About page with the TMDB logo and the required notice, linked from the footer
+- [ ] Tests: search with made-up TMDB responses (done in card #7); the To Watch list saves and removes correctly
 
 Done when: I search for a title, add it, see it on the To Watch screen after reloading, and remove it.
 
@@ -437,3 +438,4 @@ Sorted by when each item matters.
 | 2026-10-29 | Card #3 merged, so Week 1 is done. Card #4 built (pull request open): ruff added to the dev tools and a GitHub Actions workflow that runs the lint and the tests on every pull request. The first simple tests came with card #3. |
 | 2026-10-29 | Card #4 merged. Card #5 built (pull request open): the SQLite database and Django's built-in migrations were already working from card #3, so this card adds the proof: tests that show tests use a temporary database and never `db.sqlite3`, a test that fails if a table change has no migration file, and the first docs page (`docs/data-model.md`). |
 | 2026-10-29 | Card #5 merged. Card #6 built (pull request open): login and logout, every page closed to people who are not logged in, a `Profile` table with the time zone, and the Profile page where it is chosen at the first login and changed later. Creating my own account in the admin page is still mine to do (`createsuperuser`, see the README). The time zone is only saved for now; "today" and the country come with the cards that need them. |
+| 2026-10-29 | Card #6 merged. Card #7 built (pull request open): search for movies and series with results that appear as you type, simple read-only title pages so a result can be opened, and the About page with the TMDB logo and notice, linked from the footer. Nothing is saved by search, so there is no new table. Still open in Weeks 3-4: the To Watch list (card #8). |

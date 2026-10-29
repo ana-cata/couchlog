@@ -24,7 +24,7 @@
 | `/admin/` | Django's admin page, with its own login screen | Yes |
 
 **Closed by default**
-- `LoginRequiredMiddleware` (in `MIDDLEWARE` in `config/settings.py`) sends anonymous visitors to `/login/`. A page is open only if its view is marked `@login_not_required`. Only the login page is. A new page is closed without anyone having to remember it.
+- `LoginRequiredMiddleware` (in `MIDDLEWARE` in `config/settings.py`) sends anonymous visitors to `/login/`. A page is open only if its view is marked `@login_not_required`. Only the login page and the [About page](about.md) are. A new page is closed without anyone having to remember it.
 - Django's admin page keeps its own login screen.
 - After logging in you land on Home (`LOGIN_REDIRECT_URL`); after logging out you land on the login page (`LOGOUT_REDIRECT_URL`).
 

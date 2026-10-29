@@ -1,0 +1,51 @@
+/* Couchlog's own few styles. Pico CSS does the rest. */
+
+.results {
+  list-style: none;
+  padding: 0;
+}
+
+.results li {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+  padding: 0;
+}
+
+.poster {
+  flex: none;
+  width: 92px;
+  height: 138px;
+  object-fit: cover;
+  border-radius: var(--pico-border-radius);
+  background: var(--pico-muted-border-color);
+}
+
+.no-poster {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--pico-muted-color);
+}
+
+.title-page {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+}
+
+.title-page .poster {
+  width: 185px;
+  height: 278px;
+}
+
+.title-page div {
+  flex: 1 1 16rem;
+}
+
+footer {
+  margin-top: 2rem;
+}

@@ -1,0 +1,24 @@
+{% extends 'core/base.html' %}
+
+{% block title %}{% if item %}{{ item.title }} · {% endif %}Couchlog{% endblock %}
+
+{% block content %}
+  <p><a href="{% url 'search' %}">&larr; Back to search</a></p>
+
+  {% if error %}
+    <p role="alert">{{ error }}</p>
+  {% else %}
+    <div class="title-page">
+      {% if item.poster_url %}
+        <img class="poster" src="{{ item.poster_url }}" alt="Poster of {{ item.title }}">
+      {% else %}
+        <span class="poster no-poster">No poster</span>
+      {% endif %}
+      <div>
+        <h1>{{ item.title }}</h1>
+        <p><small>{{ item.year|default:"Year unknown" }} · {{ item.kind|capfirst }}</small></p>
+        <p>{{ item.overview|default:"TMDB has no description for this title." }}</p>
+      </div>
+    </div>
+  {% endif %}
+{% endblock %}
