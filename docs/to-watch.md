@@ -6,13 +6,14 @@
 - **Every tile is the same size.** A name is always given two lines, and a longer one is cut with "..." (hover to see the whole name). The year line is one line, and the button is always at the bottom of the tile, so the grid looks even.
 - **Add:** every search result has an "Add to To Watch" button under its tile, and so does each movie or series page, under the poster. Press it and the button turns into "Remove from To Watch" right away, without the page reloading. The title is still on the screen after you reload, log out and back in, or restart the app.
 - **Remove:** the same button on a search result or a title page, or "Remove from To Watch" under a tile on the To Watch screen. The title leaves the list.
-- **Undo, for 30 seconds:** a title you removed appears under **Recently removed** at the top of the To Watch screen, with an Undo button. Undo puts it back in its old place in the list (the date it was added is kept). A removal can only be undone during those 30 seconds. When the time is up the title **disappears from Recently removed by itself**, even if you leave the page open and do nothing. It is then gone from the To Watch list for good, and the only way back is to search for it and add it again from Search (or its page). That puts it back as newly added (at the top of the list).
+- **Undo, for 10 seconds:** a title you removed appears under **Recently removed** at the top of the To Watch screen, with an Undo button. Undo puts it back in its old place in the list (the date it was added is kept). A removal can only be undone during those 10 seconds. When the time is up the title **disappears from Recently removed by itself**, even if you leave the page open and do nothing. It is then gone from the To Watch list for good, and the only way back is to search for it and add it again from Search (or its page). That puts it back as newly added (at the top of the list).
+- **No "Removed ..." notice.** Removing a title shows no message at the top. The title leaving the list and appearing under Recently removed is the feedback, and that block says how long Undo lasts ("You can undo a removal for 10 seconds.").
 - **The same title twice:** pressing Add on something already on the list does nothing but say so. There is never a second entry.
 - **Your own list:** each account has its own list. Nobody else sees yours or can change it.
 - **If something goes wrong** you see a message, not a crash:
   - TMDB cannot be reached when you add a title: a message next to the button, and nothing is saved. Try again later.
   - A title TMDB does not have: the normal "page not found" screen.
-  - You press Undo after the 30 seconds are over (for example the page has no JavaScript and could not update itself): "It is too late to undo ... You can add it again from Search." and nothing changes.
+  - You press Undo after the 10 seconds are over (for example the page has no JavaScript and could not update itself): "It is too late to undo ... You can add it again from Search." and nothing changes.
 
 ## How it works
 
@@ -38,7 +39,7 @@ Each button sends `kind` (`movie` or `series`), `tmdb_id` and `next` (the page t
 
 **Remove and undo**
 - Remove only fills in `removed_at`. Undo clears it again and does not touch `added_at`, so the entry comes back exactly as it was (design rule 5; the test `test_undo_puts_everything_back_as_it_was` checks this).
-- The undo window is one setting, `UNDO_WINDOW` (30 seconds) in `core/views.py`; the messages and the screen take their number from it. The To Watch screen lists entries with an empty `removed_at`, newest `added_at` first, and offers Undo for entries whose `removed_at` is inside the window. The server checks the window again when Undo is pressed, so an old removal can never be undone.
+- The undo window is one setting, `UNDO_WINDOW` (10 seconds) in `core/views.py`; the number shown on the screen comes from it. The To Watch screen lists entries with an empty `removed_at`, newest `added_at` first, and offers Undo for entries whose `removed_at` is inside the window. The server checks the window again when Undo is pressed, so an old removal can never be undone.
 - **The list empties by itself.** The "Recently removed" block (`_recently_removed.html`) carries an htmx timer (`hx-trigger="load delay:Ns"`): N is the seconds left for the oldest removal plus one. When it fires, the block asks `/to-watch/removed/` for itself again, gets back only what is still undoable (nothing, once time is up), and replaces itself. The time is always worked out by the server, never by the browser's clock. While something is still undoable the new block sets the next timer; when nothing is left it has no timer. The answer is never cached.
 - After the window nothing is erased: the row stays with its `removed_at`, and adding the title again clears `removed_at` and sets `added_at` to now.
 
@@ -53,7 +54,7 @@ Each button sends `kind` (`movie` or `series`), `tmdb_id` and `next` (the page t
 
 **Known limits**
 - A title's saved details are not refreshed yet. Changes on TMDB (a new poster, a fixed year) do not reach titles already saved. Refreshing comes with later cards.
-- After the 30 seconds there is no undo, only adding the title again, which resets its date added.
-- Without JavaScript the block cannot empty itself. It still goes away when the page is reloaded, and Undo is refused by the server after the 30 seconds.
-- A removal made on a search or title page (not on this screen) is only offered for undo here if you open the To Watch screen within the 30 seconds. On those pages the button turns back into "Add to To Watch", which is the same as undoing it except that the date added is reset.
+- After the 10 seconds there is no undo, only adding the title again, which resets its date added.
+- Without JavaScript the block cannot empty itself. It still goes away when the page is reloaded, and Undo is refused by the server after the 10 seconds.
+- A removal made on a search or title page (not on this screen) is only offered for undo here if you open the To Watch screen within the 10 seconds. On those pages the button turns back into "Add to To Watch", which is the same as undoing it except that the date added is reset.
 - The date added is stored but not shown on screen.

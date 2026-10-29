@@ -262,13 +262,25 @@ def test_a_removed_title_can_be_undone_after_reloading_the_page(logged_in_client
     assert 'class="tile" href="/movie/603/"' in to_watch_page(logged_in_client)
 
 
-def test_removing_and_undoing_say_what_happened(logged_in_client, respx_mock):
+def test_removing_shows_no_notice_but_the_title_is_offered_for_undo(logged_in_client, respx_mock):
     respx_mock.get(MOVIE_URL).respond(json=MADE_UP_MOVIE)
     add(logged_in_client)
+    logged_in_client.get('/to-watch/')  # the notice about adding has been shown and is gone
 
     removed = logged_in_client.post('/to-watch/remove/', {'kind': 'movie', 'tmdb_id': 603}, follow=True)
-    assert 'Removed “Made-up Movie” from your To Watch list.' in removed.content.decode()
-    assert 'You have 30 seconds to undo it.' in removed.content.decode()
+
+    page = removed.content.decode()
+    assert 'Removed “' not in page
+    assert 'to undo it' not in page
+    assert 'role="status"' not in page  # no notice at all
+    assert 'Recently removed' in page
+    assert 'You can undo a removal for 10 seconds.' in page
+
+
+def test_undoing_says_what_happened(logged_in_client, respx_mock):
+    respx_mock.get(MOVIE_URL).respond(json=MADE_UP_MOVIE)
+    add(logged_in_client)
+    remove(logged_in_client)
 
     restored = logged_in_client.post('/to-watch/undo/', {'kind': 'movie', 'tmdb_id': 603}, follow=True)
     assert 'Put “Made-up Movie” back on your To Watch list.' in restored.content.decode()
@@ -279,11 +291,11 @@ def make_removed_title(user, number, removed_ago):
     return ToWatchItem.objects.create(user=user, title=title, removed_at=timezone.now() - removed_ago)
 
 
-def test_recently_removed_offers_only_what_was_removed_in_the_last_30_seconds(logged_in_client):
+def test_recently_removed_offers_only_what_was_removed_in_the_last_10_seconds(logged_in_client):
     for number, removed_ago in [
-        (1, datetime.timedelta(seconds=5)),
-        (2, datetime.timedelta(seconds=20)),
-        (3, datetime.timedelta(seconds=45)),
+        (1, datetime.timedelta(seconds=2)),
+        (2, datetime.timedelta(seconds=6)),
+        (3, datetime.timedelta(seconds=20)),
         (4, datetime.timedelta(days=3)),
     ]:
         make_removed_title(logged_in_client.user, number, removed_ago)
@@ -297,7 +309,7 @@ def test_recently_removed_offers_only_what_was_removed_in_the_last_30_seconds(lo
     assert 'Made-up Movie 4 ' not in page
 
 
-def test_with_nothing_removed_in_the_last_30_seconds_there_is_no_undo_section(logged_in_client):
+def test_with_nothing_removed_in_the_last_10_seconds_there_is_no_undo_section(logged_in_client):
     make_removed_title(logged_in_client.user, 1, datetime.timedelta(minutes=5))
 
     page = to_watch_page(logged_in_client)
@@ -308,19 +320,19 @@ def test_with_nothing_removed_in_the_last_30_seconds_there_is_no_undo_section(lo
 
 
 def test_the_undo_block_asks_again_just_after_the_oldest_removal_runs_out(logged_in_client):
-    make_removed_title(logged_in_client.user, 1, datetime.timedelta(seconds=5))
-    make_removed_title(logged_in_client.user, 2, datetime.timedelta(seconds=20))  # runs out first: 10 s left
+    make_removed_title(logged_in_client.user, 1, datetime.timedelta(seconds=2))
+    make_removed_title(logged_in_client.user, 2, datetime.timedelta(seconds=7))  # runs out first: 3 s left
 
     page = to_watch_page(logged_in_client)
 
     assert 'hx-get="/to-watch/removed/"' in page
     delay = int(re.search(r'hx-trigger="load delay:(\d+)s"', page).group(1))
-    assert 10 <= delay <= 12  # the 10 seconds left, plus a second of margin
+    assert 3 <= delay <= 5  # the 3 seconds left, plus a second of margin
 
 
 def test_the_removed_block_alone_shows_only_what_can_still_be_undone(logged_in_client):
-    make_removed_title(logged_in_client.user, 1, datetime.timedelta(seconds=5))
-    make_removed_title(logged_in_client.user, 2, datetime.timedelta(seconds=45))
+    make_removed_title(logged_in_client.user, 1, datetime.timedelta(seconds=2))
+    make_removed_title(logged_in_client.user, 2, datetime.timedelta(seconds=20))
 
     response = logged_in_client.get('/to-watch/removed/')
 
@@ -335,7 +347,7 @@ def test_the_removed_block_alone_shows_only_what_can_still_be_undone(logged_in_c
 
 
 def test_when_time_is_up_the_removed_block_comes_back_empty_and_stops_asking(logged_in_client):
-    make_removed_title(logged_in_client.user, 1, datetime.timedelta(seconds=45))
+    make_removed_title(logged_in_client.user, 1, datetime.timedelta(seconds=20))
 
     body = logged_in_client.get('/to-watch/removed/').content.decode()
 
@@ -357,8 +369,8 @@ def test_the_undo_section_is_above_the_list(logged_in_client, respx_mock):
     assert page.index('Recently removed') < page.index('class="tile"')
 
 
-def test_undo_is_refused_after_the_30_seconds(logged_in_client):
-    item = make_removed_title(logged_in_client.user, 603, datetime.timedelta(seconds=45))
+def test_undo_is_refused_after_the_10_seconds(logged_in_client):
+    item = make_removed_title(logged_in_client.user, 603, datetime.timedelta(seconds=20))
     before = snapshot()
 
     response = undo(logged_in_client)
@@ -369,8 +381,8 @@ def test_undo_is_refused_after_the_30_seconds(logged_in_client):
     assert item.removed_at is not None
 
 
-def test_undo_still_works_just_inside_the_30_seconds(logged_in_client):
-    item = make_removed_title(logged_in_client.user, 603, datetime.timedelta(seconds=15))
+def test_undo_still_works_just_inside_the_10_seconds(logged_in_client):
+    item = make_removed_title(logged_in_client.user, 603, datetime.timedelta(seconds=6))
 
     undo(logged_in_client)
 
@@ -378,8 +390,8 @@ def test_undo_still_works_just_inside_the_30_seconds(logged_in_client):
     assert item.removed_at is None
 
 
-def test_after_the_30_seconds_a_title_comes_back_by_adding_it_again(logged_in_client):
-    item = make_removed_title(logged_in_client.user, 603, datetime.timedelta(seconds=45))
+def test_after_the_10_seconds_a_title_comes_back_by_adding_it_again(logged_in_client):
+    item = make_removed_title(logged_in_client.user, 603, datetime.timedelta(seconds=20))
     item.added_at = LONG_AGO
     item.save()
 

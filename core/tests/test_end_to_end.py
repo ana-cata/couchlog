@@ -22,7 +22,9 @@ MADE_UP_MOVIE = {
 }
 
 
-def test_log_in_search_add_a_title_then_remove_it_and_undo(live_server, page, respx_mock, settings):
+def test_log_in_search_add_a_title_then_remove_it_and_undo(live_server, page, respx_mock, settings, monkeypatch):
+    # A long window, so a slow machine can never run out of undo time in the middle of this test.
+    monkeypatch.setattr('core.views.UNDO_WINDOW', datetime.timedelta(minutes=5))
     settings.TMDB_API_KEY = 'made-up-secret-key'
     user = User.objects.create_user(username='made-up-user', password='made-up-password')
     Profile.objects.create(user=user, timezone='Europe/Lisbon')
@@ -63,6 +65,8 @@ def test_log_in_search_add_a_title_then_remove_it_and_undo(live_server, page, re
     page.get_by_role('button', name='Remove from To Watch').click()
     expect(page.locator('.tile')).to_have_count(0)
     expect(page.get_by_role('heading', name='Recently removed')).to_be_visible()
+    # No "Removed ..." notice at the top: the list itself shows it.
+    expect(page.get_by_text('Removed “')).to_have_count(0)
 
     # Undo brings it back.
     page.get_by_role('button', name='Undo').click()
@@ -123,7 +127,7 @@ def test_every_tile_is_the_same_size_whatever_the_title(live_server, page, respx
 
 
 def test_a_page_left_open_stops_offering_undo_when_time_is_up(live_server, page, monkeypatch):
-    # A short window, so the test does not have to wait 30 seconds.
+    # A shorter window than the real 10 seconds, so the test is quick.
     monkeypatch.setattr('core.views.UNDO_WINDOW', datetime.timedelta(seconds=3))
     user = User.objects.create_user(username='made-up-user', password='made-up-password')
     Profile.objects.create(user=user, timezone='Europe/Lisbon')

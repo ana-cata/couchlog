@@ -17,10 +17,9 @@ from . import tmdb
 from .forms import TimeZoneForm
 from .models import Profile, Title, ToWatchItem
 
-# How long after removing a title from To Watch it can still be undone. The messages and the
-# docs say the number of seconds, which comes from here. After that, the way back is adding
-# the title again.
-UNDO_WINDOW = timedelta(seconds=30)
+# How long after removing a title from To Watch it can still be undone. The screen says the
+# number of seconds, which comes from here. After that, the way back is adding the title again.
+UNDO_WINDOW = timedelta(seconds=10)
 
 
 def home(request):
@@ -123,7 +122,8 @@ def _answer(request, kind, tmdb_id, on_list, text, ok=True):
     """Reply to a button press.
 
     The search page uses htmx, which swaps in just the button in its new state. Without
-    htmx the reply is a redirect back to the page the button was on, with a message.
+    htmx the reply is a redirect back to the page the button was on, with a message (unless
+    `text` is empty: then there is nothing to say).
     """
     if request.headers.get('HX-Request'):
         tile = {'kind': kind, 'tmdb_id': tmdb_id}
@@ -132,7 +132,8 @@ def _answer(request, kind, tmdb_id, on_list, text, ok=True):
             context['error'] = text
         return render(request, 'core/_to_watch_button.html', context)
 
-    (messages.success if ok else messages.error)(request, text)
+    if text:
+        (messages.success if ok else messages.error)(request, text)
     next_url = request.POST.get('next', '')
     # Only come back to a page of this site, never to an address someone slipped into the form.
     if not url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
@@ -175,11 +176,8 @@ def to_watch_remove(request):
     # Only marked as removed, not erased, so Undo can bring it back as it was.
     item.removed_at = timezone.now()
     item.save(update_fields=['removed_at'])
-    text = (
-        f'Removed “{item.title.title}” from your To Watch list. '
-        f'You have {_undo_seconds()} seconds to undo it.'
-    )
-    return _answer(request, kind, tmdb_id, False, text)
+    # No message: the title leaving the list and showing up under "Recently removed" says it.
+    return _answer(request, kind, tmdb_id, False, '')
 
 
 @require_POST
