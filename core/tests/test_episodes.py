@@ -495,3 +495,101 @@ def test_the_tmdb_key_never_reaches_the_browser(logged_in_client, tmdb_series):
 
     assert 'made-up-secret-key' not in response.content.decode()
     assert 'made-up-secret-key' not in str(response.headers)
+
+
+# --- with htmx only the episode's row changes, so the page does not move ----------------------
+
+HTMX = {'headers': {'HX-Request': 'true'}}
+
+
+def test_the_buttons_use_htmx_so_the_page_does_not_reload(logged_in_client, tmdb_series):
+    gray = page(logged_in_client)
+    mark(logged_in_client, 6001)
+    green = page(logged_in_client)
+
+    assert 'hx-post="/watched/episode/add/" hx-target="closest li" hx-swap="outerHTML"' in gray
+    assert 'hx-post="/watched/remove/" hx-target="closest li" hx-swap="outerHTML"' in green
+
+
+def test_with_htmx_marking_and_un_marking_answer_with_just_the_row(logged_in_client, tmdb_series):
+    page(logged_in_client)
+    episode = episode_of(6001)
+
+    marked = logged_in_client.post('/watched/episode/add/', {'episode_id': episode.id}, **HTMX)
+
+    body = marked.content.decode()
+    assert marked.status_code == 200 and '<html' not in body  # a piece of a page, not a page
+    assert body.lstrip().startswith(f'<li id="episode-{episode.id}">') and body.count('<li') == 1
+    assert is_watched(body, 1)
+    assert Watch.objects.count() == 1
+
+    watch = Watch.objects.get()
+    unmarked = logged_in_client.post(
+        '/watched/remove/', {'watch_id': watch.id, 'episode_id': episode.id}, **HTMX
+    )
+
+    body = unmarked.content.decode()
+    assert unmarked.status_code == 200 and '<html' not in body
+    assert 'aria-label="Mark episode 1 as watched"' in body and not is_watched(body, 1)
+    assert Watch.objects.count() == 0
+
+
+def test_with_htmx_undo_puts_everything_back_as_it_was(logged_in_client, tmdb_series):
+    page(logged_in_client)
+    before = snapshot()
+    episode = episode_of(6001)
+
+    logged_in_client.post('/watched/episode/add/', {'episode_id': episode.id}, **HTMX)
+    assert snapshot() != before
+    logged_in_client.post('/watched/remove/', {'watch_id': Watch.objects.get().id, 'episode_id': episode.id}, **HTMX)
+
+    assert snapshot() == before
+
+
+def test_with_htmx_an_episode_that_has_not_aired_comes_back_without_a_button(logged_in_client, tmdb_series):
+    page(logged_in_client)
+
+    response = logged_in_client.post('/watched/episode/add/', {'episode_id': episode_of(6101).id}, **HTMX)
+
+    body = response.content.decode()
+    assert response.status_code == 200 and 'Airs 29 Oct 2026' in body and 'class="check' not in body
+    assert Watch.objects.count() == 0
+
+
+def test_with_htmx_marking_an_episode_twice_shows_it_green_and_saves_one_watch(logged_in_client, tmdb_series):
+    page(logged_in_client)
+    episode = episode_of(6001)
+    logged_in_client.post('/watched/episode/add/', {'episode_id': episode.id}, **HTMX)
+
+    response = logged_in_client.post('/watched/episode/add/', {'episode_id': episode.id}, **HTMX)
+
+    assert is_watched(response.content.decode(), 1)
+    assert Watch.objects.count() == 1
+
+
+def test_with_htmx_a_page_that_is_out_of_date_shows_the_row_as_it_is_now(logged_in_client, tmdb_series):
+    page(logged_in_client)
+    episode = episode_of(6001)
+    mark(logged_in_client, 6001)
+    watch_id = Watch.objects.get().id
+    unmark(logged_in_client, watch_id)  # undone in another tab; this page still shows green
+
+    response = logged_in_client.post('/watched/remove/', {'watch_id': watch_id, 'episode_id': episode.id}, **HTMX)
+
+    assert response.status_code == 200
+    assert 'aria-label="Mark episode 1 as watched"' in response.content.decode()
+    assert Watch.objects.count() == 0
+
+
+def test_with_htmx_each_account_sees_only_its_own_marks(logged_in_client, tmdb_series):
+    page(logged_in_client)
+    mark(logged_in_client, 6001)
+    other = make_client('second-user')
+    episode = episode_of(6001)
+
+    # The second account presses "not watched" with the first account's watch id: nothing is removed
+    # and the row it gets back is gray, because it has not marked that episode itself.
+    response = other.post('/watched/remove/', {'watch_id': Watch.objects.get().id, 'episode_id': episode.id}, **HTMX)
+
+    assert not is_watched(response.content.decode(), 1)
+    assert Watch.objects.count() == 1

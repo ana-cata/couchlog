@@ -3,7 +3,8 @@
 ## What it does
 
 - **The series page** (`/series/<TMDB id>/`, open it from a search result or from Series → To Watch) shows the poster, title, year and description, the To Watch button, and the **seasons and episodes**.
-- **Seasons** are folded away: click a season to open or close it. The first season is open when you arrive, and after you mark an episode the page comes back to the same season, at that episode (highlighted for a moment). **Specials** (TMDB's season 0) are listed last.
+- **Seasons** are folded away: click a season to open or close it. The first season is open when you arrive. **Specials** (TMDB's season 0) are listed last.
+- **The page never moves.** Pressing a circle changes only that episode's row, in place: no reload, no jump, and the scroll position and open seasons stay as they are, even deep in a long season.
 - **Each episode** shows its number, name and air date, and, if it has aired, a **round check button** on the right:
   - **Gray** = not watched. Press it to mark the episode as watched.
   - **Green** = watched. Press it to mark it as not watched (the undo, at any time later, with no time limit).
@@ -28,9 +29,11 @@
 |---|---|---|
 | `/series/<TMDB id>/` | The series page. `?season=2` opens that season instead of the first | Yes |
 | `/watched/episode/add/` | Mark one episode as watched (round button, POST only). Sends `episode_id` (our own id for the episode) and `next` | Yes |
-| `/watched/remove/` | Mark as not watched, the undo (round button, POST only). Sends `watch_id` and `next`. The same address as the movie undo | Yes |
+| `/watched/remove/` | Mark as not watched, the undo (round button, POST only). Sends `watch_id`, `episode_id` and `next`. The same address as the movie undo | Yes |
 
-The buttons are normal forms, not htmx: the server saves, then sends the browser back to `next` (the same season, at the same episode; only if it is a page of this site; the Series section otherwise). Marking or un-marking an episode shows no message; the button changing colour is the feedback.
+**In place, with htmx.** Each circle is a form with `hx-post`, `hx-target="closest li"` and `hx-swap="outerHTML"` (`_episode_row.html`). The server saves, then answers with just that episode's row in its new state (`_episode_row` in `core/views.py`), and htmx swaps it in. Nothing else on the page is touched, so it does not move. Marking or un-marking shows no message; the circle changing colour is the feedback. If a page is out of date (for example the episode was already un-marked in another tab), the row that comes back shows how things really are now.
+
+**Without htmx** (no JavaScript) the same forms are normal forms: the server saves, then redirects to `next` (the same season, at the same episode, highlighted for a moment; only if it is a page of this site; the Series section otherwise). Messages for refusals ("has not aired yet", "already marked") only show in this case; with htmx the row simply shows the true state.
 
 **Tables** (see [data model](data-model.md))
 - `core_episode`: one row per episode, saved from TMDB and shared by every account: `title` (the series), `tmdb_id` (TMDB's episode id), `season_number` (0 = Specials), `episode_number`, `name`, `air_date` (empty when TMDB has none) and `runtime` (minutes; not shown yet, for the time-spent feature). Unique on `title` + `tmdb_id`.

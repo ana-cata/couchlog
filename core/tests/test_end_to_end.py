@@ -235,3 +235,49 @@ def test_open_a_series_tick_an_episode_and_untick_it(live_server, page, respx_mo
     # Untick it: back to gray.
     page.get_by_role('button', name='Mark episode 1 as not watched').click()
     expect(page.get_by_role('button', name='Mark episode 1 as watched')).to_be_visible()
+
+
+def test_ticking_an_episode_does_not_move_the_page(live_server, page, respx_mock, settings):
+    settings.TMDB_API_KEY = 'made-up-secret-key'
+    user = User.objects.create_user(username='made-up-user', password='made-up-password')
+    Profile.objects.create(user=user, timezone='Europe/Lisbon')
+    show = Title.objects.create(kind='series', tmdb_id=1399, title='Made-up Series', year='2011')
+    ToWatchItem.objects.create(user=user, title=show)
+    respx_mock.get('https://api.themoviedb.org/3/tv/1399').respond(
+        json={'id': 1399, 'name': 'Made-up Series', 'seasons': [{'season_number': 1}]}
+    )
+    # A long season, so the page is much taller than the window and has to be scrolled.
+    episodes = [
+        {'id': 6000 + number, 'season_number': 1, 'episode_number': number, 'name': f'Made-up episode {number}',
+         'air_date': '2011-04-17'}
+        for number in range(1, 41)
+    ]
+    respx_mock.get('https://api.themoviedb.org/3/tv/1399/season/1').respond(
+        json={'season_number': 1, 'episodes': episodes}
+    )
+    page.route('https://image.tmdb.org/**', lambda route: route.abort())
+    page.set_viewport_size({'width': 800, 'height': 600})
+
+    page.goto(live_server.url)
+    page.get_by_label('Username').fill('made-up-user')
+    page.get_by_label('Password').fill('made-up-password')
+    page.get_by_role('button', name='Log in').click()
+    page.goto(live_server.url + '/series/1399/')
+    page.wait_for_load_state('load')  # htmx starts when the page has loaded
+
+    # Scroll to the bottom of the season and tick the last episode.
+    button = page.get_by_role('button', name='Mark episode 40 as watched')
+    button.scroll_into_view_if_needed()
+    address_before = page.url
+    scrolled_before = page.evaluate('window.scrollY')
+    assert scrolled_before > 500  # it really is scrolled down
+    button.click()
+    expect(page.get_by_role('button', name='Mark episode 40 as not watched')).to_be_visible()
+
+    # Nothing moved: same place on the page, same address (no jump to the episode), and no reload.
+    assert abs(page.evaluate('window.scrollY') - scrolled_before) < 2
+    assert page.url == address_before
+    # The same goes for un-ticking it.
+    page.get_by_role('button', name='Mark episode 40 as not watched').click()
+    expect(page.get_by_role('button', name='Mark episode 40 as watched')).to_be_visible()
+    assert abs(page.evaluate('window.scrollY') - scrolled_before) < 2

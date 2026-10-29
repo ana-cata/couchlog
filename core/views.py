@@ -134,7 +134,7 @@ def _series_page(request, tmdb_id):
     by_season = {}
     for episode in series.episodes.order_by('season_number', 'episode_number', 'id'):
         episode.watch = watches.get(episode.id)
-        episode.aired = episode.air_date is not None and episode.air_date <= today
+        episode.aired = _has_aired(episode, today)
         by_season.setdefault(episode.season_number, []).append(episode)
     # Specials (season 0) last.
     numbers = sorted(by_season, key=lambda number: (number == 0, number))
@@ -376,28 +376,51 @@ def watched_add(request):
     return _redirect_back(request, f'Marked “{title.title}” as watched.', True, 'history')
 
 
-@require_POST
-def episode_watched_add(request):
-    """Mark one episode as watched, on the day the button is pressed (in the account's time zone)."""
+def _posted_episode(request):
+    """The episode a button was pressed for."""
     try:
         episode_id = int(request.POST.get('episode_id', ''))
     except ValueError:
         raise BadRequest from None
-    episode = get_object_or_404(Episode.objects.select_related('title'), id=episode_id)
+    return get_object_or_404(Episode.objects.select_related('title'), id=episode_id)
+
+
+def _has_aired(episode, today):
+    return episode.air_date is not None and episode.air_date <= today
+
+
+def _episode_row(request, episode):
+    """One episode's row in its current state, which htmx swaps in place so the page does not move."""
+    episode.watch = Watch.objects.filter(user=request.user, episode=episode).order_by('-created_at', '-id').first()
+    episode.aired = _has_aired(episode, _today(request))
+    return render(request, 'core/_episode_row.html', {'episode': episode, 'item': episode.title})
+
+
+def _answer_episode(request, episode, text='', ok=True):
+    """Reply to an episode button. With htmx: just the row, as it is now (the colour says what happened).
+    Without htmx: a redirect back to the series page, with a message (unless `text` is empty)."""
+    if request.headers.get('HX-Request'):
+        return _episode_row(request, episode)
+    return _redirect_back(request, text, ok, 'series')
+
+
+@require_POST
+def episode_watched_add(request):
+    """Mark one episode as watched, on the day the button is pressed (in the account's time zone)."""
+    episode = _posted_episode(request)
     name = f'“{episode.title.title}” S{episode.season_number}E{episode.episode_number}'
     today = _today(request)
 
     if episode.air_date is None:
-        return _redirect_back(request, f'{name} has no air date yet, so it cannot be marked.', False, 'series')
+        return _answer_episode(request, episode, f'{name} has no air date yet, so it cannot be marked.', False)
     if episode.air_date > today:
-        return _redirect_back(request, f'{name} has not aired yet, so it cannot be marked.', False, 'series')
+        return _answer_episode(request, episode, f'{name} has not aired yet, so it cannot be marked.', False)
     # Watching it again is a later feature (Rewatch). For now a second press changes nothing.
     if Watch.objects.filter(user=request.user, episode=episode).exists():
-        return _redirect_back(request, f'{name} is already marked as watched.', True, 'series')
+        return _answer_episode(request, episode, f'{name} is already marked as watched.')
 
-    # No message: the button turning green says it.
     Watch.objects.create(user=request.user, title=episode.title, episode=episode, watched_on=today)
-    return _redirect_back(request, '', True, 'series')
+    return _answer_episode(request, episode)
 
 
 @require_POST
@@ -407,8 +430,11 @@ def watched_remove(request):
         watch_id = int(request.POST.get('watch_id', ''))
     except ValueError:
         raise BadRequest from None
-    watch = Watch.objects.select_related('title').filter(user=request.user, id=watch_id).first()
+    watch = Watch.objects.select_related('title', 'episode').filter(user=request.user, id=watch_id).first()
     if watch is None:
+        if request.headers.get('HX-Request') and 'episode_id' in request.POST:
+            # An episode button on a page that is out of date (undone in another tab): show the row as it is now.
+            return _episode_row(request, _posted_episode(request))
         return _redirect_back(request, 'That watch is not in your history.', False, 'history')
 
     with transaction.atomic():
@@ -419,7 +445,7 @@ def watched_remove(request):
         watch.delete()
     if watch.episode_id:
         # No message: the button turning gray says it.
-        return _redirect_back(request, '', True, 'series')
+        return _answer_episode(request, watch.episode)
     text = f'Marked “{watch.title.title}” as not watched.'
     if back_on_list:
         text += ' It is back on your To Watch list.'
