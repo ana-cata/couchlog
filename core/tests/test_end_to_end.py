@@ -1,11 +1,12 @@
 """The first end-to-end test: a real browser walks through the app, as I would."""
 
+import datetime
 import os
 
 from django.contrib.auth.models import User
 from playwright.sync_api import expect
 
-from core.models import Profile
+from core.models import Profile, Title, ToWatchItem
 
 # The browser's driver runs inside an event loop, and Django refuses database calls from
 # there unless told it is fine. It is fine in a test.
@@ -119,3 +120,30 @@ def test_every_tile_is_the_same_size_whatever_the_title(live_server, page, respx
     page.set_viewport_size({'width': 1280, 'height': 900})
     cut_off = page.locator('.tile small').evaluate_all('lines => lines.some(line => line.scrollWidth > line.clientWidth)')
     assert not cut_off
+
+
+def test_a_page_left_open_stops_offering_undo_when_time_is_up(live_server, page, monkeypatch):
+    # A short window, so the test does not have to wait 30 seconds.
+    monkeypatch.setattr('core.views.UNDO_WINDOW', datetime.timedelta(seconds=3))
+    user = User.objects.create_user(username='made-up-user', password='made-up-password')
+    Profile.objects.create(user=user, timezone='Europe/Lisbon')
+    title = Title.objects.create(kind='series', tmdb_id=1399, title='Made-up Series', year='2011')
+    ToWatchItem.objects.create(user=user, title=title)
+
+    page.goto(live_server.url)
+    page.get_by_label('Username').fill('made-up-user')
+    page.get_by_label('Password').fill('made-up-password')
+    page.get_by_role('button', name='Log in').click()
+    page.get_by_role('link', name='To Watch', exact=True).click()
+    page.get_by_role('button', name='Remove from To Watch').click()
+    expect(page.get_by_role('heading', name='Recently removed')).to_be_visible()
+    expect(page.get_by_role('button', name='Undo')).to_be_visible()
+
+    # Now leave the page alone: no reload, no click. The block goes away by itself.
+    expect(page.get_by_role('heading', name='Recently removed')).to_be_hidden(timeout=10_000)
+    expect(page.get_by_role('button', name='Undo')).to_have_count(0)
+    # The title is not back on the list, and a reload agrees.
+    expect(page.locator('.tile')).to_have_count(0)
+    page.reload()
+    expect(page.get_by_role('heading', name='Recently removed')).to_have_count(0)
+    expect(page.get_by_text('Nothing on your To Watch list yet')).to_be_visible()

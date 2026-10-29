@@ -1,3 +1,4 @@
+import math
 from datetime import timedelta
 
 from django.contrib import messages
@@ -8,6 +9,7 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
+from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 from django.views.decorators.vary import vary_on_headers
 
@@ -15,9 +17,10 @@ from . import tmdb
 from .forms import TimeZoneForm
 from .models import Profile, Title, ToWatchItem
 
-# How long after removing a title from To Watch it can still be undone. The messages and
-# the docs call this "a minute". After that, the way back is adding the title again.
-UNDO_WINDOW = timedelta(minutes=1)
+# How long after removing a title from To Watch it can still be undone. The messages and the
+# docs say the number of seconds, which comes from here. After that, the way back is adding
+# the title again.
+UNDO_WINDOW = timedelta(seconds=30)
 
 
 def home(request):
@@ -62,16 +65,39 @@ def title(request, kind, tmdb_id):
     return render(request, 'core/title.html', {'item': item, 'on_list': on_list, 'next': request.get_full_path()})
 
 
+def _undo_seconds():
+    return int(UNDO_WINDOW.total_seconds())
+
+
+def _recently_removed(request):
+    """What the "Recently removed" block shows: only titles still inside the undo window."""
+    removed = list(
+        ToWatchItem.objects.filter(user=request.user, removed_at__gte=timezone.now() - UNDO_WINDOW)
+        .select_related('title')
+        .order_by('-removed_at')
+    )
+    context = {'removed': removed, 'undo_seconds': _undo_seconds(), 'next': reverse('to_watch')}
+    if removed:
+        # The oldest one runs out of time first. The block asks the server again just after
+        # that, so a page that stays open empties the list by itself.
+        runs_out = min(item.removed_at for item in removed) + UNDO_WINDOW
+        context['recheck_seconds'] = max(1, math.ceil((runs_out - timezone.now()).total_seconds()) + 1)
+    return context
+
+
 def to_watch(request):
-    mine = ToWatchItem.objects.filter(user=request.user).select_related('title')
-    # Only what was removed within the last minute can still be undone.
-    undo_from = timezone.now() - UNDO_WINDOW
-    context = {
-        'items': mine.filter(removed_at=None).order_by('-added_at'),
-        'removed': mine.filter(removed_at__gte=undo_from).order_by('-removed_at'),
-        'next': request.get_full_path(),
-    }
-    return render(request, 'core/to_watch.html', context)
+    items = (
+        ToWatchItem.objects.filter(user=request.user, removed_at=None)
+        .select_related('title')
+        .order_by('-added_at')
+    )
+    return render(request, 'core/to_watch.html', {'items': items, **_recently_removed(request)})
+
+
+# Only the "Recently removed" block, which the To Watch screen asks for when time runs out.
+@never_cache
+def to_watch_removed(request):
+    return render(request, 'core/_recently_removed.html', _recently_removed(request))
 
 
 def _posted_title(request):
@@ -149,7 +175,10 @@ def to_watch_remove(request):
     # Only marked as removed, not erased, so Undo can bring it back as it was.
     item.removed_at = timezone.now()
     item.save(update_fields=['removed_at'])
-    text = f'Removed “{item.title.title}” from your To Watch list. You have a minute to undo it.'
+    text = (
+        f'Removed “{item.title.title}” from your To Watch list. '
+        f'You have {_undo_seconds()} seconds to undo it.'
+    )
     return _answer(request, kind, tmdb_id, False, text)
 
 

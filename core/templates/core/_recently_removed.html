@@ -1,0 +1,22 @@
+{# Titles removed a few seconds ago, each with an Undo. While there are any, this block asks the #}
+{# server again just after the oldest one runs out of time, so the list empties by itself. #}
+<div id="recently-removed"{% if removed %} hx-get="{% url 'to_watch_removed' %}" hx-trigger="load delay:{{ recheck_seconds }}s" hx-swap="outerHTML"{% endif %}>
+  {% if removed %}
+    <h2>Recently removed</h2>
+    <p><small>You can undo a removal for {{ undo_seconds }} seconds.</small></p>
+    <ul class="removed">
+      {% for item in removed %}
+        <li>
+          <span>{{ item.title.title }} <small>{{ item.title.year|default:"Year unknown" }} · {{ item.title.kind|capfirst }}</small></span>
+          <form method="post" action="{% url 'to_watch_undo' %}">
+            {% csrf_token %}
+            <input type="hidden" name="kind" value="{{ item.title.kind }}">
+            <input type="hidden" name="tmdb_id" value="{{ item.title.tmdb_id }}">
+            <input type="hidden" name="next" value="{{ next }}">
+            <button type="submit" class="outline secondary">Undo</button>
+          </form>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+</div>

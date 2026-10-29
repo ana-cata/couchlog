@@ -268,7 +268,7 @@ def test_removing_and_undoing_say_what_happened(logged_in_client, respx_mock):
 
     removed = logged_in_client.post('/to-watch/remove/', {'kind': 'movie', 'tmdb_id': 603}, follow=True)
     assert 'Removed “Made-up Movie” from your To Watch list.' in removed.content.decode()
-    assert 'You have a minute to undo it.' in removed.content.decode()
+    assert 'You have 30 seconds to undo it.' in removed.content.decode()
 
     restored = logged_in_client.post('/to-watch/undo/', {'kind': 'movie', 'tmdb_id': 603}, follow=True)
     assert 'Put “Made-up Movie” back on your To Watch list.' in restored.content.decode()
@@ -279,11 +279,11 @@ def make_removed_title(user, number, removed_ago):
     return ToWatchItem.objects.create(user=user, title=title, removed_at=timezone.now() - removed_ago)
 
 
-def test_recently_removed_offers_only_what_was_removed_in_the_last_minute(logged_in_client):
+def test_recently_removed_offers_only_what_was_removed_in_the_last_30_seconds(logged_in_client):
     for number, removed_ago in [
-        (1, datetime.timedelta(seconds=10)),
-        (2, datetime.timedelta(seconds=40)),
-        (3, datetime.timedelta(minutes=2)),
+        (1, datetime.timedelta(seconds=5)),
+        (2, datetime.timedelta(seconds=20)),
+        (3, datetime.timedelta(seconds=45)),
         (4, datetime.timedelta(days=3)),
     ]:
         make_removed_title(logged_in_client.user, number, removed_ago)
@@ -297,13 +297,51 @@ def test_recently_removed_offers_only_what_was_removed_in_the_last_minute(logged
     assert 'Made-up Movie 4 ' not in page
 
 
-def test_with_nothing_removed_in_the_last_minute_there_is_no_undo_section(logged_in_client):
+def test_with_nothing_removed_in_the_last_30_seconds_there_is_no_undo_section(logged_in_client):
     make_removed_title(logged_in_client.user, 1, datetime.timedelta(minutes=5))
 
     page = to_watch_page(logged_in_client)
 
     assert 'Recently removed' not in page
     assert 'action="/to-watch/undo/"' not in page
+    assert 'hx-get="/to-watch/removed/"' not in page  # nothing to count down, so nothing asks again
+
+
+def test_the_undo_block_asks_again_just_after_the_oldest_removal_runs_out(logged_in_client):
+    make_removed_title(logged_in_client.user, 1, datetime.timedelta(seconds=5))
+    make_removed_title(logged_in_client.user, 2, datetime.timedelta(seconds=20))  # runs out first: 10 s left
+
+    page = to_watch_page(logged_in_client)
+
+    assert 'hx-get="/to-watch/removed/"' in page
+    delay = int(re.search(r'hx-trigger="load delay:(\d+)s"', page).group(1))
+    assert 10 <= delay <= 12  # the 10 seconds left, plus a second of margin
+
+
+def test_the_removed_block_alone_shows_only_what_can_still_be_undone(logged_in_client):
+    make_removed_title(logged_in_client.user, 1, datetime.timedelta(seconds=5))
+    make_removed_title(logged_in_client.user, 2, datetime.timedelta(seconds=45))
+
+    response = logged_in_client.get('/to-watch/removed/')
+
+    body = response.content.decode()
+    assert '<html' not in body
+    assert 'Made-up Movie 1 ' in body
+    assert 'Made-up Movie 2 ' not in body
+    # Undo brings you back to the To Watch screen, not to this fragment.
+    assert 'name="next" value="/to-watch/"' in body
+    # The answer must never be cached, or an expired title could come back on screen.
+    assert 'no-cache' in response['Cache-Control']
+
+
+def test_when_time_is_up_the_removed_block_comes_back_empty_and_stops_asking(logged_in_client):
+    make_removed_title(logged_in_client.user, 1, datetime.timedelta(seconds=45))
+
+    body = logged_in_client.get('/to-watch/removed/').content.decode()
+
+    assert 'Recently removed' not in body
+    assert 'action="/to-watch/undo/"' not in body
+    assert 'hx-get' not in body
 
 
 def test_the_undo_section_is_above_the_list(logged_in_client, respx_mock):
@@ -319,8 +357,8 @@ def test_the_undo_section_is_above_the_list(logged_in_client, respx_mock):
     assert page.index('Recently removed') < page.index('class="tile"')
 
 
-def test_undo_is_refused_after_a_minute(logged_in_client):
-    item = make_removed_title(logged_in_client.user, 603, datetime.timedelta(minutes=2))
+def test_undo_is_refused_after_the_30_seconds(logged_in_client):
+    item = make_removed_title(logged_in_client.user, 603, datetime.timedelta(seconds=45))
     before = snapshot()
 
     response = undo(logged_in_client)
@@ -331,8 +369,8 @@ def test_undo_is_refused_after_a_minute(logged_in_client):
     assert item.removed_at is not None
 
 
-def test_undo_still_works_just_inside_the_minute(logged_in_client):
-    item = make_removed_title(logged_in_client.user, 603, datetime.timedelta(seconds=40))
+def test_undo_still_works_just_inside_the_30_seconds(logged_in_client):
+    item = make_removed_title(logged_in_client.user, 603, datetime.timedelta(seconds=15))
 
     undo(logged_in_client)
 
@@ -340,8 +378,8 @@ def test_undo_still_works_just_inside_the_minute(logged_in_client):
     assert item.removed_at is None
 
 
-def test_after_the_minute_a_title_comes_back_by_adding_it_again(logged_in_client):
-    item = make_removed_title(logged_in_client.user, 603, datetime.timedelta(minutes=2))
+def test_after_the_30_seconds_a_title_comes_back_by_adding_it_again(logged_in_client):
+    item = make_removed_title(logged_in_client.user, 603, datetime.timedelta(seconds=45))
     item.added_at = LONG_AGO
     item.save()
 
@@ -472,10 +510,12 @@ def test_with_htmx_a_tmdb_failure_shows_the_message_next_to_the_button(logged_in
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize('url', ['/to-watch/', '/to-watch/add/', '/to-watch/remove/', '/to-watch/undo/'])
+@pytest.mark.parametrize(
+    'url', ['/to-watch/', '/to-watch/removed/', '/to-watch/add/', '/to-watch/remove/', '/to-watch/undo/']
+)
 def test_these_addresses_are_closed_when_logged_out(client, respx_mock, url):
     form = {'kind': 'movie', 'tmdb_id': 603}
-    response = client.post(url, form) if url != '/to-watch/' else client.get(url)
+    response = client.get(url) if url in ('/to-watch/', '/to-watch/removed/') else client.post(url, form)
 
     assert response.status_code == 302
     assert response['Location'].startswith('/login/')
