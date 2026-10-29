@@ -40,6 +40,9 @@ def test_log_in_search_add_a_title_then_remove_it_and_undo(live_server, page, re
 
     # Search: results appear as I type, with no button pressed.
     page.get_by_role('link', name='Search', exact=True).click()
+    # htmx starts when the page has loaded. Typing before that is ignored, and a robot types much
+    # faster than a person does, so wait for the page first (this was flaky on GitHub's slower machine).
+    page.wait_for_load_state('load')
     page.get_by_role('searchbox').press_sequentially('made-up')
     expect(page.locator('.tile')).to_have_count(1)
     expect(page.locator('.tile')).to_contain_text('Made-up Movie')
