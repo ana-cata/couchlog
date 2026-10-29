@@ -184,7 +184,7 @@ Done when: `runserver` shows the Couchlog placeholder page on my PC, the skeleto
 Goal: on my PC, only I can log in, and tests run automatically on every pull request. This is the heaviest week: if it runs over, the time zone picker moves to Week 3.
 
 - [ ] Sketch the 7 screens on paper or in Figma: Home (Up Next, and News later), Search, To Watch, Movie page, Series page (seasons with episode checkboxes), Calendar, Profile (account and time zone, statistics later)
-- [ ] Set up the SQLite database on the PC with Django's built-in migrations (scripted table changes, section 4)
+- [x] Set up the SQLite database on the PC with Django's built-in migrations (scripted table changes, section 4)
 - [ ] Set up Django's built-in login (username and password) and a page that only logged-in users can open
 - [ ] Create my account in Django's admin page, since there is no public sign-up page
 - [ ] At the first login, pick my time zone from a list (the browser's time zone is suggested) and save it
@@ -434,3 +434,4 @@ Sorted by when each item matters.
 | 2026-10-28 | Profile page added (account, time zone, later statistics; favorites as a Could feature). Calendar clarified: it shows the series I am watching and the titles on my To Watch list. |
 | 2026-10-29 | Card #3 built (pull request open): Django skeleton with a placeholder page, Pico CSS and htmx saved in the project, `.env` for the TMDB key, and the `tmdb_check` command, which worked with my real key. Cards #4 and #6 rewritten for Django. Week 1 is done once it is merged. |
 | 2026-10-29 | Card #3 merged, so Week 1 is done. Card #4 built (pull request open): ruff added to the dev tools and a GitHub Actions workflow that runs the lint and the tests on every pull request. The first simple tests came with card #3. |
+| 2026-10-29 | Card #4 merged. Card #5 built (pull request open): the SQLite database and Django's built-in migrations were already working from card #3, so this card adds the proof: tests that show tests use a temporary database and never `db.sqlite3`, a test that fails if a table change has no migration file, and the first docs page (`docs/data-model.md`). |
