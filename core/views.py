@@ -17,6 +17,7 @@ from django.views.decorators.http import require_POST
 from django.views.decorators.vary import vary_on_headers
 
 from . import tmdb
+from .episodes import refresh_episodes, series_tabs, started_series
 from .forms import TimeZoneForm, WatchedForm
 from .models import Episode, Profile, Title, ToWatchItem, Watch
 
@@ -85,25 +86,6 @@ def title(request, kind, tmdb_id):
     return render(request, 'core/title.html', context)
 
 
-def _refresh_episodes(series):
-    """Ask TMDB for the series' episodes and save them.
-
-    Episodes are matched with TMDB's own id: a renumbered or renamed episode is updated in place
-    (so its watches stay with it), a new one is added, and none is ever deleted. TMDB is asked first,
-    so when it fails nothing is saved.
-    """
-    episodes = tmdb.get_episodes(series.tmdb_id)
-    with transaction.atomic():
-        Episode.objects.bulk_create(
-            [Episode(title=series, **episode) for episode in episodes],
-            update_conflicts=True,
-            unique_fields=['title', 'tmdb_id'],
-            update_fields=['season_number', 'episode_number', 'name', 'air_date', 'runtime'],
-        )
-        series.episodes_refreshed_at = timezone.now()
-        series.save(update_fields=['episodes_refreshed_at'])
-
-
 def _series_page(request, tmdb_id):
     """A series with its seasons and episodes, from our own saved copy (design rule 6)."""
     try:
@@ -119,7 +101,7 @@ def _series_page(request, tmdb_id):
     saved_at = series.episodes_refreshed_at
     if saved_at is None or saved_at < timezone.now() - EPISODES_REFRESH_AFTER:
         try:
-            _refresh_episodes(series)
+            refresh_episodes(series)
         except tmdb.TmdbError as problem:
             notice = f'{problem} Showing the episodes saved earlier.' if saved_at else str(problem)
 
@@ -214,6 +196,10 @@ def _to_watch_screen(request, kind):
         .select_related('title')
         .order_by('-added_at')
     )
+    if kind == 'series':
+        # A series with an episode marked is being watched: it is under Watching now, not here.
+        # Its entry on the list is untouched, so un-marking the episode brings it back here.
+        items = items.exclude(title__in=started_series(request.user))
     context = {'items': items, 'section': SECTION_OF_KIND[kind], **_recently_removed(request, kind)}
     return render(request, 'core/to_watch.html', context)
 
@@ -224,6 +210,20 @@ def movies(request):
 
 def series(request):
     return _to_watch_screen(request, 'series')
+
+
+def _series_tab(request, tab):
+    watching, finished = series_tabs(request.user, _today(request))
+    context = {'titles': watching if tab == 'watching' else finished, 'section': 'series', 'tab': tab}
+    return render(request, 'core/series_tab.html', context)
+
+
+def series_watching(request):
+    return _series_tab(request, 'watching')
+
+
+def series_finished(request):
+    return _series_tab(request, 'finished')
 
 
 # Only the "Recently removed" block of one section, which its To Watch screen asks for when time runs out.

@@ -35,6 +35,10 @@ class Title(models.Model):
     overview = models.TextField(blank=True)
     # Series only: when its episodes were last asked from TMDB. Empty until the first time.
     episodes_refreshed_at = models.DateTimeField(null=True, blank=True)
+    # Series only: TMDB's own word for where the series stands ("Returning Series", "Ended",
+    # "Canceled"...), as of the last refresh. Empty until the first time. A series only counts
+    # as finished once this says it ended (see core/episodes.py).
+    status = models.CharField(max_length=40, blank=True)
 
     class Meta:
         constraints = (

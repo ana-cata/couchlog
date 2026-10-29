@@ -18,6 +18,7 @@ MADE_UP_SERIES = {
     'first_air_date': '2011-04-17',
     'poster_path': '/made-up-series.jpg',
     'overview': 'A made-up story about a series.',
+    'status': 'Returning Series',
     'seasons': [{'season_number': 0}, {'season_number': 1}, {'season_number': 2}],
 }
 
@@ -220,6 +221,33 @@ def test_opening_it_again_within_a_day_does_not_ask_tmdb_again(logged_in_client,
     assert tmdb_series[1].call_count == 2
 
 
+def test_the_status_is_saved_and_shown_next_to_the_year(logged_in_client, tmdb_series):
+    html = page(logged_in_client)
+
+    assert Title.objects.get().status == 'Returning Series'
+    assert '2011 · Series · Returning Series' in html
+
+
+def test_a_refresh_picks_up_that_the_series_has_ended(logged_in_client, tmdb_series, clock):
+    page(logged_in_client)
+    tmdb_series['series'].respond(json={**MADE_UP_SERIES, 'status': 'Ended'})
+    clock.shift(datetime.timedelta(days=2))
+
+    html = page(logged_in_client)
+
+    assert Title.objects.get().status == 'Ended'
+    assert '2011 · Series · Ended' in html
+
+
+def test_a_series_whose_status_tmdb_does_not_give_has_none_saved_and_none_shown(logged_in_client, tmdb_series):
+    tmdb_series['series'].respond(json={key: value for key, value in MADE_UP_SERIES.items() if key != 'status'})
+
+    html = page(logged_in_client)
+
+    assert Title.objects.get().status == ''
+    assert '2011 · Series<' in html
+
+
 def test_a_refresh_brings_in_a_new_episode(logged_in_client, tmdb_series, clock):
     page(logged_in_client)
     new = made_up_episode(1, 4, 6004, '2026-11-04', name='Made-up newcomer')
@@ -373,15 +401,19 @@ def test_marking_an_episode_that_is_already_marked_changes_nothing(logged_in_cli
     assert 'already marked as watched' in after(logged_in_client, response)
 
 
-def test_marking_an_episode_leaves_the_series_on_the_to_watch_list(logged_in_client, tmdb_series):
+def test_marking_an_episode_moves_the_series_from_to_watch_to_watching_without_touching_the_list(
+    logged_in_client, tmdb_series
+):
     page(logged_in_client)
     ToWatchItem.objects.create(user=logged_in_client.user, title=Title.objects.get())
+    assert 'href="/series/1399/"' in page(logged_in_client, '/series/')
 
     mark(logged_in_client, 6001)
 
-    # Moving it to "Watching" is a later card; for now the list is untouched.
+    # Its entry on the list is untouched: the tabs are worked out, so un-marking brings it back.
     assert ToWatchItem.objects.get().removed_at is None
-    assert 'href="/series/1399/"' in page(logged_in_client, '/series/')
+    assert 'href="/series/1399/"' not in page(logged_in_client, '/series/')
+    assert 'href="/series/1399/"' in page(logged_in_client, '/series/watching/')
 
 
 def test_marking_an_episode_does_not_show_in_history(logged_in_client, tmdb_series):

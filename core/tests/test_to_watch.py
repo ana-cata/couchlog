@@ -643,12 +643,13 @@ def test_the_movies_section_has_the_tabs_to_watch_and_history(logged_in_client):
     assert 'href="/movies/history/">History</a>' in page
 
 
-def test_the_series_section_has_only_the_to_watch_tab_for_now(logged_in_client):
+def test_the_series_section_has_the_tabs_to_watch_watching_and_finished(logged_in_client):
     page = to_watch_page(logged_in_client, 'series')
 
-    assert 'href="/series/" aria-current="page">To Watch</a>' in page
+    assert 'href="/series/" aria-current="page">To Watch</a>' in page  # the tab you are on
+    assert 'href="/series/watching/">Watching</a>' in page
+    assert 'href="/series/finished/">Finished</a>' in page
     assert 'History' not in page
-    assert 'Watching' not in page
 
 
 def test_the_old_addresses_still_work(logged_in_client):

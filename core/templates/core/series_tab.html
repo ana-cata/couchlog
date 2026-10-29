@@ -1,0 +1,20 @@
+{% extends 'core/base.html' %}
+
+{% block title %}{{ tab|capfirst }} · Series · Couchlog{% endblock %}
+
+{% block content %}
+  <h1>Series</h1>
+  {% include 'core/_section_tabs.html' %}
+
+  {% if titles %}
+    <ul class="results">
+      {% for title in titles %}
+        <li>{% include 'core/_tile_link.html' with tile=title %}</li>
+      {% endfor %}
+    </ul>
+  {% elif tab == 'watching' %}
+    <p>No series in Watching yet. Open a series and mark an episode as watched, and it shows up here. <a href="{% url 'search' %}">Search</a> for one.</p>
+  {% else %}
+    <p>No finished series yet. A series is finished when you have watched every episode that has aired and TMDB says it has ended.</p>
+  {% endif %}
+{% endblock %}
