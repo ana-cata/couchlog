@@ -1,0 +1,14 @@
+{# The button under a tile: adds the title to the To Watch list, or removes it. #}
+{# With `live` (the search page) htmx swaps just this block; without it the page reloads. #}
+<div class="to-watch-action">
+  {% if on_list %}{% url 'to_watch_remove' as action %}{% else %}{% url 'to_watch_add' as action %}{% endif %}
+  <form method="post" action="{{ action }}"
+        {% if live %}hx-post="{{ action }}" hx-target="closest .to-watch-action" hx-swap="outerHTML"{% endif %}>
+    {% csrf_token %}
+    <input type="hidden" name="kind" value="{{ tile.kind }}">
+    <input type="hidden" name="tmdb_id" value="{{ tile.tmdb_id }}">
+    <input type="hidden" name="next" value="{{ next }}">
+    <button type="submit" class="outline secondary">{% if on_list %}Remove from To Watch{% else %}Add to To Watch{% endif %}</button>
+  </form>
+  {% if error %}<small role="alert">{{ error }}</small>{% endif %}
+</div>

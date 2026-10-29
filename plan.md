@@ -42,6 +42,8 @@ What this means in practice:
 | Movie/series data | TMDB (The Movie Database) | Free for non-commercial use with a visible credit (the logo and notice on an About page). The only data source: dates are used as TMDB gives them. |
 | TMDB requests | `httpx` (Python HTTP client), called only from server code | The key is read from `.env` with `python-dotenv`. It accepts TMDB's short API key or its long read access token. Added in card #3. |
 | Search | One TMDB call (`search/multi`) keeps the movies and series and drops people. Results appear as you type, using htmx, 0.4 seconds after typing stops. First page only | Added in card #7. Search results are never saved. The title pages (`/movie/<id>/`, `/series/<id>/`) are read-only for now and grow into the real pages in features 4 and 5. |
+| To Watch list | Two tables: `Title` (the TMDB details, saved when a title is first added, shared by all accounts) and `ToWatchItem` (one row per account and title: date added and, if removed, `removed_at`). Removing only fills in `removed_at`, so undo restores the entry as it was. The screen shows the last 10 removals with an Undo button | Added in card #8. Chosen over one table so later features (watches, episodes, calendar) can point to the same saved title. The buttons are on search results; the title pages get them with features 4 and 5. |
+| Browser tests | `pytest-playwright` (Playwright for Python, driving Chromium), with the same made-up TMDB answers | Added in card #8. A one-time `uv run playwright install chromium` per machine; GitHub's checks do it too. |
 | Code + tasks | GitHub (code, pull requests, project board) | |
 
 ## 3. Features
@@ -201,12 +203,12 @@ Goal: find a movie or series and keep it on my To Watch list.
 
 - [x] Server code that asks TMDB for search results (the key never reaches the browser)
 - [x] Search screen with results and posters (results appear as you type)
-- [ ] Database table for the To Watch list: user, TMDB ID, movie or series, date added
-- [ ] Save the details I need from TMDB in my database when I add a title (design rule 6 in section 3)
-- [ ] Add to and remove from the To Watch list
-- [ ] To Watch screen
+- [x] Database table for the To Watch list: user, TMDB ID, movie or series, date added
+- [x] Save the details I need from TMDB in my database when I add a title (design rule 6 in section 3)
+- [x] Add to and remove from the To Watch list
+- [x] To Watch screen
 - [x] Add an About page with the TMDB logo and the required notice, linked from the header
-- [ ] Tests: search with made-up TMDB responses (done in card #7); the To Watch list saves and removes correctly
+- [x] Tests: search with made-up TMDB responses (done in card #7); the To Watch list saves and removes correctly
 
 Done when: I search for a title, add it, see it on the To Watch screen after reloading, and remove it.
 
@@ -439,3 +441,4 @@ Sorted by when each item matters.
 | 2026-10-29 | Card #4 merged. Card #5 built (pull request open): the SQLite database and Django's built-in migrations were already working from card #3, so this card adds the proof: tests that show tests use a temporary database and never `db.sqlite3`, a test that fails if a table change has no migration file, and the first docs page (`docs/data-model.md`). |
 | 2026-10-29 | Card #5 merged. Card #6 built (pull request open): login and logout, every page closed to people who are not logged in, a `Profile` table with the time zone, and the Profile page where it is chosen at the first login and changed later. Creating my own account in the admin page is still mine to do (`createsuperuser`, see the README). The time zone is only saved for now; "today" and the country come with the cards that need them. |
 | 2026-10-29 | Card #6 merged. Card #7 built (pull request open): search for movies and series with results that appear as you type, shown as tiles (poster with the name below), simple read-only title pages so a result can be opened, and the About page with the TMDB logo and notice, linked from the header next to Search and Profile. Nothing is saved by search, so there is no new table. Still open in Weeks 3-4: the To Watch list (card #8). |
+| 2026-10-29 | Card #7 merged. Card #8 built (pull request open): the To Watch list. Search results get an Add / Remove button, there is a To Watch screen, and removing a title only hides it, so Undo (under "Recently removed") brings it back exactly as it was. The details from TMDB are saved in my own database when a title is added (new `Title` and `ToWatchItem` tables). Also the first end-to-end test: a real browser logs in, searches, adds, reloads, removes and undoes (needs a one-time `uv run playwright install chromium`; the GitHub checks do it too). Weeks 3-4 are done once it is merged. |
