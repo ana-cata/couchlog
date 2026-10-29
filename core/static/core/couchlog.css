@@ -1,5 +1,14 @@
 /* Couchlog's own few styles. Pico CSS does the rest. */
 
+/* On a narrow screen the header links drop to a second line instead of running off the edge. */
+header nav {
+  flex-wrap: wrap;
+}
+
+header nav li {
+  white-space: nowrap;
+}
+
 /* Search results: tiles with the poster on top and the name below. */
 .results {
   list-style: none;
@@ -72,12 +81,12 @@
   color: var(--pico-muted-color);
 }
 
-/* The Add / Remove button under a tile, kept small so the grid stays tidy. */
-.to-watch-action form {
+/* The Add / Remove button under a tile (and "Mark as not watched" in History), kept small so the grid stays tidy. */
+:is(.to-watch-action, .watch-action) form {
   margin: 0;
 }
 
-.to-watch-action button {
+:is(.to-watch-action, .watch-action) button {
   width: 100%;
   margin-top: 0.5rem;
   padding: 0.35rem 0.5rem;
@@ -85,7 +94,7 @@
 }
 
 /* Under a tile there is room for two lines of text, so "Add" and "Remove" are the same size. */
-.results .to-watch-action button {
+.results :is(.to-watch-action, .watch-action) button {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -132,4 +141,18 @@
 
 .title-details {
   flex: 1 1 16rem;
+}
+
+/* The "Mark as watched" form (or the date it was watched) on a movie page. */
+.watched-section {
+  margin-top: 1.5rem;
+}
+
+.watched-section form {
+  max-width: 20rem;
+}
+
+/* The date under a tile in History. */
+.watched-on {
+  margin: 0.25rem 0 0;
 }

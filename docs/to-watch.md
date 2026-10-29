@@ -8,6 +8,7 @@
 - **Remove:** the same button on a search result or a title page, or "Remove from To Watch" under a tile on the To Watch screen. The title leaves the list.
 - **Undo, for 10 seconds:** a title you removed appears under **Recently removed** at the top of the To Watch screen, with an Undo button. Undo puts it back in its old place in the list (the date it was added is kept). A removal can only be undone during those 10 seconds. When the time is up the title **disappears from Recently removed by itself**, even if you leave the page open and do nothing. It is then gone from the To Watch list for good, and the only way back is to search for it and add it again from Search (or its page). That puts it back as newly added (at the top of the list).
 - **No "Removed ..." notice.** Removing a title shows no message at the top. The title leaving the list and appearing under Recently removed is the feedback, and that block says how long Undo lasts ("You can undo a removal for 10 seconds.").
+- **A movie you mark as watched leaves the list** by itself (see [History](history.md)). It is not under "Recently removed": its undo is "Mark as not watched", which puts it back here exactly as it was.
 - **The same title twice:** pressing Add on something already on the list does nothing but say so. There is never a second entry.
 - **Your own list:** each account has its own list. Nobody else sees yours or can change it.
 - **If something goes wrong** you see a message, not a crash:
@@ -31,7 +32,7 @@ Each button sends `kind` (`movie` or `series`), `tmdb_id` and `next` (the page t
 
 **Tables** (see [data model](data-model.md))
 - `core_title`: the TMDB details saved when a title is first added: kind, TMDB id, name, year, poster address, description. One row per title, shared by every account, so later features (watches, episodes, calendar) can point to it. Unique on kind + TMDB id (a movie and a series can have the same number).
-- `core_towatchitem`: one row per account and title: `user`, `title`, `added_at`, `removed_at`. Unique on user + title. `removed_at` is empty while the title is on the list.
+- `core_towatchitem`: one row per account and title: `user`, `title`, `added_at`, `removed_at`, `removed_by_watch`. Unique on user + title. `removed_at` is empty while the title is on the list. `removed_by_watch` is only filled in when the title left because it was marked as watched; entries like that are skipped by "Recently removed" and by the Undo here.
 
 **Add** (`to_watch_add` in `core/views.py`)
 - If the title is already in `core_title`, TMDB is not asked at all. Otherwise one TMDB call (`GET /movie/<id>` or `/tv/<id>`) fetches the details and they are saved (design rule 6). The list is then shown from our own table.

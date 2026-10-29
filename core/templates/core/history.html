@@ -1,0 +1,28 @@
+{% extends 'core/base.html' %}
+
+{% block title %}History · Couchlog{% endblock %}
+
+{% block content %}
+  <h1>History</h1>
+
+  {% if watches %}
+    <ul class="results">
+      {% for watch in watches %}
+        <li>
+          {% include 'core/_tile_link.html' with tile=watch.title %}
+          <p class="watched-on"><small>{% if watch.watched_on %}Watched {{ watch.watched_on|date:"j M Y" }}{% else %}Date unknown{% endif %}</small></p>
+          <div class="watch-action">
+            <form method="post" action="{% url 'watched_remove' %}">
+              {% csrf_token %}
+              <input type="hidden" name="watch_id" value="{{ watch.id }}">
+              <input type="hidden" name="next" value="{{ next }}">
+              <button type="submit" class="outline secondary">Mark as not watched</button>
+            </form>
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>Nothing in your history yet. Open a movie and press “Mark as watched”. <a href="{% url 'search' %}">Search</a> for one.</p>
+  {% endif %}
+{% endblock %}

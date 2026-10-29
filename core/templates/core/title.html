@@ -21,6 +21,39 @@
         <h1>{{ item.title }}</h1>
         <p><small>{{ item.year|default:"Year unknown" }} · {{ item.kind|capfirst }}</small></p>
         <p>{{ item.overview|default:"TMDB has no description for this title." }}</p>
+
+        {% if item.kind == 'movie' %}
+          <div class="watched-section">
+            {% if watch %}
+              <p>
+                <strong>Watched</strong>
+                {% if watch.watched_on %}on {{ watch.watched_on|date:"j M Y" }}{% else %}(date unknown){% endif %}
+              </p>
+              <form method="post" action="{% url 'watched_remove' %}">
+                {% csrf_token %}
+                <input type="hidden" name="watch_id" value="{{ watch.id }}">
+                <input type="hidden" name="next" value="{{ next }}">
+                <button type="submit" class="outline secondary">Mark as not watched</button>
+              </form>
+            {% else %}
+              <form method="post" action="{% url 'watched_add' %}">
+                {% csrf_token %}
+                <input type="hidden" name="kind" value="{{ item.kind }}">
+                <input type="hidden" name="tmdb_id" value="{{ item.tmdb_id }}">
+                <input type="hidden" name="next" value="{{ next }}">
+                <label>
+                  Watched on
+                  <input type="date" name="watched_on" value="{{ today|date:'Y-m-d' }}" max="{{ today|date:'Y-m-d' }}">
+                </label>
+                <label>
+                  <input type="checkbox" name="date_unknown">
+                  Date unknown
+                </label>
+                <button type="submit">Mark as watched</button>
+              </form>
+            {% endif %}
+          </div>
+        {% endif %}
       </div>
     </div>
   {% endif %}
