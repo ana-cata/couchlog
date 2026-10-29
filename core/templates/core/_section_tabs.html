@@ -1,0 +1,9 @@
+{# The tabs under a section's heading. `section` is "movies" or "series"; `tab` is the one showing. #}
+<nav class="tabs" aria-label="{{ section|capfirst }}">
+  <ul>
+    <li><a href="{% if section == 'movies' %}{% url 'movies' %}{% else %}{% url 'series' %}{% endif %}"{% if tab == 'to_watch' %} aria-current="page"{% endif %}>To Watch</a></li>
+    {% if section == 'movies' %}
+      <li><a href="{% url 'history' %}"{% if tab == 'history' %} aria-current="page"{% endif %}>History</a></li>
+    {% endif %}
+  </ul>
+</nav>

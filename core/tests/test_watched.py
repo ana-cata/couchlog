@@ -151,7 +151,7 @@ def test_marking_a_movie_puts_it_in_my_history_with_its_date(logged_in_client, m
     response = mark(logged_in_client, watched_on='2026-10-28')
 
     assert response.status_code == 302
-    html = page(logged_in_client, '/history/')  # a fresh request, like reloading the page
+    html = page(logged_in_client, '/movies/history/')  # a fresh request, like reloading the page
     assert tiles(html) == ['/movie/603/']
     assert 'Made-up Movie' in html
     assert 'Watched 28 Oct 2026' in html
@@ -174,7 +174,7 @@ def test_an_earlier_date_can_be_chosen(logged_in_client, movie_route):
     mark(logged_in_client, watched_on='2019-12-31')
 
     assert Watch.objects.get().watched_on == datetime.date(2019, 12, 31)
-    assert 'Watched 31 Dec 2019' in page(logged_in_client, '/history/')
+    assert 'Watched 31 Dec 2019' in page(logged_in_client, '/movies/history/')
 
 
 def test_the_date_can_be_unknown(logged_in_client, movie_route):
@@ -182,7 +182,7 @@ def test_the_date_can_be_unknown(logged_in_client, movie_route):
     mark(logged_in_client, watched_on='2026-10-28', date_unknown='on')
 
     assert Watch.objects.get().watched_on is None
-    assert 'Date unknown' in page(logged_in_client, '/history/')
+    assert 'Date unknown' in page(logged_in_client, '/movies/history/')
     assert '(date unknown)' in page(logged_in_client, '/movie/603/')
 
 
@@ -224,7 +224,7 @@ def test_marking_the_same_movie_twice_keeps_one_watch(logged_in_client, movie_ro
 def test_a_next_address_on_another_site_is_not_followed(logged_in_client, movie_route):
     response = mark(logged_in_client, next='https://elsewhere.example/')
 
-    assert response['Location'] == '/history/'
+    assert response['Location'] == '/movies/history/'
 
 
 def test_tmdb_not_answering_gives_a_friendly_message_and_saves_nothing(logged_in_client, respx_mock):
@@ -249,11 +249,11 @@ def test_a_title_tmdb_does_not_have_is_not_found(logged_in_client, respx_mock):
 
 def test_a_watched_movie_leaves_the_to_watch_list(logged_in_client, movie_route):
     add_to_watch(logged_in_client)
-    assert tiles(page(logged_in_client, '/to-watch/')) == ['/movie/603/']
+    assert tiles(page(logged_in_client, '/movies/')) == ['/movie/603/']
 
     mark(logged_in_client)
 
-    html = page(logged_in_client, '/to-watch/')
+    html = page(logged_in_client, '/movies/')
     assert tiles(html) == []
     # It left because it was watched, not removed: no "Recently removed" and no 10-second Undo.
     assert 'Recently removed' not in html
@@ -274,7 +274,7 @@ def test_marking_a_movie_that_was_not_on_the_list_does_not_put_it_there(logged_i
     mark(logged_in_client)
 
     assert ToWatchItem.objects.count() == 0
-    assert tiles(page(logged_in_client, '/to-watch/')) == []
+    assert tiles(page(logged_in_client, '/movies/')) == []
 
 
 def test_a_watched_movie_can_be_added_to_to_watch_again(logged_in_client, movie_route):
@@ -285,7 +285,7 @@ def test_a_watched_movie_can_be_added_to_to_watch_again(logged_in_client, movie_
 
     item = ToWatchItem.objects.get()
     assert (item.removed_at, item.removed_by_watch) == (None, None)
-    assert tiles(page(logged_in_client, '/to-watch/')) == ['/movie/603/']
+    assert tiles(page(logged_in_client, '/movies/')) == ['/movie/603/']
     assert Watch.objects.count() == 1  # still watched
 
 
@@ -299,11 +299,11 @@ def test_history_lists_the_newest_watch_first_and_unknown_dates_last(logged_in_c
     make_watch(logged_in_client.user, 4, None)
 
     # Newest date first; among the unknown ones, the one saved last first.
-    assert tiles(page(logged_in_client, '/history/')) == ['/movie/2/', '/movie/1/', '/movie/4/', '/movie/3/']
+    assert tiles(page(logged_in_client, '/movies/history/')) == ['/movie/2/', '/movie/1/', '/movie/4/', '/movie/3/']
 
 
 def test_an_empty_history_says_so(logged_in_client):
-    html = page(logged_in_client, '/history/')
+    html = page(logged_in_client, '/movies/history/')
 
     assert 'Nothing in your history yet' in html
     assert tiles(html) == []
@@ -313,17 +313,29 @@ def test_each_account_has_its_own_history(logged_in_client, movie_route):
     mark(logged_in_client)
     other = make_client('second-user')
 
-    assert tiles(page(logged_in_client, '/history/')) == ['/movie/603/']
-    assert tiles(page(other, '/history/')) == []
+    assert tiles(page(logged_in_client, '/movies/history/')) == ['/movie/603/']
+    assert tiles(page(other, '/movies/history/')) == []
     assert 'Mark as watched' in page(other, '/movie/603/')  # not marked for them
 
 
-def test_the_header_links_to_history(logged_in_client):
-    assert 'href="/history/"' in page(logged_in_client, '/')
+def test_history_is_a_tab_of_the_movies_section(logged_in_client):
+    html = page(logged_in_client, '/movies/history/')
+
+    assert 'href="/movies/history/" aria-current="page"' in html  # the tab you are on
+    assert 'href="/movies/"' in html  # and the way back to the To Watch tab
+    assert 'href="/history/"' not in page(logged_in_client, '/')  # no longer a link of its own in the header
+
+
+def test_history_lists_films_only(logged_in_client):
+    make_watch(logged_in_client.user, 1, datetime.date(2026, 1, 5))
+    show = Title.objects.create(kind='series', tmdb_id=1399, title='Made-up Series', year='2011')
+    Watch.objects.create(user=logged_in_client.user, title=show, watched_on=datetime.date(2026, 2, 5))
+
+    assert tiles(page(logged_in_client, '/movies/history/')) == ['/movie/1/']
 
 
 @pytest.mark.parametrize('method', ['get', 'post'])
-@pytest.mark.parametrize('address', ['/history/', '/watched/add/', '/watched/remove/'])
+@pytest.mark.parametrize('address', ['/movies/history/', '/history/', '/watched/add/', '/watched/remove/'])
 def test_watching_pages_need_a_login(db, method, address):
     response = getattr(Client(), method)(address)
 
@@ -348,8 +360,8 @@ def test_undo_puts_everything_back_as_it_was(logged_in_client, movie_route):
     assert to_watch_snapshot() == before  # on the list again, with its old date added
     assert Watch.objects.count() == 0
     assert 'It is back on your To Watch list.' in after(logged_in_client, response)
-    assert tiles(page(logged_in_client, '/to-watch/')) == ['/movie/603/']
-    assert tiles(page(logged_in_client, '/history/')) == []
+    assert tiles(page(logged_in_client, '/movies/')) == ['/movie/603/']
+    assert tiles(page(logged_in_client, '/movies/history/')) == []
     assert 'Mark as watched' in page(logged_in_client, '/movie/603/')
 
 
@@ -373,7 +385,7 @@ def test_undo_does_not_bring_back_a_title_that_was_removed_by_hand_earlier(logge
     unmark(logged_in_client, Watch.objects.get().id)
 
     assert to_watch_snapshot() == before
-    assert tiles(page(logged_in_client, '/to-watch/')) == []
+    assert tiles(page(logged_in_client, '/movies/')) == []
 
 
 def test_undo_is_still_possible_days_later(logged_in_client, movie_route, clock):
@@ -392,11 +404,11 @@ def test_undo_from_the_history_screen_works(logged_in_client, movie_route):
     add_to_watch(logged_in_client)
     mark(logged_in_client)
     watch_id = Watch.objects.get().id
-    assert f'name="watch_id" value="{watch_id}"' in page(logged_in_client, '/history/')
+    assert f'name="watch_id" value="{watch_id}"' in page(logged_in_client, '/movies/history/')
 
-    response = unmark(logged_in_client, watch_id, next='/history/')
+    response = unmark(logged_in_client, watch_id, next='/movies/history/')
 
-    assert response['Location'] == '/history/'
+    assert response['Location'] == '/movies/history/'
     assert 'Nothing in your history yet' in after(logged_in_client, response)
 
 

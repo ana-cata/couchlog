@@ -24,6 +24,10 @@ from .models import Profile, Title, ToWatchItem, Watch
 # number of seconds, which comes from here. After that, the way back is adding the title again.
 UNDO_WINDOW = timedelta(seconds=10)
 
+# The section of the app each kind of title lives in. It is also the name of that section's
+# To Watch address, so a button with no page to come back to returns to the right one.
+SECTION_OF_KIND = {'movie': 'movies', 'series': 'series'}
+
 
 def home(request):
     return render(request, 'core/home.html')
@@ -96,19 +100,27 @@ def _undo_seconds():
     return int(UNDO_WINDOW.total_seconds())
 
 
-def _recently_removed(request):
-    """What the "Recently removed" block shows: only titles still inside the undo window.
+def _recently_removed(request, kind):
+    """What the "Recently removed" block of one section shows: only titles of that kind still inside the undo window.
 
     A title that left because it was marked as watched is not here: its undo is "Mark as not watched".
     """
     removed = list(
         ToWatchItem.objects.filter(
-            user=request.user, removed_at__gte=timezone.now() - UNDO_WINDOW, removed_by_watch=None
+            user=request.user,
+            title__kind=kind,
+            removed_at__gte=timezone.now() - UNDO_WINDOW,
+            removed_by_watch=None,
         )
         .select_related('title')
         .order_by('-removed_at')
     )
-    context = {'removed': removed, 'undo_seconds': _undo_seconds(), 'next': reverse('to_watch')}
+    context = {
+        'removed': removed,
+        'kind': kind,
+        'undo_seconds': _undo_seconds(),
+        'next': reverse(SECTION_OF_KIND[kind]),
+    }
     if removed:
         # The oldest one runs out of time first. The block asks the server again just after
         # that, so a page that stays open empties the list by itself.
@@ -117,19 +129,31 @@ def _recently_removed(request):
     return context
 
 
-def to_watch(request):
+def _to_watch_screen(request, kind):
     items = (
-        ToWatchItem.objects.filter(user=request.user, removed_at=None)
+        ToWatchItem.objects.filter(user=request.user, title__kind=kind, removed_at=None)
         .select_related('title')
         .order_by('-added_at')
     )
-    return render(request, 'core/to_watch.html', {'items': items, **_recently_removed(request)})
+    context = {'items': items, 'section': SECTION_OF_KIND[kind], **_recently_removed(request, kind)}
+    return render(request, 'core/to_watch.html', context)
 
 
-# Only the "Recently removed" block, which the To Watch screen asks for when time runs out.
+def movies(request):
+    return _to_watch_screen(request, 'movie')
+
+
+def series(request):
+    return _to_watch_screen(request, 'series')
+
+
+# Only the "Recently removed" block of one section, which its To Watch screen asks for when time runs out.
 @never_cache
 def to_watch_removed(request):
-    return render(request, 'core/_recently_removed.html', _recently_removed(request))
+    kind = request.GET.get('kind')
+    if kind not in SECTION_OF_KIND:
+        raise BadRequest
+    return render(request, 'core/_recently_removed.html', _recently_removed(request, kind))
 
 
 def _posted_title(request):
@@ -165,7 +189,7 @@ def _answer(request, kind, tmdb_id, on_list, text, ok=True):
             context['error'] = text
         return render(request, 'core/_to_watch_button.html', context)
 
-    return _redirect_back(request, text, ok, 'to_watch')
+    return _redirect_back(request, text, ok, SECTION_OF_KIND[kind])
 
 
 def _redirect_back(request, text, ok, fallback):
@@ -232,12 +256,13 @@ def to_watch_undo(request):
 
 def history(request):
     # Newest watch first. Watches with an unknown date go last, newest saved first among themselves.
+    # History is the Movies section's tab, so it lists films only.
     watches = (
-        Watch.objects.filter(user=request.user)
+        Watch.objects.filter(user=request.user, title__kind='movie')
         .select_related('title')
         .order_by(F('watched_on').desc(nulls_last=True), '-created_at', '-id')
     )
-    return render(request, 'core/history.html', {'watches': watches, 'next': reverse('history')})
+    return render(request, 'core/history.html', {'watches': watches, 'section': 'movies', 'next': reverse('history')})
 
 
 @require_POST

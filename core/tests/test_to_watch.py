@@ -28,6 +28,8 @@ MADE_UP_SERIES = {
     'poster_path': '/made-up-series.jpg',
     'overview': 'A made-up story about a series.',
 }
+SECOND_MOVIE_URL = 'https://api.themoviedb.org/3/movie/604'
+MADE_UP_SECOND_MOVIE = {**MADE_UP_MOVIE, 'id': 604, 'title': 'Second Made-up Movie'}
 
 LONG_AGO = datetime.datetime(2020, 1, 15, 9, 30, tzinfo=datetime.UTC)
 
@@ -64,8 +66,12 @@ def undo(client, kind='movie', tmdb_id=603, **extra):
     return client.post('/to-watch/undo/', {'kind': kind, 'tmdb_id': tmdb_id, **extra})
 
 
-def to_watch_page(client):
-    return client.get('/to-watch/').content.decode()
+SCREEN_OF_KIND = {'movie': '/movies/', 'series': '/series/'}
+
+
+def to_watch_page(client, kind='movie'):
+    """The To Watch tab of the Movies section (or, with kind='series', of the Series section)."""
+    return client.get(SCREEN_OF_KIND[kind]).content.decode()
 
 
 def tiles(page):
@@ -128,7 +134,7 @@ def test_a_series_is_saved_as_a_series(logged_in_client, respx_mock):
 
     add(logged_in_client, kind='series', tmdb_id=1399)
 
-    page = to_watch_page(logged_in_client)
+    page = to_watch_page(logged_in_client, 'series')
     assert 'Made-up Series' in page
     assert '2011 · Series' in page
     assert 'class="tile" href="/series/1399/"' in page
@@ -149,7 +155,7 @@ def test_adding_the_same_title_twice_keeps_one_entry(logged_in_client, respx_moc
     add(logged_in_client)
     first = snapshot()
 
-    response = add(logged_in_client, next='/to-watch/')
+    response = add(logged_in_client, next='/movies/')
     page = logged_in_client.get(response['Location']).content.decode()
 
     assert snapshot() == first
@@ -175,12 +181,12 @@ def test_adding_a_title_again_after_removing_it_puts_it_back_as_newly_added(logg
 
 def test_the_newest_title_comes_first(logged_in_client, respx_mock):
     respx_mock.get(MOVIE_URL).respond(json=MADE_UP_MOVIE)
-    respx_mock.get(SERIES_URL).respond(json=MADE_UP_SERIES)
+    respx_mock.get(SECOND_MOVIE_URL).respond(json=MADE_UP_SECOND_MOVIE)
     add(logged_in_client)
-    add(logged_in_client, kind='series', tmdb_id=1399)
-    ToWatchItem.objects.filter(title__kind='movie').update(added_at=LONG_AGO)
+    add(logged_in_client, tmdb_id=604)
+    ToWatchItem.objects.filter(title__tmdb_id=603).update(added_at=LONG_AGO)
 
-    assert tiles(to_watch_page(logged_in_client)) == ['/series/1399/', '/movie/603/']
+    assert tiles(to_watch_page(logged_in_client)) == ['/movie/604/', '/movie/603/']
 
 
 def test_a_tmdb_failure_shows_a_friendly_message_and_saves_nothing(logged_in_client, respx_mock):
@@ -213,7 +219,7 @@ def test_a_removed_title_leaves_the_list_and_stays_gone_after_reloading(logged_i
 
     assert response.status_code == 302
     page = to_watch_page(logged_in_client)
-    assert 'Nothing on your To Watch list yet' in page
+    assert 'No movies on your To Watch list yet' in page
     assert page.count('class="tile"') == 0
 
 
@@ -238,15 +244,15 @@ def test_undo_puts_everything_back_as_it_was(logged_in_client, respx_mock):
 
 def test_undo_returns_a_title_to_its_old_place_in_the_list(logged_in_client, respx_mock):
     respx_mock.get(MOVIE_URL).respond(json=MADE_UP_MOVIE)
-    respx_mock.get(SERIES_URL).respond(json=MADE_UP_SERIES)
+    respx_mock.get(SECOND_MOVIE_URL).respond(json=MADE_UP_SECOND_MOVIE)
     add(logged_in_client)
-    add(logged_in_client, kind='series', tmdb_id=1399)
-    ToWatchItem.objects.filter(title__kind='movie').update(added_at=LONG_AGO)
+    add(logged_in_client, tmdb_id=604)
+    ToWatchItem.objects.filter(title__tmdb_id=603).update(added_at=LONG_AGO)
 
     remove(logged_in_client)
     undo(logged_in_client)
 
-    assert tiles(to_watch_page(logged_in_client)) == ['/series/1399/', '/movie/603/']
+    assert tiles(to_watch_page(logged_in_client)) == ['/movie/604/', '/movie/603/']
 
 
 def test_a_removed_title_can_be_undone_after_reloading_the_page(logged_in_client, respx_mock):
@@ -265,7 +271,7 @@ def test_a_removed_title_can_be_undone_after_reloading_the_page(logged_in_client
 def test_removing_shows_no_notice_but_the_title_is_offered_for_undo(logged_in_client, respx_mock):
     respx_mock.get(MOVIE_URL).respond(json=MADE_UP_MOVIE)
     add(logged_in_client)
-    logged_in_client.get('/to-watch/')  # the notice about adding has been shown and is gone
+    logged_in_client.get('/movies/')  # the notice about adding has been shown and is gone
 
     removed = logged_in_client.post('/to-watch/remove/', {'kind': 'movie', 'tmdb_id': 603}, follow=True)
 
@@ -286,8 +292,8 @@ def test_undoing_says_what_happened(logged_in_client, respx_mock):
     assert 'Put “Made-up Movie” back on your To Watch list.' in restored.content.decode()
 
 
-def make_removed_title(user, number, removed_ago):
-    title = Title.objects.create(kind='movie', tmdb_id=number, title=f'Made-up Movie {number}')
+def make_removed_title(user, number, removed_ago, kind='movie'):
+    title = Title.objects.create(kind=kind, tmdb_id=number, title=f'Made-up Movie {number}')
     return ToWatchItem.objects.create(user=user, title=title, removed_at=timezone.now() - removed_ago)
 
 
@@ -316,7 +322,7 @@ def test_with_nothing_removed_in_the_last_10_seconds_there_is_no_undo_section(lo
 
     assert 'Recently removed' not in page
     assert 'action="/to-watch/undo/"' not in page
-    assert 'hx-get="/to-watch/removed/"' not in page  # nothing to count down, so nothing asks again
+    assert 'hx-get' not in page  # nothing to count down, so nothing asks again
 
 
 def test_the_undo_block_asks_again_just_after_the_oldest_removal_runs_out(logged_in_client):
@@ -325,7 +331,7 @@ def test_the_undo_block_asks_again_just_after_the_oldest_removal_runs_out(logged
 
     page = to_watch_page(logged_in_client)
 
-    assert 'hx-get="/to-watch/removed/"' in page
+    assert 'hx-get="/to-watch/removed/?kind=movie"' in page
     delay = int(re.search(r'hx-trigger="load delay:(\d+)s"', page).group(1))
     assert 3 <= delay <= 5  # the 3 seconds left, plus a second of margin
 
@@ -334,14 +340,14 @@ def test_the_removed_block_alone_shows_only_what_can_still_be_undone(logged_in_c
     make_removed_title(logged_in_client.user, 1, datetime.timedelta(seconds=2))
     make_removed_title(logged_in_client.user, 2, datetime.timedelta(seconds=20))
 
-    response = logged_in_client.get('/to-watch/removed/')
+    response = logged_in_client.get('/to-watch/removed/?kind=movie')
 
     body = response.content.decode()
     assert '<html' not in body
     assert 'Made-up Movie 1 ' in body
     assert 'Made-up Movie 2 ' not in body
     # Undo brings you back to the To Watch screen, not to this fragment.
-    assert 'name="next" value="/to-watch/"' in body
+    assert 'name="next" value="/movies/"' in body
     # The answer must never be cached, or an expired title could come back on screen.
     assert 'no-cache' in response['Cache-Control']
 
@@ -349,7 +355,7 @@ def test_the_removed_block_alone_shows_only_what_can_still_be_undone(logged_in_c
 def test_when_time_is_up_the_removed_block_comes_back_empty_and_stops_asking(logged_in_client):
     make_removed_title(logged_in_client.user, 1, datetime.timedelta(seconds=20))
 
-    body = logged_in_client.get('/to-watch/removed/').content.decode()
+    body = logged_in_client.get('/to-watch/removed/?kind=movie').content.decode()
 
     assert 'Recently removed' not in body
     assert 'action="/to-watch/undo/"' not in body
@@ -358,9 +364,9 @@ def test_when_time_is_up_the_removed_block_comes_back_empty_and_stops_asking(log
 
 def test_the_undo_section_is_above_the_list(logged_in_client, respx_mock):
     respx_mock.get(MOVIE_URL).respond(json=MADE_UP_MOVIE)
-    respx_mock.get(SERIES_URL).respond(json=MADE_UP_SERIES)
+    respx_mock.get(SECOND_MOVIE_URL).respond(json=MADE_UP_SECOND_MOVIE)
     add(logged_in_client)
-    add(logged_in_client, kind='series', tmdb_id=1399)
+    add(logged_in_client, tmdb_id=604)
     remove(logged_in_client)
 
     page = to_watch_page(logged_in_client)
@@ -523,11 +529,16 @@ def test_with_htmx_a_tmdb_failure_shows_the_message_next_to_the_button(logged_in
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    'url', ['/to-watch/', '/to-watch/removed/', '/to-watch/add/', '/to-watch/remove/', '/to-watch/undo/']
+    'url',
+    [
+        '/movies/', '/series/', '/to-watch/', '/to-watch/removed/?kind=movie',
+        '/to-watch/add/', '/to-watch/remove/', '/to-watch/undo/',
+    ],
 )
 def test_these_addresses_are_closed_when_logged_out(client, respx_mock, url):
     form = {'kind': 'movie', 'tmdb_id': 603}
-    response = client.get(url) if url in ('/to-watch/', '/to-watch/removed/') else client.post(url, form)
+    is_a_page = url.startswith(('/movies/', '/series/', '/to-watch/removed/')) or url == '/to-watch/'
+    response = client.get(url) if is_a_page else client.post(url, form)
 
     assert response.status_code == 302
     assert response['Location'].startswith('/login/')
@@ -575,7 +586,7 @@ def test_a_button_never_sends_you_to_another_site(logged_in_client, respx_mock, 
 
     response = add(logged_in_client, next=elsewhere)
 
-    assert response['Location'] == '/to-watch/'
+    assert response['Location'] == '/movies/'
 
 
 def test_a_button_returns_you_to_the_page_you_were_on(logged_in_client, respx_mock):
@@ -590,14 +601,110 @@ def test_the_tmdb_key_never_reaches_the_browser(logged_in_client, respx_mock):
     respx_mock.get(MOVIE_URL).respond(json=MADE_UP_MOVIE)
     add(logged_in_client)
 
-    response = logged_in_client.get('/to-watch/')
+    response = logged_in_client.get('/movies/')
 
     assert 'made-up-secret-key' not in response.content.decode()
     assert 'made-up-secret-key' not in str(response.headers)
 
 
-def test_the_header_links_to_the_to_watch_screen(logged_in_client):
-    assert 'href="/to-watch/"' in logged_in_client.get('/').content.decode()
+# --- the Movies and Series sections ----------------------------------------------------------
+
+
+def test_the_header_links_to_the_movies_and_series_sections(logged_in_client):
+    page = logged_in_client.get('/').content.decode()
+    header = page[page.index('<header'):page.index('</header>')]
+
+    assert 'href="/movies/"' in header
+    assert 'href="/series/"' in header
+    # The two screens that moved are no longer links of their own in the header.
+    assert 'href="/to-watch/"' not in header
+    assert 'href="/history/"' not in header
+
+
+def test_each_section_lists_only_its_own_kind(logged_in_client, respx_mock):
+    respx_mock.get(MOVIE_URL).respond(json=MADE_UP_MOVIE)
+    respx_mock.get(SERIES_URL).respond(json=MADE_UP_SERIES)
+    add(logged_in_client)
+    add(logged_in_client, kind='series', tmdb_id=1399)
+
+    assert tiles(to_watch_page(logged_in_client, 'movie')) == ['/movie/603/']
+    assert tiles(to_watch_page(logged_in_client, 'series')) == ['/series/1399/']
+
+
+def test_an_empty_section_says_which_kind_is_missing(logged_in_client):
+    assert 'No movies on your To Watch list yet' in to_watch_page(logged_in_client, 'movie')
+    assert 'No series on your To Watch list yet' in to_watch_page(logged_in_client, 'series')
+
+
+def test_the_movies_section_has_the_tabs_to_watch_and_history(logged_in_client):
+    page = to_watch_page(logged_in_client)
+
+    assert 'href="/movies/" aria-current="page">To Watch</a>' in page  # the tab you are on
+    assert 'href="/movies/history/">History</a>' in page
+
+
+def test_the_series_section_has_only_the_to_watch_tab_for_now(logged_in_client):
+    page = to_watch_page(logged_in_client, 'series')
+
+    assert 'href="/series/" aria-current="page">To Watch</a>' in page
+    assert 'History' not in page
+    assert 'Watching' not in page
+
+
+def test_the_old_addresses_still_work(logged_in_client):
+    to_watch, history = logged_in_client.get('/to-watch/'), logged_in_client.get('/history/')
+
+    assert (to_watch.status_code, to_watch['Location']) == (302, '/movies/')
+    assert (history.status_code, history['Location']) == (302, '/movies/history/')
+
+
+def test_recently_removed_stays_within_its_own_section(logged_in_client, respx_mock):
+    respx_mock.get(MOVIE_URL).respond(json=MADE_UP_MOVIE)
+    respx_mock.get(SERIES_URL).respond(json=MADE_UP_SERIES)
+    add(logged_in_client)
+    add(logged_in_client, kind='series', tmdb_id=1399)
+    remove(logged_in_client)
+    remove(logged_in_client, kind='series', tmdb_id=1399)
+    logged_in_client.get('/')  # the notices about adding are shown once, on the next page, and then gone
+
+    movies, series = to_watch_page(logged_in_client, 'movie'), to_watch_page(logged_in_client, 'series')
+
+    assert 'Made-up Movie' in movies and 'Made-up Series' not in movies
+    assert 'Made-up Series' in series and 'Made-up Movie' not in series
+    assert 'hx-get="/to-watch/removed/?kind=series"' in series  # and it checks back for its own kind only
+
+
+def test_the_removed_block_of_one_kind_ignores_the_other(logged_in_client):
+    make_removed_title(logged_in_client.user, 1, datetime.timedelta(seconds=2), kind='movie')
+    make_removed_title(logged_in_client.user, 2, datetime.timedelta(seconds=2), kind='series')
+
+    movies = logged_in_client.get('/to-watch/removed/?kind=movie').content.decode()
+    series = logged_in_client.get('/to-watch/removed/?kind=series').content.decode()
+
+    assert 'Made-up Movie 1 ' in movies and 'Made-up Movie 2 ' not in movies
+    assert 'Made-up Movie 2 ' in series and 'Made-up Movie 1 ' not in series
+    assert 'name="next" value="/series/"' in series
+
+
+@pytest.mark.parametrize('query', ['', '?kind=person', '?kind='])
+def test_the_removed_block_needs_a_real_kind(logged_in_client, query):
+    assert logged_in_client.get('/to-watch/removed/' + query).status_code == 400
+
+
+def test_a_series_removal_can_be_undone_from_the_series_section(logged_in_client, respx_mock):
+    respx_mock.get(SERIES_URL).respond(json=MADE_UP_SERIES)
+    add(logged_in_client, kind='series', tmdb_id=1399)
+    ToWatchItem.objects.update(added_at=LONG_AGO)
+    before = snapshot()
+
+    removed = remove(logged_in_client, kind='series', tmdb_id=1399)
+    assert removed['Location'] == '/series/'  # no page to return to: back to its own section
+    assert tiles(to_watch_page(logged_in_client, 'series')) == []
+    restored = undo(logged_in_client, kind='series', tmdb_id=1399)
+
+    assert restored['Location'] == '/series/'
+    assert snapshot() == before
+    assert tiles(to_watch_page(logged_in_client, 'series')) == ['/series/1399/']
 
 
 # --- the button on the title page ------------------------------------------------------------

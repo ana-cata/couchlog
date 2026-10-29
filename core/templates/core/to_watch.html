@@ -1,9 +1,10 @@
 {% extends 'core/base.html' %}
 
-{% block title %}To Watch · Couchlog{% endblock %}
+{% block title %}To Watch · {{ section|capfirst }} · Couchlog{% endblock %}
 
 {% block content %}
-  <h1>To Watch</h1>
+  <h1>{{ section|capfirst }}</h1>
+  {% include 'core/_section_tabs.html' with tab='to_watch' %}
 
   {# At the top because it only lasts a few seconds: a removed title can be undone until then. #}
   {% include 'core/_recently_removed.html' %}
@@ -15,6 +16,6 @@
       {% endfor %}
     </ul>
   {% else %}
-    <p>Nothing on your To Watch list yet. <a href="{% url 'search' %}">Search</a> for a movie or series and add it.</p>
+    <p>No {{ section }} on your To Watch list yet. <a href="{% url 'search' %}">Search</a> for a {{ kind }} and add it.</p>
   {% endif %}
 {% endblock %}
