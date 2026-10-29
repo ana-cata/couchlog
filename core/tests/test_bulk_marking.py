@@ -1,4 +1,5 @@
-"""Marking a whole season and "watched up to here": which episodes they save, and Undo in one step."""
+"""Marking a whole season (and un-marking it by pressing its button again), and the question asked on the
+first episode marked in a series ("did you watch everything before it?")."""
 
 import datetime
 import re
@@ -110,32 +111,34 @@ def eid(tmdb_id):
     return Episode.objects.get(tmdb_id=tmdb_id).id
 
 
-def mark_one(client, tmdb_id):
+def mark_one(client, tmdb_id, **options):
     """Press one episode's circle and say "No, only this one" if asked, so it is just a single mark."""
-    return client.post('/watched/episode/add/', {'episode_id': eid(tmdb_id), 'only_this': 1})
+    return client.post('/watched/episode/add/', {'episode_id': eid(tmdb_id), 'only_this': 1}, **options)
 
 
-def unmark_one(client, tmdb_id):
+def unmark_one(client, tmdb_id, **options):
     watch = Watch.objects.get(user=client.user, episode__tmdb_id=tmdb_id)
-    return client.post('/watched/remove/', {'watch_id': watch.id, 'episode_id': watch.episode_id})
+    return client.post('/watched/remove/', {'watch_id': watch.id, 'episode_id': watch.episode_id}, **options)
+
+
+def press_circle(client, tmdb_id, next=SERIES_PAGE, **options):
+    """Press an episode's gray circle, as the page does (no "only this one": that is the question's answer)."""
+    return client.post('/watched/episode/add/', {'episode_id': eid(tmdb_id), 'next': next}, **options)
 
 
 def mark_season(client, number, next=SERIES_PAGE, **options):
-    """Press "Mark season". The buttons on the page always send the page to come back to as `next`."""
+    """Press "Mark Season N as watched". The buttons on the page always send the page to come back to as `next`."""
     return client.post('/watched/season/add/', {'tmdb_id': 1399, 'season': number, 'next': next}, **options)
 
 
+def unmark_season(client, number, next=SERIES_PAGE, **options):
+    """Press the same button once the season is marked, when it says "as not watched"."""
+    return client.post('/watched/season/remove/', {'tmdb_id': 1399, 'season': number, 'next': next}, **options)
+
+
 def up_to_here(client, tmdb_id, next=SERIES_PAGE, **options):
+    """The question's "Yes": mark the episode and every one before it."""
     return client.post('/watched/up-to/add/', {'episode_id': eid(tmdb_id), 'next': next}, **options)
-
-
-def undo(client, batch, next=SERIES_PAGE, **options):
-    return client.post('/watched/batch/remove/', {'batch': batch, 'next': next}, **options)
-
-
-def last_batch():
-    """The batch of the latest season or "up to here" press."""
-    return Watch.objects.exclude(batch=None).order_by('-id').values_list('batch', flat=True).first()
 
 
 def watched(user):
@@ -167,6 +170,21 @@ def season_block(html, number):
     return re.search(rf'<details id="season-{number}".*?</details>', html, re.DOTALL).group(0)
 
 
+def season_button(html, number):
+    """The season's form (on the page, or in the answer htmx puts in place of it)."""
+    return re.search(rf'<form id="season-action-{number}".*?</form>', html, re.DOTALL).group(0)
+
+
+def question(html):
+    """The pop-up question on the page, or an empty string when there is none."""
+    return re.search(r'<div id="ask">(.*?)</div>', html, re.DOTALL).group(1).strip()
+
+
+def changed_rows(body):
+    """The ids of the episode rows an answer puts in place of the ones on the page."""
+    return re.findall(r'<li id="episode-(\d+)" hx-swap-oob="true">', body)
+
+
 @pytest.fixture
 def opened(logged_in_client, tmdb_series):
     """The account, with the series opened once so its episodes are saved."""
@@ -185,7 +203,6 @@ def test_marking_a_season_saves_a_watch_for_each_episode_dated_the_day_it_was_pr
     assert {watch.watched_on for watch in watches} == {TODAY}
     assert {watch.title.tmdb_id for watch in watches} == {1399}
     assert {watch.user for watch in watches} == {opened.user}
-    assert len({watch.batch for watch in watches}) == 1 and watches[0].batch is not None  # one press, one batch
 
 
 def test_a_season_skips_episodes_that_have_not_aired_or_have_no_date(opened):
@@ -202,22 +219,20 @@ def test_a_season_leaves_episodes_already_marked_alone(opened, clock):
     mark_season(opened, 1)
 
     earlier.refresh_from_db()
-    assert (earlier.watched_on, earlier.batch) == (TODAY, None)  # the same watch, the same date, not in the batch
+    assert earlier.watched_on == TODAY  # the same watch, the same date
     assert watched(opened.user) == {6001, 6002, 6003}
     assert Watch.objects.count() == 3  # no second watch for 6002
-    assert set(Watch.objects.filter(batch=last_batch()).values_list('episode__tmdb_id', flat=True)) == {6001, 6003}
 
 
-def test_a_season_with_nothing_new_changes_nothing_and_says_so(opened):
-    after(opened, mark_season(opened, 1))
+def test_a_season_with_nothing_new_changes_nothing_and_says_nothing(opened):
+    mark_season(opened, 1)
     before = snapshot()
 
     response = mark_season(opened, 1)
 
     assert snapshot() == before
     html = after(opened, response)
-    assert 'Nothing new to mark in Season 1.' in html
-    assert 'name="batch"' not in html  # nothing to undo
+    assert 'Nothing new' not in html and 'role="status"' not in html
 
 
 def test_a_season_none_of_whose_episodes_has_aired_marks_nothing(opened):
@@ -229,13 +244,12 @@ def test_a_season_none_of_whose_episodes_has_aired_marks_nothing(opened):
 
 
 def test_the_specials_are_marked_as_a_season_of_their_own(opened):
-    after(opened, mark_season(opened, 1))
+    mark_season(opened, 1)
     assert 6000 not in watched(opened.user)  # a regular season leaves the specials alone
 
-    html = after(opened, mark_season(opened, 0))
+    mark_season(opened, 0)
 
     assert watched(opened.user) == {6000, 6001, 6002, 6003}
-    assert 'Marked 1 episode in the Specials as watched.' in html
 
 
 def test_marking_a_season_starts_the_series_and_leaves_the_to_watch_list_alone(opened):
@@ -261,181 +275,86 @@ def test_what_has_aired_follows_the_accounts_time_zone(opened):
     assert {watch.watched_on for watch in Watch.objects.filter(user=auckland.user)} == {datetime.date(2026, 10, 29)}
 
 
-# --- watched up to here (what "Yes" on the question below does) -------------------------------
+# --- pressing the season button again marks the whole season as not watched --------------------
 
 
-def test_up_to_here_marks_every_aired_episode_before_it_across_seasons(opened):
-    up_to_here(opened, 6103)
-
-    # All of season 1, then season 2 up to the chosen one. Not the episode without a date (6102), not the one
-    # after (6104) and not the special.
-    assert watched(opened.user) == {6001, 6002, 6003, 6101, 6103}
-    assert {watch.watched_on for watch in Watch.objects.all()} == {TODAY}
-    assert len({watch.batch for watch in Watch.objects.all()}) == 1
-
-
-def test_up_to_here_in_the_first_season_marks_only_what_is_before_it(opened):
-    up_to_here(opened, 6002)
-
-    assert watched(opened.user) == {6001, 6002}
-
-
-def test_up_to_here_leaves_episodes_already_marked_alone(opened):
-    mark_one(opened, 6002)
-    earlier = Watch.objects.get()
-
-    up_to_here(opened, 6003)
-
-    earlier.refresh_from_db()
-    assert earlier.batch is None
-    assert watched(opened.user) == {6001, 6002, 6003}
-    assert Watch.objects.count() == 3
-    assert set(Watch.objects.filter(batch=last_batch()).values_list('episode__tmdb_id', flat=True)) == {6001, 6003}
-
-
-def test_up_to_here_when_everything_before_it_is_marked_changes_nothing_and_says_so(opened):
-    after(opened, up_to_here(opened, 6003))
-    before = snapshot()
-
-    html = after(opened, up_to_here(opened, 6003))
-
-    assert snapshot() == before
-    assert 'Nothing new to mark up to S1E3.' in html
-
-
-def test_up_to_here_on_an_episode_that_is_marked_still_marks_the_ones_before_it(opened):
-    mark_one(opened, 6003)
-
-    up_to_here(opened, 6003)
-
-    assert watched(opened.user) == {6001, 6002, 6003}
-
-
-@pytest.mark.parametrize(
-    ('tmdb_id', 'reason'), [(6104, 'S2E4 has not aired yet'), (6102, 'S2E2 has no air date yet')]
-)
-def test_up_to_here_on_an_episode_that_has_not_aired_is_refused(opened, tmdb_id, reason):
-    html = after(opened, up_to_here(opened, tmdb_id))
-
-    assert reason in html
-    assert Watch.objects.count() == 0
-
-
-def test_up_to_here_is_not_offered_for_a_special(opened):
-    assert up_to_here(opened, 6000).status_code == 400
-    assert Watch.objects.count() == 0
-
-
-# --- undo -------------------------------------------------------------------------------------
-
-
-def test_undoing_a_season_puts_everything_back_as_it_was(opened):
+def test_pressing_the_season_button_again_puts_everything_back_as_it_was(opened):
     ToWatchItem.objects.create(user=opened.user, title=Title.objects.get())
-    mark_one(opened, 6101)  # marked before, and not part of the season press below
     before = snapshot()
     gray_page = page(opened)
 
-    after(opened, mark_season(opened, 1))
+    mark_season(opened, 1)
     assert snapshot() != before and is_watched(page(opened), 3)
-    html = after(opened, undo(opened, last_batch()))
+    unmark_season(opened, 1)
 
     assert snapshot() == before
-    assert 'Undone: 3 episodes marked as not watched.' in html
     assert without_tokens(page(opened)) == without_tokens(gray_page)  # the page is what it was
 
 
-def test_undoing_up_to_here_puts_everything_back_as_it_was(opened):
-    mark_one(opened, 6002)  # marked before: it must still be marked, with the same watch, afterwards
-    before = snapshot()
-    gray_page = page(opened)
-
-    after(opened, up_to_here(opened, 6103))
-    assert snapshot() != before
-    after(opened, undo(opened, last_batch()))
-
-    assert snapshot() == before
-    assert without_tokens(page(opened)) == without_tokens(gray_page)
-
-
-def test_undo_works_any_time_later(opened, clock):
+def test_un_marking_a_season_leaves_the_other_seasons_alone(opened):
     mark_season(opened, 1)
-    batch = last_batch()
-    clock.shift(datetime.timedelta(days=10))  # long after marking (a login lasts 2 weeks)
+    mark_season(opened, 2)
 
-    undo(opened, batch)
+    unmark_season(opened, 1)
 
-    assert Watch.objects.count() == 0
+    assert watched(opened.user) == {6101, 6103}
 
 
-def test_undo_removes_exactly_what_that_press_added(opened):
+def test_un_marking_a_season_takes_back_what_was_marked_one_by_one_too(opened):
+    mark_one(opened, 6001)
+    mark_one(opened, 6003)
     mark_one(opened, 6101)
-    mark_season(opened, 1)
-    batch = last_batch()
-    # Un-mark one episode by hand, then mark it again by hand: that new watch is not part of the press.
-    unmark_one(opened, 6002)
-    mark_one(opened, 6002)
 
-    undo(opened, batch)
+    unmark_season(opened, 1)
 
-    assert watched(opened.user) == {6101, 6002}
-    assert Watch.objects.get(episode__tmdb_id=6002).batch is None
+    assert watched(opened.user) == {6101}
 
 
-def test_undo_after_one_episode_was_un_marked_by_hand_removes_the_rest(opened):
-    mark_season(opened, 1)
-    batch = last_batch()
-    unmark_one(opened, 6002)
-
-    undo(opened, batch)
-
-    assert Watch.objects.count() == 0
-
-
-def test_undoing_twice_says_there_is_nothing_to_undo(opened):
-    mark_season(opened, 1)
-    batch = last_batch()
-    undo(opened, batch)
+def test_un_marking_a_season_with_nothing_marked_changes_nothing_and_says_nothing(opened):
+    mark_one(opened, 6101)
     before = snapshot()
 
-    html = after(opened, undo(opened, batch))
+    html = after(opened, unmark_season(opened, 1))
 
     assert snapshot() == before
-    assert 'Nothing to undo' in html
+    assert 'role="status"' not in html
 
 
-def test_a_season_can_be_marked_again_after_an_undo(opened):
+def test_a_season_can_be_marked_again_after_it_was_un_marked(opened):
     mark_season(opened, 1)
-    undo(opened, last_batch())
+    unmark_season(opened, 1)
 
     mark_season(opened, 1)
 
     assert watched(opened.user) == {6001, 6002, 6003}
 
 
-def test_each_account_has_its_own_marks_and_its_own_undo(opened):
+def test_un_marking_a_season_works_any_time_later(opened, clock):
+    mark_season(opened, 1)
+    clock.shift(datetime.timedelta(days=10))  # long after marking (a login lasts 2 weeks)
+
+    unmark_season(opened, 1)
+
+    assert Watch.objects.count() == 0
+
+
+def test_each_account_has_its_own_marks_and_its_own_un_marking(opened):
     other = make_client('second-user')
     mark_season(opened, 1)
-    batch = last_batch()
-
-    assert is_watched(page(opened), 1) and not is_watched(page(other), 1)
-
-    # The second account cannot undo the first account's press...
-    before = snapshot()
-    assert 'Nothing to undo' in after(other, undo(other, batch))
-    assert snapshot() == before
-    # ...and pressing the season itself marks only its own.
     mark_season(other, 1)
-    assert watched(opened.user) == watched(other.user) == {6001, 6002, 6003}
-    undo(other, last_batch())
+
+    unmark_season(other, 1)
+
     assert watched(opened.user) == {6001, 6002, 6003} and watched(other.user) == set()
+    assert is_watched(page(opened), 1) and not is_watched(page(other), 1)
 
 
 # --- episodes renumbered or added after a season was marked -----------------------------------
 
 
-def test_after_tmdb_renumbers_the_season_marks_and_undo_still_hit_the_same_episodes(opened, tmdb_series, clock):
-    after(opened, mark_season(opened, 1))
-    first_batch = last_batch()
+def test_after_tmdb_renumbers_the_season_the_marks_stay_and_the_button_follows(opened, tmdb_series, clock):
+    mark_season(opened, 1)
+    assert 'as not watched' in season_button(page(opened), 1)
     # TMDB now has a new first episode, and what used to be episodes 1 to 3 are now 2 to 4.
     renumbered = [
         made_up_episode(1, 1, 6004, '2011-04-10', name='Made-up newcomer'),
@@ -451,18 +370,227 @@ def test_after_tmdb_renumbers_the_season_marks_and_undo_still_hit_the_same_episo
     # The three still have their watches under their new numbers, and the newcomer is not marked.
     assert watched(opened.user) == {6001, 6002, 6003}
     assert is_watched(html, 2) and is_watched(html, 3) and is_watched(html, 4) and not is_watched(html, 1)
-
-    # Marking the season again marks only the newcomer, in a batch of its own.
-    after(opened, mark_season(opened, 1))
+    # So the season is not complete any more: its button offers to mark it again, which marks only the newcomer.
+    assert 'as watched' in season_button(html, 1)
+    mark_season(opened, 1)
     assert watched(opened.user) == {6001, 6002, 6003, 6004}
-    assert last_batch() != first_batch
-
-    # Undoing the first press removes exactly its three episodes, wherever they are numbered now.
-    undo(opened, first_batch)
-    assert watched(opened.user) == {6004}
+    assert 'as not watched' in season_button(page(opened), 1)
 
 
-def test_up_to_here_follows_the_numbers_as_they_are_now(opened, tmdb_series, clock):
+# --- the page ---------------------------------------------------------------------------------
+
+
+def test_the_page_offers_a_season_button_where_something_has_aired(opened):
+    html = page(opened)
+
+    for number in (0, 1, 2):
+        assert f'Mark {"Specials" if number == 0 else f"Season {number}"} as watched' in html
+    assert 'season-action' not in season_block(html, 3)  # season 3 has not started: nothing to mark
+
+
+def test_the_button_says_not_watched_once_every_episode_that_has_aired_is_marked(opened):
+    mark_one(opened, 6101)
+    assert 'Mark Season 2 as watched' in season_button(page(opened), 2)  # 6103 has aired and is not marked
+
+    mark_season(opened, 2)
+    button = season_button(page(opened), 2)
+
+    # Not marked: 6102 (no date) and 6104 (airs tomorrow), and that does not matter.
+    assert 'Mark Season 2 as not watched' in button and 'action="/watched/season/remove/"' in button
+    assert 'Mark Season 1 as watched' in season_button(page(opened), 1)  # the other seasons are as they were
+
+
+def test_ticking_the_last_episode_by_hand_flips_the_button_and_un_ticking_one_flips_it_back(opened):
+    mark_one(opened, 6001)
+    mark_one(opened, 6002)
+    assert 'as watched' in season_button(page(opened), 1)
+
+    mark_one(opened, 6003)
+    assert 'as not watched' in season_button(page(opened), 1)
+
+    unmark_one(opened, 6002)
+    assert 'as watched' in season_button(page(opened), 1)
+
+
+def test_the_specials_button_flips_too(opened):
+    mark_season(opened, 0)
+
+    assert 'Mark Specials as not watched' in season_button(page(opened), 0)
+
+
+def test_there_is_no_up_to_here_button_and_no_notice_or_undo_button(opened):
+    mark_season(opened, 1)
+    html = page(opened)
+
+    assert 'Up to here' not in html and 'up-to' not in html.replace('/watched/up-to/add/', '')
+    assert 'Undo' not in html and 'bulk-notice' not in html and 'name="batch"' not in html
+    for tmdb_id in (6001, 6002, 6003, 6101, 6103):  # aired: the circle is the only button of the row
+        assert row(html, tmdb_id).count('<button') == 1
+
+
+def test_the_buttons_use_htmx_so_the_page_does_not_reload(opened):
+    html = page(opened)
+
+    assert 'hx-post="/watched/season/add/" hx-swap="none"' in html
+    assert '<div id="ask"></div>' in html
+
+
+# --- without htmx the page just comes back ----------------------------------------------------
+
+
+def test_without_htmx_a_season_press_comes_back_to_the_season_with_no_message(opened):
+    where = f'{SERIES_PAGE}?season=1#season-1'
+
+    response = mark_season(opened, 1, next=where)
+
+    assert response.status_code == 302 and response['Location'] == where
+    html = after(opened, response)
+    assert is_watched(html, 3) and 'role="status"' not in html
+    assert 'as not watched' in season_button(html, 1)
+
+
+def test_without_htmx_pressing_it_again_un_marks_the_season_and_comes_back_the_same_way(opened):
+    where = f'{SERIES_PAGE}?season=1#season-1'
+    mark_season(opened, 1)
+
+    response = unmark_season(opened, 1, next=where)
+
+    assert response.status_code == 302 and response['Location'] == where
+    html = after(opened, response)
+    assert not is_watched(html, 1) and 'as watched' in season_button(html, 1)
+    assert Watch.objects.count() == 0
+
+
+# --- with htmx only the changed rows and season buttons come back, so the page does not move ----
+
+
+def test_with_htmx_a_season_answers_with_just_the_rows_that_changed_and_its_button(opened):
+    mark_one(opened, 6101)
+
+    response = mark_season(opened, 2, **HTMX)
+
+    body = response.content.decode()
+    assert response.status_code == 200 and '<html' not in body
+    # Only 6103 changed (6101 was marked already). Its row replaces the one on the page...
+    assert body.count('<li') == 1 and changed_rows(body) == [str(eid(6103))]
+    assert is_watched(body, 3)
+    # ...and so does the season's button, which now says the season is marked.
+    assert 'hx-swap-oob="true"' in season_button(body, 2) and 'Mark Season 2 as not watched' in body
+    assert '<div id="ask" hx-swap-oob="true"></div>' in body
+    assert 'Marked' not in body and 'Undo' not in body and watched(opened.user) == {6101, 6103}
+
+
+def test_with_htmx_pressing_it_again_answers_with_the_rows_back_to_gray_and_the_button_back(opened):
+    before = snapshot()
+    mark_season(opened, 1)
+
+    body = unmark_season(opened, 1, **HTMX).content.decode()
+
+    assert len(changed_rows(body)) == 3 and body.count('<li') == 3
+    assert 'class="check watched"' not in body
+    assert 'Mark Season 1 as watched' in season_button(body, 1)
+    assert snapshot() == before
+
+
+def test_with_htmx_nothing_new_answers_with_no_rows(opened):
+    mark_season(opened, 1)
+
+    body = mark_season(opened, 1, **HTMX).content.decode()
+
+    assert '<li' not in body and 'Nothing new' not in body
+
+
+def test_with_htmx_the_circle_that_completes_a_season_also_flips_its_button(opened):
+    mark_one(opened, 6001)
+    mark_one(opened, 6002)
+
+    body = press_circle(opened, 6003, **HTMX).content.decode()
+
+    # The row is the main answer (htmx swaps it in place of the row the circle is in)...
+    assert body.lstrip().startswith('<li id="episode-') and changed_rows(body) == []
+    assert is_watched(body, 3)
+    # ...and the season's button comes with it, to be put in place of the one on the page.
+    assert 'hx-swap-oob="true"' in season_button(body, 1) and 'as not watched' in season_button(body, 1)
+
+
+def test_with_htmx_un_marking_one_episode_of_a_marked_season_flips_the_button_back(opened):
+    mark_season(opened, 1)
+
+    body = unmark_one(opened, 6002, **HTMX).content.decode()
+
+    assert 'class="check"' in body and 'class="check watched"' not in body
+    assert 'Mark Season 1 as watched' in season_button(body, 1)
+
+
+def test_with_htmx_a_circle_in_a_season_without_a_button_comes_back_as_just_the_row(opened):
+    body = press_circle(opened, 6201, **HTMX).content.decode()  # airs in 2999: no circle, no season button
+
+    assert 'season-action' not in body and Watch.objects.count() == 0
+
+
+# --- "Yes", the question's way of marking everything up to an episode --------------------------
+
+
+def test_yes_marks_every_aired_episode_before_it_across_seasons(opened):
+    up_to_here(opened, 6103)
+
+    # All of season 1, then season 2 up to the chosen one. Not the episode without a date (6102), not the one
+    # after (6104) and not the special.
+    assert watched(opened.user) == {6001, 6002, 6003, 6101, 6103}
+    assert {watch.watched_on for watch in Watch.objects.all()} == {TODAY}
+
+
+def test_yes_in_the_first_season_marks_only_what_is_before_it(opened):
+    up_to_here(opened, 6002)
+
+    assert watched(opened.user) == {6001, 6002}
+
+
+def test_yes_leaves_episodes_already_marked_alone(opened):
+    mark_one(opened, 6002)
+    earlier = Watch.objects.get()
+
+    up_to_here(opened, 6003)
+
+    earlier.refresh_from_db()
+    assert earlier.watched_on == TODAY
+    assert watched(opened.user) == {6001, 6002, 6003}
+    assert Watch.objects.count() == 3
+
+
+def test_yes_when_everything_before_it_is_marked_changes_nothing_and_says_nothing(opened):
+    up_to_here(opened, 6003)
+    before = snapshot()
+
+    html = after(opened, up_to_here(opened, 6003))
+
+    assert snapshot() == before and 'role="status"' not in html
+
+
+def test_yes_on_an_episode_that_is_marked_still_marks_the_ones_before_it(opened):
+    mark_one(opened, 6003)
+
+    up_to_here(opened, 6003)
+
+    assert watched(opened.user) == {6001, 6002, 6003}
+
+
+@pytest.mark.parametrize(
+    ('tmdb_id', 'reason'), [(6104, 'S2E4 has not aired yet'), (6102, 'S2E2 has no air date yet')]
+)
+def test_yes_on_an_episode_that_has_not_aired_is_refused(opened, tmdb_id, reason):
+    html = after(opened, up_to_here(opened, tmdb_id))
+
+    assert reason in html
+    assert Watch.objects.count() == 0
+
+
+def test_yes_is_not_for_a_special(opened):
+    assert up_to_here(opened, 6000).status_code == 400
+    assert Watch.objects.count() == 0
+
+
+def test_yes_follows_the_numbers_as_they_are_now(opened, tmdb_series, clock):
     renumbered = [made_up_episode(1, 4, 6001, '2011-04-17'), *SEASONS[1][1:]]  # the pilot is now the last one
     tmdb_series[1].respond(json={'season_number': 1, 'episodes': renumbered})
     clock.shift(datetime.timedelta(days=2))
@@ -473,138 +601,23 @@ def test_up_to_here_follows_the_numbers_as_they_are_now(opened, tmdb_series, clo
     assert watched(opened.user) == {6002, 6003}
 
 
-# --- the page ---------------------------------------------------------------------------------
-
-
-def test_the_page_offers_a_season_button_where_something_has_aired(opened):
-    html = page(opened)
-
-    assert 'Mark Season 1 as watched' in html and 'Mark Season 2 as watched' in html
-    assert 'Mark Specials as watched' in html
-    assert 'season/add' not in season_block(html, 3)  # season 3 has not started: nothing to mark
-
-
-def test_an_episode_has_only_its_circle_and_no_up_to_here_button(opened):
-    html = page(opened)
-
-    assert 'Up to here' not in html and 'up-to' not in html
-    for tmdb_id in (6001, 6002, 6003, 6101, 6103):  # aired: the circle is the only button
-        assert row(html, tmdb_id).count('<button') == 1
-
-
-def test_the_buttons_use_htmx_so_the_page_does_not_reload(opened):
-    html = page(opened)
-
-    assert 'hx-post="/watched/season/add/" hx-target="#bulk-notice" hx-swap="innerHTML"' in html
-    assert '<div id="bulk-notice"' in html and '<div id="ask"></div>' in html
-
-
-# --- without htmx the page comes back with its notice and an Undo button ---------------------
-
-
-def test_without_htmx_the_page_comes_back_with_a_notice_that_has_undo(opened):
-    where = f'{SERIES_PAGE}?season=1#season-1'
-    response = opened.post('/watched/season/add/', {'tmdb_id': 1399, 'season': 1, 'next': where})
-
-    assert response.status_code == 302 and response['Location'] == where
-    html = after(opened, response)
-    assert 'Marked 3 episodes in Season 1 as watched.' in html
-    assert f'name="batch" value="{last_batch()}"' in html
-    assert 'Marked 3 episodes' not in page(opened)  # shown once
-
-    undone = after(opened, undo(opened, last_batch(), next=where))
-    assert 'Undone: 3 episodes marked as not watched.' in undone
-    assert 'name="batch"' not in undone  # nothing left to undo
-    assert Watch.objects.count() == 0
-
-
-def test_without_htmx_up_to_here_comes_back_with_a_notice_too(opened):
-    html = after(opened, up_to_here(opened, 6103, next=f'{SERIES_PAGE}?season=2'))
-
-    assert 'Marked 5 episodes up to S2E3 as watched.' in html
-    assert f'name="batch" value="{last_batch()}"' in html
-
-
-# --- with htmx only the notice and the changed rows come back, so the page does not move ------
-
-
-def test_with_htmx_a_season_answers_with_the_notice_and_just_the_rows_that_changed(opened):
-    mark_one(opened, 6101)
-
-    response = mark_season(opened, 2, **HTMX)
-
-    body = response.content.decode()
-    assert response.status_code == 200 and '<html' not in body
-    assert 'Marked 1 episode in Season 2 as watched.' in body
-    assert f'name="batch" value="{last_batch()}"' in body  # the Undo button
-    # Only 6103 changed (6101 was marked already). Its row replaces the one on the page.
-    assert body.count('<li') == 1
-    assert f'<li id="episode-{eid(6103)}" hx-swap-oob="true">' in body
-    assert is_watched(body, 3)
-    assert watched(opened.user) == {6101, 6103}
-
-
-def test_with_htmx_up_to_here_answers_with_every_row_that_changed(opened):
+def test_with_htmx_yes_answers_with_every_row_that_changed_and_the_seasons_buttons(opened):
     body = up_to_here(opened, 6103, **HTMX).content.decode()
 
-    assert 'Marked 5 episodes up to S2E3 as watched.' in body
-    # Every row goes in place of the one already on the page.
-    assert body.count('<li') == 5 and len(re.findall(r'<li id="episode-\d+" hx-swap-oob="true">', body)) == 5
+    assert body.count('<li') == 5 and len(changed_rows(body)) == 5
     assert body.count('class="check watched"') == 5
+    # Season 1 and season 2 are marked in full now (what has aired), so both buttons say so.
+    assert 'as not watched' in season_button(body, 1) and 'as not watched' in season_button(body, 2)
+    assert 'Marked' not in body and 'Undo' not in body
 
 
-def test_with_htmx_nothing_new_answers_with_just_the_notice(opened):
-    mark_season(opened, 1)
-
-    body = mark_season(opened, 1, **HTMX).content.decode()
-
-    assert 'Nothing new to mark in Season 1.' in body
-    assert '<li' not in body and 'name="batch"' not in body
-
-
-def test_with_htmx_a_refusal_answers_with_just_the_notice(opened):
+def test_with_htmx_a_refusal_answers_with_no_rows(opened):
     body = up_to_here(opened, 6104, **HTMX).content.decode()
 
-    assert 'S2E4 has not aired yet' in body and '<li' not in body
-    assert Watch.objects.count() == 0
-
-
-def test_with_htmx_undo_answers_with_the_notice_and_the_rows_back_to_gray(opened):
-    before = snapshot()
-    mark_season(opened, 1)
-
-    body = undo(opened, last_batch(), **HTMX).content.decode()
-
-    assert 'Undone: 3 episodes marked as not watched.' in body
-    assert body.count('<li') == 3 and len(re.findall(r'<li id="episode-\d+" hx-swap-oob="true">', body)) == 3
-    assert 'class="check watched"' not in body
-    assert 'name="batch"' not in body  # nothing left to undo
-    assert snapshot() == before
-
-
-def test_with_htmx_undoing_twice_says_so_and_changes_nothing(opened):
-    mark_season(opened, 1)
-    batch = last_batch()
-    undo(opened, batch, **HTMX)
-    before = snapshot()
-
-    body = undo(opened, batch, **HTMX).content.decode()
-
-    assert 'Nothing to undo' in body and '<li' not in body
-    assert snapshot() == before
+    assert '<li' not in body and Watch.objects.count() == 0
 
 
 # --- the question after the first episode marked in a series ----------------------------------
-
-
-def press_circle(client, tmdb_id, next=SERIES_PAGE, **options):
-    """Press an episode's gray circle, as the page does (no "only this one": that is the question's answer)."""
-    return client.post('/watched/episode/add/', {'episode_id': eid(tmdb_id), 'next': next}, **options)
-
-
-def question(html):
-    """The pop-up question on the page, or an empty string when there is none."""
-    return re.search(r'<div id="ask">(.*?)</div>', html, re.DOTALL).group(1).strip()
 
 
 def test_the_first_episode_marked_in_a_series_asks_about_the_earlier_ones_and_saves_nothing_yet(opened):
@@ -639,16 +652,17 @@ def test_the_question_follows_the_accounts_own_day(opened):
     assert 'Yes, mark all 6' in ask
 
 
-def test_yes_marks_everything_from_the_beginning_in_one_step_and_it_can_be_undone(opened):
+def test_yes_marks_everything_from_the_beginning_and_the_season_button_takes_it_back(opened):
     before = snapshot()
     ask = question(after(opened, press_circle(opened, 6003)))
     assert 'action="/watched/up-to/add/"' in ask and f'name="episode_id" value="{eid(6003)}"' in ask
 
     html = after(opened, up_to_here(opened, 6003))
 
-    assert 'Marked 3 episodes up to S1E3 as watched.' in html
     assert watched(opened.user) == {6001, 6002, 6003}
-    after(opened, undo(opened, last_batch()))
+    assert 'role="status"' not in html and 'Undo' not in html  # no notice: the season button is the way back
+    assert 'as not watched' in season_button(html, 1)
+    unmark_season(opened, 1)
     assert snapshot() == before
 
 
@@ -660,7 +674,7 @@ def test_no_marks_only_that_episode_and_it_can_be_undone(opened):
     opened.post('/watched/episode/add/', {'episode_id': eid(6003), 'only_this': 1, 'next': SERIES_PAGE})
 
     watch = Watch.objects.get()
-    assert (watch.episode.tmdb_id, watch.watched_on, watch.batch) == (6003, TODAY, None)
+    assert (watch.episode.tmdb_id, watch.watched_on) == (6003, TODAY)
     unmark_one(opened, 6003)
     assert snapshot() == before
 
@@ -709,9 +723,9 @@ def test_an_episode_already_marked_is_not_asked_about(opened):
     assert question(html) == '' and 'already marked as watched' in html
 
 
-def test_after_everything_is_undone_the_next_first_mark_asks_again(opened):
+def test_after_everything_is_un_marked_the_next_first_mark_asks_again(opened):
     up_to_here(opened, 6003)
-    undo(opened, last_batch())
+    unmark_season(opened, 1)
 
     assert 'Yes, mark all 3' in question(after(opened, press_circle(opened, 6003)))
 
@@ -737,31 +751,35 @@ def test_with_htmx_the_question_is_the_whole_answer_and_goes_into_the_page(opene
     assert response.status_code == 200 and '<html' not in body
     assert response['HX-Retarget'] == '#ask' and response['HX-Reswap'] == 'innerHTML'
     assert '<dialog open' in body and 'Yes, mark all 3' in body
+    assert 'hx-post="/watched/up-to/add/" hx-swap="none"' in body
     assert '<li' not in body and Watch.objects.count() == 0
 
 
-def test_with_htmx_no_answers_with_the_row_and_takes_the_question_off(opened):
+def test_with_htmx_no_answers_with_the_row_the_seasons_button_and_takes_the_question_off(opened):
     response = opened.post(
         '/watched/episode/add/', {'episode_id': eid(6003), 'only_this': 1, 'next': SERIES_PAGE}, **HTMX
     )
 
     body = response.content.decode()
-    assert re.findall(r'<li id="episode-(\d+)" hx-swap-oob="true">', body) == [str(eid(6003))]
+    assert changed_rows(body) == [str(eid(6003))]
     assert is_watched(body, 3) and '<div id="ask" hx-swap-oob="true"></div>' in body
-    assert 'class="bulk-notice"' not in body  # nothing to undo: the circle is its undo
+    assert 'as watched' in season_button(body, 1)  # one episode of three: the season is not complete
     assert watched(opened.user) == {6003}
 
 
-def test_with_htmx_yes_answers_with_the_notice_and_the_rows_and_takes_the_question_off(opened):
+def test_with_htmx_yes_takes_the_question_off_the_page(opened):
     body = up_to_here(opened, 6003, **HTMX).content.decode()
 
-    assert 'Marked 3 episodes up to S1E3 as watched.' in body and 'name="batch"' in body
-    assert body.count('<li') == 3 and '<div id="ask" hx-swap-oob="true"></div>' in body
+    assert '<div id="ask" hx-swap-oob="true"></div>' in body
 
 
 # --- safety -----------------------------------------------------------------------------------
 
+SEASON_ADDRESSES = ['/watched/season/add/', '/watched/season/remove/']
+ADDRESSES = [*SEASON_ADDRESSES, '/watched/up-to/add/']
 
+
+@pytest.mark.parametrize('address', SEASON_ADDRESSES)
 @pytest.mark.parametrize(
     'form',
     [
@@ -774,33 +792,33 @@ def test_with_htmx_yes_answers_with_the_notice_and_the_rows_and_takes_the_questi
         {'tmdb_id': '1399', 'season': '-1'},
     ],
 )
-def test_a_season_button_with_nonsense_is_refused(opened, form):
-    assert opened.post('/watched/season/add/', form).status_code == 400
-    assert Watch.objects.count() == 0
+def test_a_season_button_with_nonsense_is_refused(opened, address, form):
+    mark_season(opened, 1)
+    before = snapshot()
+
+    assert opened.post(address, form).status_code == 400
+    assert snapshot() == before
 
 
-def test_a_season_or_series_that_does_not_exist_is_not_found(opened):
-    assert opened.post('/watched/season/add/', {'tmdb_id': 1399, 'season': 9}).status_code == 404
-    assert opened.post('/watched/season/add/', {'tmdb_id': 5, 'season': 1}).status_code == 404
+@pytest.mark.parametrize('address', SEASON_ADDRESSES)
+def test_a_season_or_series_that_does_not_exist_is_not_found(opened, address):
+    assert opened.post(address, {'tmdb_id': 1399, 'season': 9}).status_code == 404
+    assert opened.post(address, {'tmdb_id': 5, 'season': 1}).status_code == 404
     assert Watch.objects.count() == 0
 
 
 @pytest.mark.parametrize('form', [{}, {'episode_id': ''}, {'episode_id': 'abc'}])
-def test_an_up_to_here_button_with_nonsense_is_refused(opened, form):
+def test_a_yes_with_nonsense_is_refused(opened, form):
     assert opened.post('/watched/up-to/add/', form).status_code == 400
     assert Watch.objects.count() == 0
 
 
-def test_an_up_to_here_for_an_episode_that_does_not_exist_is_not_found(opened):
+def test_a_yes_for_an_episode_that_does_not_exist_is_not_found(opened):
     assert opened.post('/watched/up-to/add/', {'episode_id': 99999}).status_code == 404
 
 
-@pytest.mark.parametrize('form', [{}, {'batch': ''}, {'batch': 'abc'}, {'batch': '1234'}])
-def test_an_undo_with_nonsense_is_refused(opened, form):
-    assert opened.post('/watched/batch/remove/', form).status_code == 400
-
-
-ADDRESSES = ['/watched/season/add/', '/watched/up-to/add/', '/watched/batch/remove/']
+def test_the_old_undo_address_is_gone(opened):
+    assert opened.post('/watched/batch/remove/', {'batch': 'abc'}).status_code == 404
 
 
 @pytest.mark.parametrize('address', ADDRESSES)
@@ -835,7 +853,7 @@ def test_a_button_never_sends_you_to_another_site(opened, elsewhere):
     assert pressed['Location'] == '/series/'
     up_to = opened.post('/watched/up-to/add/', {'episode_id': eid(6103), 'next': elsewhere})
     assert up_to['Location'] == '/series/'
-    undone = opened.post('/watched/batch/remove/', {'batch': last_batch(), 'next': elsewhere})
+    undone = opened.post('/watched/season/remove/', {'tmdb_id': 1399, 'season': 1, 'next': elsewhere})
     assert undone['Location'] == '/series/'
 
 

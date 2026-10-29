@@ -1,5 +1,4 @@
 import math
-import uuid
 from datetime import timedelta
 from zoneinfo import ZoneInfo
 
@@ -25,7 +24,7 @@ from .episodes import (
     refresh_episodes,
     series_tabs,
     started_series,
-    undo_batch,
+    unmark_episodes,
 )
 from .forms import TimeZoneForm, WatchedForm
 from .models import Episode, Profile, Title, ToWatchItem, Watch
@@ -129,16 +128,7 @@ def _series_page(request, tmdb_id):
         by_season.setdefault(episode.season_number, []).append(episode)
     # Specials (season 0) last.
     numbers = sorted(by_season, key=lambda number: (number == 0, number))
-    seasons = [
-        {
-            'number': number,
-            'name': 'Specials' if number == 0 else f'Season {number}',
-            'episodes': by_season[number],
-            # A season none of whose episodes has aired has nothing to mark, so it gets no button.
-            'has_aired': any(episode.aired for episode in by_season[number]),
-        }
-        for number in numbers
-    ]
+    seasons = [_season_info(number, by_season[number]) for number in numbers]
     try:
         open_season = int(request.GET['season'])
     except (KeyError, ValueError):
@@ -153,10 +143,8 @@ def _series_page(request, tmdb_id):
         'notice': notice,
         'seasons': seasons,
         'open_season': open_season,
-        # Without htmx, a season or "Yes" press comes back here and leaves its notice (with Undo) to show once.
-        'bulk': request.session.pop('bulk_notice', {}),
-        # Likewise the question after a first mark ("did you watch the earlier episodes too?"). It is worked out
-        # again here, so a page that is out of date asks nothing.
+        # Without htmx, the question after a first mark ("did you watch the earlier episodes too?") comes back
+        # here and is shown once. It is worked out again here, so a page that is out of date asks nothing.
         'ask': _question(request, asked, today) if asked else None,
     }
     return render(request, 'core/title.html', context)
@@ -424,10 +412,36 @@ def _with_state(request, episodes):
     return episodes
 
 
+def _season_info(number, episodes):
+    """What a season needs on the page, from its episodes (each with its watch and `aired` already set)."""
+    aired = [episode for episode in episodes if episode.aired]
+    return {
+        'number': number,
+        'name': 'Specials' if number == 0 else f'Season {number}',
+        'episodes': episodes,
+        # A season none of whose episodes has aired has nothing to mark, so it gets no button.
+        'has_aired': bool(aired),
+        # Once every episode that has aired is marked, the button un-marks the season instead.
+        'all_marked': bool(aired) and all(episode.watch for episode in aired),
+    }
+
+
+def _season_infos(request, series, episodes):
+    """The seasons that `episodes` are in, as they are now, for the buttons htmx puts in place after a change."""
+    numbers = {episode.season_number for episode in episodes}
+    in_those = series.episodes.filter(season_number__in=numbers).order_by('season_number', 'episode_number', 'id')
+    by_season = {}
+    for episode in _with_state(request, list(in_those)):
+        by_season.setdefault(episode.season_number, []).append(episode)
+    return [_season_info(number, by_season[number]) for number in sorted(by_season)]
+
+
 def _episode_row(request, episode):
-    """One episode's row in its current state, which htmx swaps in place so the page does not move."""
+    """One episode's row in its current state, which htmx swaps in place so the page does not move.
+    Its season's button comes with it, because this episode may have just completed (or broken) the season."""
     _with_state(request, [episode])
-    return render(request, 'core/_episode_row.html', {'episode': episode, 'item': episode.title})
+    context = {'episode': episode, 'item': episode.title, 'seasons': _season_infos(request, episode.title, [episode])}
+    return render(request, 'core/_episode_answer.html', context)
 
 
 def _short_name(episode):
@@ -454,10 +468,10 @@ def _answer_episode(request, episode, text='', ok=True):
     Without htmx: a redirect back to the series page, with a message (unless `text` is empty).
 
     When the button was "No, only this one" on the question, the question is on the page and has to go away
-    too, so the answer is the one `_answer_bulk` gives (the changed row, and the question taken off)."""
+    too, so the answer is the one `_answer_changed` gives (the changed row, and the question taken off)."""
     if request.headers.get('HX-Request'):
         if request.POST.get('only_this'):
-            return _answer_bulk(request, episode.title, [episode], '')
+            return _answer_changed(request, episode.title, [episode])
         return _episode_row(request, episode)
     return _redirect_back(request, text, ok, 'series')
 
@@ -533,45 +547,26 @@ def watched_remove(request):
     return _redirect_back(request, text, True, 'history')
 
 
-def _count_episodes(count):
-    return f'{count} episode{"" if count == 1 else "s"}'
+def _answer_changed(request, series, episodes, text='', ok=True):
+    """Reply to the season buttons and to the question's "Yes" and "No". `episodes` are the ones that changed.
 
-
-def _answer_bulk(request, series, episodes, text, batch=None, ok=True):
-    """Reply to the season, question ("Yes" and "No") and Undo buttons. `episodes` are the ones whose rows changed.
-
-    With htmx: the notice (with an Undo button when there is a `batch` to undo) and only the changed
-    rows, which htmx swaps in where they are, so the page does not move and the open seasons stay open.
-    Without htmx: a redirect back to the series page. A notice with Undo is kept for that page to show
-    once; a message with nothing to undo is an ordinary message.
+    With htmx: just those rows and the buttons of their seasons, which htmx puts where they are on the page
+    (the form says `hx-swap="none"`, so nothing else is touched), and the question taken off the page if it
+    was open. The page does not move and the open seasons stay open.
+    Without htmx: a redirect back to the series page, with `text` as a message (unless it is empty).
     """
     if request.headers.get('HX-Request'):
         context = {
             'item': series,
             'episodes': _with_state(request, episodes),
-            'text': text,
-            'batch': batch,
-            'next': request.POST.get('next', ''),
+            'seasons': _season_infos(request, series, episodes),
         }
         return render(request, 'core/_bulk_result.html', context)
-    if batch:
-        request.session['bulk_notice'] = {'text': text, 'batch': str(batch)}
-        text = ''
     return _redirect_back(request, text, ok, 'series')
 
 
-def _mark_many(request, series, episodes, where):
-    """Mark the aired, unmarked ones among `episodes` as one batch and say what happened ("in Season 2")."""
-    marked, batch = mark_episodes(request.user, episodes, _today(request))
-    if not marked:
-        text = f'Nothing new to mark {where}. Episodes already marked, not aired yet or without an air date are left alone.'
-        return _answer_bulk(request, series, [], text)
-    return _answer_bulk(request, series, marked, f'Marked {_count_episodes(len(marked))} {where} as watched.', batch)
-
-
-@require_POST
-def season_watched_add(request):
-    """Mark every episode of a season that has aired and is not marked yet, in one step."""
+def _posted_season(request):
+    """The series, the season number and the season's episodes a season button was pressed for."""
     try:
         tmdb_id, number = int(request.POST.get('tmdb_id', '')), int(request.POST.get('season', ''))
     except ValueError:
@@ -582,7 +577,31 @@ def season_watched_add(request):
     episodes = list(series.episodes.filter(season_number=number).order_by('episode_number', 'id'))
     if not episodes:
         raise Http404
-    return _mark_many(request, series, episodes, 'in the Specials' if number == 0 else f'in Season {number}')
+    return series, number, episodes
+
+
+@require_POST
+def season_watched_add(request):
+    """Mark every episode of a season that has aired and is not marked yet, in one step.
+
+    When there is nothing new to mark, nothing happens and nothing is said (the page only offers this button
+    while something is left to mark).
+    """
+    series, _, episodes = _posted_season(request)
+    marked = mark_episodes(request.user, episodes, _today(request))
+    return _answer_changed(request, series, marked)
+
+
+@require_POST
+def season_watched_remove(request):
+    """Mark a whole season as not watched in one step: the season button, pressed again.
+
+    Every watch of this account for the season goes, so it is the undo of marking the whole season. When
+    nothing in the season is marked, nothing happens.
+    """
+    series, _, episodes = _posted_season(request)
+    unmarked = unmark_episodes(request.user, episodes)
+    return _answer_changed(request, series, unmarked)
 
 
 @require_POST
@@ -591,30 +610,16 @@ def episodes_watched_up_to(request):
     not marked yet, from season 1 episode 1 up to the chosen one, in one step."""
     episode = _posted_episode(request)
     if episode.season_number == 0:
-        raise BadRequest  # specials are not in that order, and the page offers no button for them
+        raise BadRequest  # specials are not in that order, and the page offers no question for them
     name = _short_name(episode)
     if episode.air_date is None:
         text = f'{name} has no air date yet, so nothing can be marked up to it.'
-        return _answer_bulk(request, episode.title, [], text, ok=False)
+        return _answer_changed(request, episode.title, [], text, ok=False)
     if episode.air_date > _today(request):
         text = f'{name} has not aired yet, so nothing can be marked up to it.'
-        return _answer_bulk(request, episode.title, [], text, ok=False)
-    return _mark_many(request, episode.title, episodes_up_to(episode), f'up to {name}')
-
-
-@require_POST
-def watched_batch_remove(request):
-    """Undo a season or "Yes" press in one step, right after it or any time later."""
-    try:
-        batch = uuid.UUID(request.POST.get('batch', ''))
-    except ValueError:
-        raise BadRequest from None
-    episodes = undo_batch(request.user, batch)
-    if not episodes:
-        text = 'Nothing to undo: those episodes are no longer marked as watched.'
-        return _answer_bulk(request, None, [], text, ok=False)
-    text = f'Undone: {_count_episodes(len(episodes))} marked as not watched.'
-    return _answer_bulk(request, episodes[0].title, episodes, text)
+        return _answer_changed(request, episode.title, [], text, ok=False)
+    marked = mark_episodes(request.user, episodes_up_to(episode), _today(request))
+    return _answer_changed(request, episode.title, marked)
 
 
 # Nothing private on this page, and the TMDB credit should be visible to everyone.

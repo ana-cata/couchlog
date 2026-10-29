@@ -285,7 +285,7 @@ def test_ticking_an_episode_does_not_move_the_page(live_server, page, respx_mock
     assert abs(page.evaluate('window.scrollY') - scrolled_before) < 2
 
 
-def test_the_first_mark_asks_about_the_earlier_episodes_and_a_whole_season_does_not_move_the_page_and_can_be_undone(
+def test_the_first_mark_asks_and_the_season_button_marks_and_un_marks_a_season_without_moving_the_page(
     live_server, page, respx_mock, settings
 ):
     settings.TMDB_API_KEY = 'made-up-secret-key'
@@ -346,44 +346,46 @@ def test_the_first_mark_asks_about_the_earlier_episodes_and_a_whole_season_does_
     circle.click()
     question.get_by_role('button', name='Yes, mark all 30').click()
 
-    # Episodes 1 to 30 are green, the question is gone, and the notice with Undo is in view right where we are.
+    # Episodes 1 to 30 are green and the question is gone. There is no notice and no Undo button.
     expect(question).to_be_hidden()
-    expect(page.get_by_text('Marked 30 episodes up to S1E30 as watched.')).to_be_visible()
     expect(watched).to_have_count(30)
-    expect(page.locator('.bulk-notice')).to_be_in_viewport()
+    expect(page.get_by_role('button', name='Undo')).to_have_count(0)
     # Nothing moved: same place, same address, same seasons open, no reload.
     assert abs(page.evaluate('window.scrollY') - scrolled_before) < 2
     assert page.url == address_before
     assert page.locator('details[open]').count() == open_before
 
-    # Undo takes all 30 back in one step, and the notice no longer offers Undo.
-    page.get_by_role('button', name='Undo').click()
-    expect(page.get_by_text('Undone: 30 episodes marked as not watched.')).to_be_visible()
+    # Ten episodes are left, so the season button still says "as watched". It marks them, and then turns
+    # into "as not watched": pressing the same button again un-marks the whole season.
+    page.evaluate('window.scrollTo(0, 0)')
+    page.get_by_role('button', name='Mark Season 1 as watched').click()
+    expect(watched).to_have_count(40)
+    expect(page.get_by_role('button', name='Mark Season 1 as not watched')).to_be_visible()
+    expect(page.get_by_role('button', name='Mark Season 1 as watched')).to_have_count(0)
+    assert page.evaluate('window.scrollY') == 0
+    page.get_by_role('button', name='Mark Season 1 as not watched').click()
     expect(watched).to_have_count(0)
-    expect(page.get_by_role('button', name='Undo')).to_have_count(0)
-    assert abs(page.evaluate('window.scrollY') - scrolled_before) < 2
+    expect(page.get_by_role('button', name='Mark Season 1 as watched')).to_be_visible()
 
-    # With nothing marked again, the first mark asks again. "No" marks just that episode, with no notice to undo.
+    # With nothing marked again, the first mark asks again. "No" marks just that episode.
     circle.click()
     question.get_by_role('button', name='No, only S1E30').click()
     expect(question).to_be_hidden()
     expect(watched).to_have_count(1)
-    expect(page.locator('.bulk-notice')).to_have_count(0)
     page.get_by_role('button', name='Mark episode 30 as not watched').click()
     expect(watched).to_have_count(0)
 
-    # Mark the whole first season from its button at the top, then undo that too.
+    # Mark the whole season again and reload: still marked, and the button still says so.
     page.evaluate('window.scrollTo(0, 0)')
     page.get_by_role('button', name='Mark Season 1 as watched').click()
-    expect(page.get_by_text('Marked 40 episodes in Season 1 as watched.')).to_be_visible()
     expect(watched).to_have_count(40)
-    expect(page.locator('.bulk-notice')).to_be_in_viewport()
-    page.reload()  # still marked after reloading
+    page.reload()
     expect(watched).to_have_count(40)
-    assert page.get_by_text('Marked 40 episodes').count() == 0  # and the notice does not come back
-    # Un-mark one by hand: the circle is the undo for a single episode, whenever.
+    expect(page.get_by_role('button', name='Mark Season 1 as not watched')).to_be_visible()
+    # Un-mark one by hand: the season is not complete any more, so the button flips back to "as watched".
     page.get_by_role('button', name='Mark episode 40 as not watched').click()
     expect(watched).to_have_count(39)
+    expect(page.get_by_role('button', name='Mark Season 1 as watched')).to_be_visible()
 
 
 def test_a_series_found_in_search_and_marked_shows_up_under_watching(live_server, page, respx_mock, settings):

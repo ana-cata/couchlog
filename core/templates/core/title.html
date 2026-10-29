@@ -59,17 +59,7 @@
             {% for season in seasons %}
               <details id="season-{{ season.number }}"{% if season.number == open_season %} open{% endif %}>
                 <summary>{{ season.name }} <small>· {{ season.episodes|length }} episode{{ season.episodes|length|pluralize }}</small></summary>
-                {% if season.has_aired %}
-                  {# Marks every episode of the season that has aired and is not marked yet. htmx puts the answer in #bulk-notice and swaps the changed rows. #}
-                  <form class="season-action" method="post" action="{% url 'season_watched_add' %}"
-                        hx-post="{% url 'season_watched_add' %}" hx-target="#bulk-notice" hx-swap="innerHTML">
-                    {% csrf_token %}
-                    <input type="hidden" name="tmdb_id" value="{{ item.tmdb_id }}">
-                    <input type="hidden" name="season" value="{{ season.number }}">
-                    <input type="hidden" name="next" value="{% url 'title' 'series' item.tmdb_id %}?season={{ season.number }}#season-{{ season.number }}">
-                    <button type="submit" class="outline secondary">Mark {{ season.name }} as watched</button>
-                  </form>
-                {% endif %}
+                {% include 'core/_season_action.html' %}
                 <ul class="episodes">
                   {% for episode in season.episodes %}
                     {% include 'core/_episode_row.html' %}
@@ -79,7 +69,6 @@
             {% empty %}
               {% if not notice %}<p>TMDB has no episodes for this series yet.</p>{% endif %}
             {% endfor %}
-            <div id="bulk-notice" aria-live="polite">{% include 'core/_bulk_notice.html' with text=bulk.text batch=bulk.batch %}</div>
             {# The pop-up question after the first episode marked in a series. Empty until then. #}
             <div id="ask">{% if ask %}{% include 'core/_ask_earlier.html' %}{% endif %}</div>
           </div>

@@ -25,18 +25,20 @@
 
 ## Marking a whole season, or everything before the first episode
 
-Two ways to enter old history quickly. Both mark only the episodes that **have aired** and that **you have not marked yet**. Episodes that have not aired, have no air date, or are already marked are left alone (one marked earlier keeps its own watch and date). Like one episode, each saves the day you pressed the button, in your time zone, with no date box. Marking starts the series (it moves to Watching), exactly as marking one episode does.
+Two ways to enter old history quickly. Both mark only the episodes that **have aired** and that **you have not marked yet**. Episodes that have not aired, have no air date, or are already marked are left alone (one marked earlier keeps its own watch and date). Like one episode, each saves the day you pressed the button, in your time zone, with no date box. Marking starts the series (it moves to Watching), exactly as marking one episode does. Neither shows a message or a notice: the circles turning green are the feedback.
 
 - **Mark Season 2 as watched**: a button above the episodes of each season that has at least one episode aired. The Specials have one too ("Mark Specials as watched").
+  - **Press the same button again to undo it.** As soon as every episode of the season that has aired is marked (by this button, by the circles, or both), the button reads **"Mark Season 2 as not watched"**, and pressing it marks the whole season as not watched, in one step. Then it reads "as watched" again. It also flips when you tick the last episode by hand, or un-tick one.
+  - Episodes that have not aired or have no date are not counted: a season is "all marked" when everything that has aired is.
+  - The button is not offered as "watched" on a season that is already complete, so it cannot be pressed by accident with nothing to do. If a stale page still sends it, nothing happens and nothing is said.
 - **The first circle you press in a series asks a question.** There is no extra button: you press the gray circle as always, and if it is the **first episode you mark in that series** and episodes before it have aired, a pop-up opens: "Did you watch the earlier episodes too? S1E7 is the first episode you mark in Made-up Series. Did you watch everything from the beginning (S1E1) up to it?" Nothing is saved until you answer:
   - **Yes, mark all 7** marks that episode **and every episode before it, from Season 1 episode 1, across seasons**, in the order the page lists them.
   - **No, only S1E7** marks just that episode, as a plain single mark (its green circle is its undo).
   - **Cancel** closes the pop-up and saves nothing.
 - It is asked **only on the first mark in a series**: once any regular episode is marked, the circles mark one episode each, with no question. It is not asked for S1E1 (nothing is before it), for a special, or for an episode that has not aired. Specials marked on their own do not count as having started the series. If you undo everything you marked, the next first mark asks again.
-- **A notice with Undo** appears after a season or a "Yes", at the bottom of the window so you see it even deep in a long season: "Marked 30 episodes up to S1E30 as watched." **Undo takes back exactly the episodes that press added, in one step** ("Undone: 30 episodes marked as not watched."). An episode you had marked before, or marked by hand since, stays marked. Undo has no time limit, but the notice only stays until you reload or leave the page; after that, un-mark episodes one at a time with the green circles.
-- When there is nothing new to mark in a season, the notice says "Nothing new to mark in Season 1." and nothing is saved, so there is nothing to undo.
-- **The page does not move.** The pop-up floats over the page, and only the rows that changed are swapped in place: open seasons stay open and the scroll position stays.
-- **If TMDB renumbers or adds episodes later,** the episodes you marked stay marked and Undo still removes the same ones. A new episode in a season you marked is simply not marked yet; pressing the season button again marks only it.
+- **Undoing "Yes":** there is no notice and no Undo button. When "Yes" marks every episode of a season, that season's button turns into "as not watched", which takes the season back in one step. Otherwise, un-mark episodes one at a time with the green circles.
+- **The page does not move.** The pop-up floats over the page, and only the rows that changed (and the season buttons whose words changed) are swapped in place: open seasons stay open and the scroll position stays.
+- **If TMDB renumbers or adds episodes later,** the episodes you marked stay marked. A new episode that has aired in a season you marked makes its button say "as watched" again; pressing it marks only the new one.
 
 ## The Series tabs
 
@@ -78,8 +80,8 @@ Series has three tabs. Nothing is stored for them: each is worked out every time
 | `/watched/episode/add/` | Mark one episode as watched (round button, POST only). Sends `episode_id` (our own id for the episode) and `next`, and `only_this` when it is the pop-up's "No, only this one". The first mark in a series answers with the pop-up question instead of marking | Yes |
 | `/watched/remove/` | Mark as not watched, the undo (round button, POST only). Sends `watch_id`, `episode_id` and `next`. The same address as the movie undo | Yes |
 | `/watched/season/add/` | Mark a whole season (POST only). Sends `tmdb_id` (the series), `season` (0 = Specials) and `next` | Yes |
+| `/watched/season/remove/` | Mark a whole season as not watched, the season button pressed again (POST only). Sends `tmdb_id`, `season` and `next` | Yes |
 | `/watched/up-to/add/` | Mark an episode and everything before it, the pop-up's "Yes" (POST only). Sends `episode_id` and `next` | Yes |
-| `/watched/batch/remove/` | Undo one season or "Yes" press (POST only). Sends `batch` and `next` | Yes |
 
 **In place, with htmx.** Each circle is a form with `hx-post`, `hx-target="closest li"` and `hx-swap="outerHTML"` (`_episode_row.html`). The server saves, then answers with just that episode's row in its new state (`_episode_row` in `core/views.py`), and htmx swaps it in. Nothing else on the page is touched, so it does not move. Marking or un-marking shows no message; the circle changing colour is the feedback. If a page is out of date (for example the episode was already un-marked in another tab), the row that comes back shows how things really are now.
 
@@ -89,7 +91,7 @@ Series has three tabs. Nothing is stored for them: each is worked out every time
 - `core_episode`: one row per episode, saved from TMDB and shared by every account: `title` (the series), `tmdb_id` (TMDB's episode id), `season_number` (0 = Specials), `episode_number`, `name`, `air_date` (empty when TMDB has none) and `runtime` (minutes; not shown yet, for the time-spent feature). Unique on `title` + `tmdb_id`.
 - `core_title` gets `episodes_refreshed_at` (when the series' episodes were last asked from TMDB) and `status` (TMDB's own word, as of that refresh; empty until then).
 - `core_watch` gets `episode`: filled in for an episode watch (its `title` is the series), empty for a movie watch. An episode watch is its own row, like a movie watch (design rule 1).
-- `core_watch` also gets `batch`: a random id shared by every watch that one season or "Yes" press added. It is empty for a single episode and for a movie. It is how Undo finds exactly those watches.
+- No table change was needed for marking many episodes: each one is an ordinary watch row, exactly like a single mark.
 
 **Opening a series** (`_series_page` in `core/views.py`)
 1. The series is saved from TMDB if our table does not have it yet (the same `_saved_title` the To Watch button uses, design rule 6).
@@ -107,22 +109,24 @@ Series has three tabs. Nothing is stored for them: each is worked out every time
 
 **The question** (`earlier_to_ask_about` in `core/episodes.py`, `_question` and `_ask_earlier` in `core/views.py`, `_ask_earlier.html`)
 - It is asked when the episode is a regular one (not season 0) that has aired, you have **no watch for any regular episode of that series** (specials do not count, and only your own watches do), and at least one episode before it has aired. The earlier episodes are the ones `episodes_up_to` gives, those that have aired by your day.
-- **With htmx** the server answers with the pop-up and the headers `HX-Retarget: #ask` and `HX-Reswap: innerHTML`, so htmx puts it in the empty `<div id="ask">` at the end of the seasons instead of in the episode's row. The pop-up is Pico's own `<dialog open>`, so it needs no extra JavaScript. Its Yes and No forms post with `hx-target="#bulk-notice"`; the answer (`_bulk_result.html`) ends with an empty `<div id="ask" hx-swap-oob="true">`, which takes the pop-up off the page. Cancel is a `<form method="dialog">`, which closes the pop-up by itself.
+- **With htmx** the server answers with the pop-up and the headers `HX-Retarget: #ask` and `HX-Reswap: innerHTML`, so htmx puts it in the empty `<div id="ask">` at the end of the seasons instead of in the episode's row. The pop-up is Pico's own `<dialog open>`, so it needs no extra JavaScript. Its Yes and No forms post with `hx-swap="none"`; the answer (`_bulk_result.html`) ends with an empty `<div id="ask" hx-swap-oob="true">`, which takes the pop-up off the page. Cancel is a `<form method="dialog">`, which closes the pop-up by itself.
 - **Without htmx** the server keeps the episode's id in the session and redirects back; the series page works the question out again (so a page that is out of date asks nothing) and shows the same pop-up once.
-- "Yes" is `episodes_watched_up_to`; "No, only this one" is `episode_watched_add` with `only_this`. Marking every episode before it is a single batch, so Undo takes it back in one step; a single mark is its own undo (the green circle).
+- "Yes" is `episodes_watched_up_to`; "No, only this one" is `episode_watched_add` with `only_this`; a single mark is its own undo (the green circle).
 
-**A whole season, or "Yes"** (`season_watched_add`, `episodes_watched_up_to`; the logic is in `core/episodes.py`)
-- The two views pick the episodes: the season's, or `episodes_up_to` (the regular seasons in page order, season then episode number, until the chosen episode). `mark_episodes` keeps those that have aired on or before today (your time zone) and that you have no watch for, and saves one `core_watch` row for each, in one step, dated today, all with the same new `batch` id. When there are none, nothing is saved.
-- **Undo** (`watched_batch_remove` and `undo_batch`) deletes your watches with that `batch` id and nothing else. It finds them by the id, not by season or number, so renumbered episodes do not matter, and it only ever sees your own watches (another account gets "Nothing to undo"). Tests: `test_undoing_a_season_puts_everything_back_as_it_was`, `test_undoing_up_to_here_puts_everything_back_as_it_was` and `test_after_tmdb_renumbers_the_season_marks_and_undo_still_hit_the_same_episodes`.
-- **With htmx** the buttons post and put the answer in `#bulk-notice` (`hx-target`). The answer (`_bulk_result.html`) is the notice (`_bulk_notice.html`, with the Undo form) followed by each changed episode's row marked `hx-swap-oob="true"`, which htmx puts in place of the row with the same id. So only those rows change. `#bulk-notice` has no height and sticks to the bottom of the window (`couchlog.css`), so the notice takes no room in the page and moves nothing.
-- **Without htmx** the forms are normal forms: the server saves and redirects to `next`. The notice with its Undo button is kept in the session and shown once on the series page; other messages ("nothing new", "has not aired yet", "Undone") are ordinary messages.
+**A whole season, or "Yes"** (`season_watched_add`, `season_watched_remove`, `episodes_watched_up_to`; the logic is in `core/episodes.py`)
+- The views pick the episodes: the season's, or `episodes_up_to` (the regular seasons in page order, season then episode number, until the chosen episode). `mark_episodes` keeps those that have aired on or before today (your time zone) and that you have no watch for, and saves one `core_watch` row for each, in one step, dated today. When there are none, nothing is saved.
+- **Marking a season as not watched** (`season_watched_remove` and `unmark_episodes`) deletes your own watches of every episode of that season, in one step, and nothing else (not other seasons, not the To Watch list, not another account's marks). It is the undo of marking the season: the test `test_pressing_the_season_button_again_puts_everything_back_as_it_was` compares every saved row before and after. Marking it again later saves new watches dated that day.
+- **Which words the button has** (`_season_info` in `core/views.py`): `all_marked` is true when the season has at least one episode that has aired and every one of them has a watch. The season form (`_season_action.html`) posts to `season/remove/` when it is true and to `season/add/` when not.
+- **With htmx** the season and question forms use `hx-swap="none"`, and the answer (`_bulk_result.html`) is only elements marked `hx-swap-oob="true"`, which htmx puts in place of the element with the same id: each changed row (`episode-<id>`), the season's button (`season-action-<number>`, with its new words) and an empty `#ask`. So only those parts change, and nothing else moves. A circle pressed alone answers with its row (as before) and, in the same answer, its season's button (`_episode_answer.html`), so ticking the last episode flips the button without a reload.
+- **Without htmx** the forms are normal forms: the server saves and redirects to `next` (the season, at its button). Nothing is said, except for a refusal ("has not aired yet", "has no air date yet").
 - "Yes" for a special is refused (400), for an episode that has not aired or has no date it is refused with a message, and an unknown season is "page not found". Nothing is saved in any of these (the page does not offer the pop-up for them).
 
 **The round button** (`_episode_row.html`, `_check_icon.html`, `couchlog.css`): the same circle and check in two colours, gray (`#8b93a0`) and green (`#2e7d32`). Each button has a text label for screen readers ("Mark episode 3 as watched" / "...as not watched") and a hover hint.
 
 **Known limits**
 - No progress bars and no "next episode" yet (Up Next, card #11).
-- Undo for a season or "Yes" is on the notice that shows right after the press. Once you leave or reload the page it is gone; the way back is un-marking episodes one at a time.
+- The season button un-marks the **whole** season, including episodes you had marked one by one before. So it takes back more than the last press if you had marked some of the season before it. A season that is only partly marked can only be un-marked with the circles.
+- After "Yes" there is no one-step undo unless it marked a whole season; otherwise un-mark the episodes one at a time.
 - The question is only asked for the first mark in a series. Later, to mark many episodes you have not marked, use the season button; it marks the whole season, not only up to one episode.
 - Pressing a circle and then reloading the page, or leaving it, without answering simply drops the question: nothing was saved.
 - New episodes only appear when the series page is opened (and its copy is over a day old) or when `refresh_series` is run by hand. There is no daily schedule yet.

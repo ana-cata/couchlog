@@ -4,7 +4,7 @@
 {# htmx swaps just this row when the button is pressed, so the page does not reload or move. Without htmx #}
 {# the forms still work: the server redirects back to the season and episode. #}
 {# The first gray button pressed in a series can answer with a question instead (core/_ask_earlier.html). #}
-{# `oob` is set when the row comes back with a season, question or Undo answer: htmx then puts it in place of the row already on the page. #}
+{# `oob` is set when the row comes back with a season or question answer: htmx then puts it in place of the row already on the page. #}
 <li id="episode-{{ episode.id }}"{% if oob %} hx-swap-oob="true"{% endif %}>
   <span class="episode-info">
     <span>{{ episode.episode_number }}. {{ episode.name|default:"Untitled episode" }}</span>

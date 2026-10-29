@@ -1,8 +1,6 @@
 """Series and their episodes, apart from the screens: keeping them up to date, marking many episodes
 at once, and which tab of the Series section a series is in for an account (To Watch, Watching or Finished)."""
 
-import uuid
-
 from django.db import transaction
 from django.db.models import Count, Max
 from django.utils import timezone
@@ -69,10 +67,9 @@ def mark_episodes(user, episodes, today):
 
     Only an episode that has aired (on or before `today`, the account's own day) and that the account
     has not marked yet gets a watch, dated `today` like a single mark. The rest are left alone, so an
-    episode marked earlier keeps its watch and its date. All the new watches share one `batch`, which
-    is what `undo_batch` removes.
+    episode marked earlier keeps its watch and its date.
 
-    Returns the episodes that were newly marked and the batch (both empty when there was nothing new).
+    Returns the episodes that were newly marked (none when there was nothing new).
     """
     already = set(Watch.objects.filter(user=user, episode__in=episodes).values_list('episode', flat=True))
     new = [
@@ -80,26 +77,23 @@ def mark_episodes(user, episodes, today):
         for episode in episodes
         if episode.air_date is not None and episode.air_date <= today and episode.id not in already
     ]
-    if not new:
-        return [], None
-    batch = uuid.uuid4()
     Watch.objects.bulk_create(
-        [Watch(user=user, title_id=episode.title_id, episode=episode, watched_on=today, batch=batch) for episode in new]
+        [Watch(user=user, title_id=episode.title_id, episode=episode, watched_on=today) for episode in new]
     )
-    return new, batch
+    return new
 
 
-def undo_batch(user, batch):
-    """Remove exactly the watches one `mark_episodes` call added (the account's own), and nothing else.
+def unmark_episodes(user, episodes):
+    """Mark many episodes as not watched at once, for the season button pressed again.
 
-    Returns the episodes that are no longer marked. A watch that was already un-marked one by one is
-    simply not there any more, and an episode marked again since by hand has a different watch, so
-    it stays marked.
+    Deletes the account's own watches of `episodes` and nothing else, so it is the undo of `mark_episodes`
+    (the watches come back dated the day they are marked again). Returns the episodes that were marked
+    and are not any more.
     """
-    watches = Watch.objects.filter(user=user, batch=batch).select_related('episode__title')
-    episodes = [watch.episode for watch in watches]
+    watches = Watch.objects.filter(user=user, episode__in=episodes)
+    marked = set(watches.values_list('episode', flat=True))
     watches.delete()
-    return episodes
+    return [episode for episode in episodes if episode.id in marked]
 
 
 def started_series(user):

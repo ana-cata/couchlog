@@ -1,6 +1,6 @@
-{# The answer to the season, question and Undo buttons when htmx asked: the notice, which goes into #bulk-notice, #}
-{# then each row that changed, which htmx puts in place of the row on the page (hx-swap-oob), #}
-{# then an empty #ask, which takes the question off the page if it was open. #}
-{% include 'core/_bulk_notice.html' %}
+{# The answer to the season buttons and to the question's Yes and No when htmx asked. It is only elements that #}
+{# htmx puts in place of the ones with the same id (hx-swap-oob): each row that changed, the button of each season #}
+{# it is in, and an empty #ask, which takes the question off the page if it was open. #}
 {% for episode in episodes %}{% include 'core/_episode_row.html' with oob=True %}{% endfor %}
+{% for season in seasons %}{% include 'core/_season_action.html' with oob=True %}{% endfor %}
 <div id="ask" hx-swap-oob="true"></div>

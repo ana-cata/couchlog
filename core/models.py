@@ -91,9 +91,6 @@ class Watch(models.Model):
     # For an episode it is the day the button was pressed.
     watched_on = models.DateField(null=True, blank=True)
     created_at = models.DateTimeField(default=timezone.now)
-    # Shared by every watch that one "mark a season" or "Yes, mark all" press added, so Undo
-    # removes exactly those and nothing else. Empty for a single episode and for a movie.
-    batch = models.UUIDField(null=True, blank=True)
 
     def __str__(self):
         what = self.episode or self.title
