@@ -52,7 +52,7 @@ gh issue view <n> --comments
 
 Read the whole issue, plus its feature entry in plan.md [section 3](../../../plan.md#3-features) and the milestone tasks it came from. Also read the parts of [section 7](../../../plan.md#7-testing-approach) (edge cases, how tests work) that touch this card, and `docs/` for anything already built that this card builds on.
 
-- Tasks marked `(me)` are the user's. Don't do them. List them, and ask for them at the moment they block the work (for example the TMDB key). Never ask the user to paste a secret into chat — they put it in `.env.local` themselves.
+- Tasks marked `(me)` are the user's. Don't do them. List them, and ask for them at the moment they block the work (for example the TMDB key). Never ask the user to paste a secret into chat — they put it in `.env` themselves.
 - Lines marked "Open at spec time" or "Note" in the issue are questions to settle in Step 2.
 - If the issue and plan.md disagree, say so and ask which wins.
 
@@ -80,7 +80,7 @@ Move the card to the in-progress column (`gh project item-edit --project-id <pro
 
 ## Step 4 — Implement
 
-Build what was agreed, in an order that lets you test as you go: migration → data code → server logic → screens → tests. Run the project's own scripts after each piece (`npm test`, `npm run lint`, `npm run build` — whatever `package.json` defines) so a mistake shows up while it is fresh.
+Build what was agreed, in an order that lets you test as you go: migration → data code → server logic → screens → tests. Run the project's own commands after each piece (`uv run pytest`, `uv run ruff check .`, and `uv run python manage.py check` — whatever the "Commands" section of [CLAUDE.md](../../../CLAUDE.md) lists) so a mistake shows up while it is fresh.
 
 Keep it basic and simple — it is the plan's guiding rule. Build the card and nothing more: no extra features, no new dependency without saying why, no clever structure the card doesn't need.
 
@@ -110,9 +110,9 @@ If something conflicts with the plan or the agreed approach, stop and flag it. D
 
 ## Step 6 — Validate
 
-Run everything CI runs (lint, build, tests) once [`.github/workflows`](../../../.github/workflows) exists; before that, run the scripts `package.json` has and say CI isn't set up yet. All of it must pass.
+Run everything CI runs (lint and tests) once [`.github/workflows`](../../../.github/workflows) exists; before that, run the commands CLAUDE.md lists that already work and say CI isn't set up yet. All of it must pass.
 
-If any screen changed, give the user concrete manual steps for each "Done when" (which page, what to click, what they should see), so they can try it with `npm run dev`. To check on the phone, open the PC's address from the phone on the home Wi-Fi.
+If any screen changed, give the user concrete manual steps for each "Done when" (which page, what to click, what they should see), so they can try it with `uv run python manage.py runserver`. To check on the phone, open the PC's address from the phone on the home Wi-Fi.
 
 ## Step 7 — Docs (part of done)
 
@@ -120,7 +120,7 @@ A card is not done without its docs page. Write it from the code **as built**: i
 
 Two readers: the user (who does not read the code line by line) and future Claude sessions (who need accurate facts fast). Layout:
 
-- `README.md` — what Couchlog is, how to run it on the PC (install, `.env.local`, `npm run dev`, tests, migrations) and links to `docs/`. Update it whenever setup changes.
+- `README.md` — what Couchlog is, how to run it on the PC (install, `.env`, `runserver`, tests, migrations) and links to `docs/`. Update it whenever setup changes.
 - `docs/home.md`, `docs/films.md`, `docs/series.md`, `docs/calendar.md`, `docs/profile.md` — one page per main page of the app. Home: Up Next, News, later suggestions. Calendar: upcoming releases of the series being watched and the titles on the To Watch list. Profile: account, login, time zone, and later statistics and favorites. A feature that doesn't live on one of these gets its own page named after its screen (for example `search`). Say which page in Step 2.
 - `docs/data-model.md` — the tables and how they relate, since several pages share them (the watches table serves films, series and Up Next).
 

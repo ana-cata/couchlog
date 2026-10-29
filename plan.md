@@ -27,14 +27,17 @@ What this means in practice:
 |---|---|---|
 | Name | **Couchlog** (working name) | Rename later if needed; GitHub redirects the old address. Check domain and trademark before going public. |
 | Repo | `ana-cata/couchlog`, private | Cloned to `C:\Users\catym\Documents\couchlog`. |
-| App | Next.js (React + TypeScript) | One codebase for screens and server code. |
+| Language | Python 3.14, managed with `uv` | Both are installed on the PC. The same Python version is used on the PC and in Docker. |
+| App | Django | Login, an admin page, database migrations, sessions and per-user time zones come built in. |
+| Screens | Django templates with htmx | The server builds the HTML and htmx swaps pieces of it into the page. No JavaScript app and no build step. Alpine.js only if a tiny client-side bit is needed. |
+| Styling | Plain CSS with a small library (Pico CSS) | Works on a phone. No Node.js needed. |
 | Database | SQLite (a database stored as one file) | Lives in a Docker volume on the Pi. Plenty for a few users. Backup means copying the file. |
-| Login | Simple email and password accounts that I create myself | Library chosen in Week 2 (leading candidate: Better Auth). Sessions are stored in the same SQLite file. |
+| Login | Django's built-in login with a username and password. I create the accounts in Django's admin page | No public sign-up page. Sessions are stored in the same SQLite file. |
 | Home server | Raspberry Pi 4 with 4 GB RAM, 64-bit Linux, Docker 29 and Docker Compose 5 installed | Checked on 2026-10-27; SSH from my PC works. Not always on yet; it will be later. |
 | Hosting | After the MVP, the app runs in a Docker container on the Pi, started with Docker Compose | Opened at the Pi's address on my home network, for example `http://<pi-address>:3000`. No domain name or HTTPS in Stage 1. |
 | Deploying | Manual at first: on the Pi, pull the latest code from GitHub and rebuild the container | Automate later only if it becomes tedious. |
-| Development | My Windows PC | Run and test the app on the PC with Node.js and push to GitHub. Docker Desktop is installed on the PC for testing the Docker files. The Pi comes only after the MVP is finished. |
-| Calendar job | A daily scheduled task on the Pi | Decide how at Milestone M4. It must also catch up when the Pi has been off. |
+| Development | My Windows PC | Run and test the app on the PC with Python and `uv`, and push to GitHub. Docker Desktop is installed on the PC for testing the Docker files. The Pi comes only after the MVP is finished. |
+| Calendar job | A Django command run daily by a scheduler on the Pi | Decide how at Milestone M4. It must also catch up when the Pi has been off. |
 | Movie/series data | TMDB (The Movie Database) | Free for non-commercial use with a visible credit (the logo and notice on an About page). The only data source: dates are used as TMDB gives them. |
 | Code + tasks | GitHub (code, pull requests, project board) | |
 
@@ -53,7 +56,7 @@ Priority uses MoSCoW: Must, Should, Could, Won't. The first version (the MVP) is
 
 ### Must: the first version
 
-**1. Login and time zone.** Email and password. I create the accounts myself, with no public sign-up page. Every saved item belongs to an account. Each account also has a time zone, chosen directly from a list at the first login (the browser's time zone is suggested) and changeable later. A **Profile page** shows my account and my time zone (where I can change it) and has the log out button; my statistics are added to it later (feature 9). The time zone decides what "today" means for that user, so "today", "tomorrow" and "in 3 days" are right (features 10 and 11). The country used for streaming services (feature 14) and for movie release dates is taken from the time zone (for example Europe/Lisbon means Portugal).
+**1. Login and time zone.** Username and password (Django's default login). I create the accounts myself in Django's admin page, with no public sign-up page. Every saved item belongs to an account. Each account also has a time zone, chosen directly from a list at the first login (the browser's time zone is suggested) and changeable later. A **Profile page** shows my account and my time zone (where I can change it) and has the log out button; my statistics are added to it later (feature 9). The time zone decides what "today" means for that user, so "today", "tomorrow" and "in 3 days" are right (features 10 and 11). The country used for streaming services (feature 14) and for movie release dates is taken from the time zone (for example Europe/Lisbon means Portugal).
 *Done when:* I can log in and out, the pages that need a login are closed to everyone else, my time zone is saved with my account, and I can see and change it on my Profile page.
 
 **2. Search movies and series.** A search box that asks TMDB and shows posters, titles and years. Search results are not stored; only what I add is saved.
@@ -133,8 +136,8 @@ For every feature, repeat this loop. A feature is done when it is tested and mer
 
 1. Take the next card on the GitHub project board (To do, Doing, Done). Each card is one feature from section 3, and its "done when" is the test.
 2. Build it on a separate branch (`feature/<name>`), never directly on `main`.
-3. Write the tests, and run the app on the PC (`npm run dev`) to try it. To check it on my phone, open the PC's address from the phone while both are on the home Wi-Fi.
-4. Push the branch and open a pull request. GitHub Actions runs the checks (lint, build and tests) automatically.
+3. Write the tests, and run the app on the PC (`uv run python manage.py runserver`) to try it. To check it on my phone, open the PC's address from the phone while both are on the home Wi-Fi.
+4. Push the branch and open a pull request. GitHub Actions runs the checks (lint and tests) automatically.
 5. Read the changes in the pull request (I do the PR for now). Merge into `main` only when the checks are green.
 6. Check the "done when" conditions once more on `main` on the PC. Move the card to Done and add a line to the status log (section 10).
 
@@ -163,28 +166,28 @@ Goal: an empty Couchlog app runs on my PC and the project is organized.
 
 - [x] Create the private GitHub repo
 - [x] Clone it to my PC
-- [x] Install Node.js (v24 LTS)
+- [x] Install Python 3.14 and `uv` (already on my PC; Node.js is not needed)
 - [x] Write this plan
 - [ ] Commit `plan.md` and merge it through a pull request (my first one)
 - [ ] Create a TMDB account and request an API key (free)
-- [ ] Create the Next.js skeleton (TypeScript, Tailwind CSS, App Router)
-- [ ] Run it on the PC (`npm run dev`) and see the welcome page
-- [ ] Put the TMDB key in a local `.env.local` file and check that Git does not track it
+- [ ] Create the Django project with `uv`, a first app, htmx and Pico CSS (the skeleton)
+- [ ] Run it on the PC (`uv run python manage.py runserver`) and see a Couchlog placeholder page
+- [ ] Put the TMDB key in a local `.env` file and check that Git does not track it
 - [ ] Make one test request to TMDB from the app's server code to confirm the key works
 - [ ] Create a GitHub project board (To do / Doing / Done) with one card per Must feature from section 3
 
-Done when: `npm run dev` shows the Couchlog placeholder page on my PC, the skeleton is merged into `main` on GitHub, the TMDB test request returns data, and the board has the 7 Must cards.
+Done when: `runserver` shows the Couchlog placeholder page on my PC, the skeleton is merged into `main` on GitHub, the TMDB test request returns data, and the board has the 7 Must cards.
 
 ### Week 2: Design, database, login and automated checks (M0, part 2)
 
 Goal: on my PC, only I can log in, and tests run automatically on every pull request. This is the heaviest week: if it runs over, the time zone picker moves to Week 3.
 
 - [ ] Sketch the 7 screens on paper or in Figma: Home (Up Next, and News later), Search, To Watch, Movie page, Series page (seasons with episode checkboxes), Calendar, Profile (account and time zone, statistics later)
-- [ ] Set up the SQLite database on the PC with a migration tool (scripted table changes, section 4)
-- [ ] Set up login with email and password (leading candidate: Better Auth) and a page that only logged-in users can open
-- [ ] Create my account with a script, since there is no public sign-up page
+- [ ] Set up the SQLite database on the PC with Django's built-in migrations (scripted table changes, section 4)
+- [ ] Set up Django's built-in login (username and password) and a page that only logged-in users can open
+- [ ] Create my account in Django's admin page, since there is no public sign-up page
 - [ ] At the first login, pick my time zone from a list (the browser's time zone is suggested) and save it
-- [ ] Set up GitHub Actions: lint, build and tests run on every pull request
+- [ ] Set up GitHub Actions: lint (ruff) and tests run on every pull request
 - [ ] Add the first simple test so the checks have something to run
 
 Done when: I can log in and out on my PC, the pages are closed when I am logged out, my time zone is saved, and a pull request shows green checks.
@@ -315,8 +318,8 @@ The order can change if something turns out harder or more useful than expected:
 - **Made-up TMDB responses.** Tests use saved example answers instead of calling the real TMDB, so they are fast and never fail because TMDB is down.
 - **A separate test database.** Tests use their own temporary SQLite database, never the one with my real history.
 - **A fixed "today".** Tests that depend on dates (coming soon, countdown, calendar) set the date themselves, so they give the same result every day.
-- **Tools.** Leading candidates, chosen in Week 2: Vitest for unit and integration tests, Playwright for end-to-end tests.
-- **Where they run.** On my PC with `npm test` while I build, and automatically on GitHub for every pull request (section 4). A pull request is merged only when they pass.
+- **Tools.** pytest (with pytest-django) for unit and integration tests, respx for the made-up TMDB answers, time-machine for the fixed date, Playwright for Python for end-to-end tests, and ruff for linting.
+- **Where they run.** On my PC with `uv run pytest` while I build, and automatically on GitHub for every pull request (section 4). A pull request is merged only when they pass.
 - **Keep it basic and simple.** Test the logic that is easy to get wrong (next episode, progress, marking a season, the day in my time zone, time spent, undo) and one main path through the screens. No need to test every button.
 
 **Undo is tested too:** for every action that changes data, a test does it, undoes it, and checks that the data and the progress are back as they were.
@@ -357,7 +360,7 @@ Stage 2 (later): from outside the home, through a VPN
 ### Stage 1: on the home network
 
 - **Two versions of the app:** my PC (development, with a test database) and the Pi (the real one, with my real data). There are no preview links.
-- **One container.** The Pi runs the app in one Docker container. The database file lives in a Docker volume outside the container, so rebuilding the app does not erase my data.
+- **One container.** The Pi runs the app in one Docker container (a small Python image, with gunicorn serving the app and WhiteNoise serving the CSS). The database file lives in a Docker volume outside the container, so rebuilding the app does not erase my data.
 - **Address.** I open `http://<pi-address>:3000` on the home network. I give the Pi a fixed address in my router, so the bookmark on my phone keeps working.
 - **Starts by itself.** The container restarts automatically when the Pi restarts, so the app is back without me doing anything.
 - **Calendar task.** A daily task updates the calendar from TMDB. It also runs when the Pi starts, so the calendar is correct after the Pi was off. How it is built is decided at M4.
@@ -426,4 +429,5 @@ Sorted by when each item matters.
 | 2026-10-27 | Section 9 reorganized by when each item matters (Always, M1, Before M4, M5, M6, Stage 2). New items: back up the PC database during development, depend-on-TMDB (save the details I need), TVmaze terms, streaming data credit, Pi power cuts. |
 | 2026-10-27 | Decisions applied: data on the PC is only test data (the Pi starts fresh); backups are set up in M6 (automatic and daily, with safe SQLite settings against power cuts); TMDB details are saved in my database (design rule 6); movies use the streaming date and only need to give an idea; any feature that needs a paid service is removed; SSH works and Docker Desktop is installed. TMDB and TVmaze terms checked. TMDB credit now means the logo plus the required notice on an About page. |
 | 2026-10-27 | TVmaze dropped: TMDB is the only data source and release dates are used as TMDB gives them, with no time zone conversion (a day may be off by one, which is accepted). The time zone setting stays, for "today", "tomorrow" and the country. |
+| 2026-10-27 | Stack changed from Next.js to Python: Django with htmx, Pico CSS, uv, pytest and ruff, running in a Python Docker image on the Pi. Login is Django's built-in login (username and password), with accounts created in Django's admin page. Node.js is no longer needed. Plan PR #1 was merged into `main`; this change is on the branch `docs/django-stack`. |
 | 2026-10-28 | Profile page added (account, time zone, later statistics; favorites as a Could feature). Calendar clarified: it shows the series I am watching and the titles on my To Watch list. |
