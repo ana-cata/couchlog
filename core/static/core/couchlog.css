@@ -5,7 +5,8 @@
   list-style: none;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  /* In rem, not px: the text grows on a big screen, so the tiles must grow with it. */
+  grid-template-columns: repeat(auto-fill, minmax(8.75rem, 1fr));
   gap: 1.5rem 1rem;
 }
 
@@ -13,18 +14,38 @@
   list-style: none;
   margin: 0;
   padding: 0;
+  /* The tile grows to fill the cell, so the button under it always sits at the bottom. */
+  display: flex;
+  flex-direction: column;
 }
 
 .tile {
   display: block;
+  flex: 1;
   text-decoration: none;
   color: inherit;
   overflow-wrap: anywhere;
 }
 
+/* Every tile is the same size: the name always takes two lines (longer names are cut with
+   "..." and the full name shows on hover), and the year is kept to one line. */
 .tile strong {
-  display: block;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
   margin-top: 0.5rem;
+  line-height: 1.5;
+  min-height: 3em;
+}
+
+.tile small {
+  display: block;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Hovering a tile (or tabbing to it) underlines its title and year, so the choice is easy to see. */
@@ -51,17 +72,64 @@
   color: var(--pico-muted-color);
 }
 
+/* The Add / Remove button under a tile, kept small so the grid stays tidy. */
+.to-watch-action form {
+  margin: 0;
+}
+
+.to-watch-action button {
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.8rem;
+}
+
+/* Under a tile there is room for two lines of text, so "Add" and "Remove" are the same size. */
+.results .to-watch-action button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3.3rem;
+}
+
+/* "Recently removed" on the To Watch screen: a name on the left, Undo on the right. */
+.removed {
+  list-style: none;
+  padding: 0;
+}
+
+.removed li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--pico-muted-border-color);
+}
+
+.removed form {
+  margin: 0;
+}
+
+.removed button {
+  margin: 0;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.8rem;
+}
+
 .title-page {
   display: flex;
   flex-wrap: wrap;
   gap: 1.5rem;
 }
 
-.title-page .poster {
+/* The poster with its To Watch button below it, next to the details. */
+.title-poster {
   flex: none;
   width: 185px;
 }
 
-.title-page div {
+.title-details {
   flex: 1 1 16rem;
 }

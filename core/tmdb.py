@@ -58,7 +58,7 @@ def _title_from(raw, kind):
     poster_path = raw.get('poster_path')
     return {
         'kind': kind,
-        'id': raw['id'],
+        'tmdb_id': raw['id'],
         'title': name or '',
         # TMDB dates look like 2010-07-16, or are empty. The year is used as given.
         'year': (date or '')[:4],

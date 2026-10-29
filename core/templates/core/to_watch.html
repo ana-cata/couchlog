@@ -1,0 +1,20 @@
+{% extends 'core/base.html' %}
+
+{% block title %}To Watch · Couchlog{% endblock %}
+
+{% block content %}
+  <h1>To Watch</h1>
+
+  {# At the top because it only lasts a few seconds: a removed title can be undone until then. #}
+  {% include 'core/_recently_removed.html' %}
+
+  {% if items %}
+    <ul class="results">
+      {% for item in items %}
+        {% include 'core/_tile.html' with tile=item.title on_list=True %}
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>Nothing on your To Watch list yet. <a href="{% url 'search' %}">Search</a> for a movie or series and add it.</p>
+  {% endif %}
+{% endblock %}

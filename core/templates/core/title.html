@@ -9,12 +9,15 @@
     <p role="alert">{{ error }}</p>
   {% else %}
     <div class="title-page">
-      {% if item.poster_url %}
-        <img class="poster" src="{{ item.poster_url }}" alt="Poster of {{ item.title }}">
-      {% else %}
-        <span class="poster no-poster">No poster</span>
-      {% endif %}
-      <div>
+      <div class="title-poster">
+        {% if item.poster_url %}
+          <img class="poster" src="{{ item.poster_url }}" alt="Poster of {{ item.title }}">
+        {% else %}
+          <span class="poster no-poster">No poster</span>
+        {% endif %}
+        {% include 'core/_to_watch_button.html' with tile=item live=True %}
+      </div>
+      <div class="title-details">
         <h1>{{ item.title }}</h1>
         <p><small>{{ item.year|default:"Year unknown" }} · {{ item.kind|capfirst }}</small></p>
         <p>{{ item.overview|default:"TMDB has no description for this title." }}</p>
