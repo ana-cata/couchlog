@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Couchlog{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'core/pico.min.css' %}">
+  <link rel="stylesheet" href="{% static 'core/couchlog.css' %}">
   <script src="{% static 'core/htmx.min.js' %}" defer></script>
 </head>
 <body>
@@ -13,11 +14,14 @@
       <ul>
         <li><strong><a href="{% url 'home' %}" class="contrast">Couchlog</a></strong></li>
       </ul>
-      {% if user.is_authenticated %}
-        <ul>
+      <ul>
+        {% if user.is_authenticated %}
+          <li><a href="{% url 'search' %}">Search</a></li>
           <li><a href="{% url 'profile' %}">Profile</a></li>
-        </ul>
-      {% endif %}
+        {% endif %}
+        {# Open to everyone, so the TMDB credit is also reachable from the login page. #}
+        <li><a href="{% url 'about' %}">About</a></li>
+      </ul>
     </nav>
   </header>
   <main class="container">

@@ -1,0 +1,16 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}About · Couchlog{% endblock %}
+
+{% block content %}
+  <h1>About Couchlog</h1>
+  <p>Couchlog is a personal app to keep track of the movies and series I watch.</p>
+
+  <p>
+    <a href="https://www.themoviedb.org/" target="_blank" rel="noopener">
+      <img src="{% static 'core/tmdb-logo.svg' %}" alt="TMDB" width="100">
+    </a>
+  </p>
+  <p>This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
+{% endblock %}

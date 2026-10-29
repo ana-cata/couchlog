@@ -1,0 +1,21 @@
+{% if error %}
+  <p role="alert">{{ error }}</p>
+{% elif query and not results %}
+  <p>No movies or series match “{{ query }}”.</p>
+{% elif results %}
+  <ul class="results">
+    {% for result in results %}
+      <li>
+        <a class="tile" href="{% url 'title' result.kind result.id %}">
+          {% if result.poster_url %}
+            <img class="poster" src="{{ result.poster_url }}" alt="" loading="lazy">
+          {% else %}
+            <span class="poster no-poster">No poster</span>
+          {% endif %}
+          <strong>{{ result.title }}</strong>
+          <small>{{ result.year|default:"Year unknown" }} · {{ result.kind|capfirst }}</small>
+        </a>
+      </li>
+    {% endfor %}
+  </ul>
+{% endif %}
