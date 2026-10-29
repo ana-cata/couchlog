@@ -15,7 +15,7 @@ The database and its tables. Several pages of the app share these tables, so the
 - `uv run python manage.py migrate` creates `db.sqlite3` if it is missing, then applies every migration that has not run yet. It is safe to run again: when everything is up to date it does nothing.
 - To start over on the PC, stop the app, delete `db.sqlite3`, and run `migrate` again. Everything in it is lost, so only do this while the data is test data.
 
-**Change a table (from the first card that adds a model)**
+**Change a table**
 1. Change the model in the app's `models.py`.
 2. `uv run python manage.py makemigrations` writes a new migration file in the app's `migrations/` folder.
 3. `uv run python manage.py migrate` applies it to the PC's database.
@@ -33,13 +33,14 @@ The database and its tables. Several pages of the app share these tables, so the
 
 **Tables that exist now**
 
-Only the tables that come with Django. Couchlog has no tables of its own yet; each card that adds some updates this list.
+Each card that adds a table updates this list.
 
 | Table | What it holds | Used by |
 |---|---|---|
-| `auth_user` | The accounts (username, password, last login). I create them in Django's admin page. | Login (card #6) |
+| `core_profile` | Couchlog's own settings for an account, one row per account: `user` (links to `auth_user`, deleted with it) and `timezone` (a name like `Europe/Lisbon`, empty until chosen). | [Profile](profile.md) |
+| `auth_user` | The accounts (username, password, last login). I create them in Django's admin page. | [Login](profile.md) |
 | `auth_group`, `auth_permission` and their link tables | Groups and permissions. Not used by Couchlog for now. | Django's admin page |
-| `django_session` | Who is logged in, by browser session. | Login (card #6) |
+| `django_session` | Who is logged in, by browser session. | [Login](profile.md) |
 | `django_admin_log` | History of changes made in the admin page. | Django's admin page |
 | `django_content_type` | Django's internal list of tables. | Django itself |
 | `django_migrations` | Which migrations have already run on this database. | `migrate` |

@@ -9,9 +9,21 @@
 </head>
 <body>
   <header class="container">
-    <h1>Couchlog</h1>
+    <nav>
+      <ul>
+        <li><strong><a href="{% url 'home' %}" class="contrast">Couchlog</a></strong></li>
+      </ul>
+      {% if user.is_authenticated %}
+        <ul>
+          <li><a href="{% url 'profile' %}">Profile</a></li>
+        </ul>
+      {% endif %}
+    </nav>
   </header>
   <main class="container">
+    {% for message in messages %}
+      <p role="status">{{ message }}</p>
+    {% endfor %}
     {% block content %}{% endblock %}
   </main>
 </body>

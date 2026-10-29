@@ -17,5 +17,9 @@ dev = [
     "ruff>=0.17.3",
 ]
 
+[tool.ruff]
+# Migration files are written by Django, so the lint does not check them.
+extend-exclude = ["*/migrations/*"]
+
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings"

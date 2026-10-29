@@ -1,0 +1,38 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Profile · Couchlog{% endblock %}
+
+{% block content %}
+  <h1>Profile</h1>
+  <p>Account: <strong>{{ user.get_username }}</strong></p>
+
+  <form method="post">
+    {% csrf_token %}
+    <label>
+      Time zone
+      <select name="timezone" id="id_timezone" required {% if form.errors %}aria-invalid="true"{% endif %}>
+        {% for value, label in form.fields.timezone.choices %}
+          <option value="{{ value }}" {% if value == form.timezone.value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      {% if form.errors %}<small>Choose a time zone from the list.</small>{% endif %}
+    </label>
+    <button type="submit">Save time zone</button>
+  </form>
+
+  <form method="post" action="{% url 'logout' %}">
+    {% csrf_token %}
+    <button type="submit" class="secondary">Log out</button>
+  </form>
+
+  {# Until a time zone is saved, suggest the one the browser reports. #}
+  <script>
+    const select = document.getElementById('id_timezone');
+    if (select.value === '') {
+      const browserZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (Array.from(select.options).some((option) => option.value === browserZone)) {
+        select.value = browserZone;
+      }
+    }
+  </script>
+{% endblock %}

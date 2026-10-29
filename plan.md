@@ -33,6 +33,7 @@ What this means in practice:
 | Styling | Plain CSS with a small library (Pico CSS) | Works on a phone. No Node.js needed. |
 | Database | SQLite (a database stored as one file) | Lives in a Docker volume on the Pi. Plenty for a few users. Backup means copying the file. |
 | Login | Django's built-in login with a username and password. I create the accounts in Django's admin page | No public sign-up page. Sessions are stored in the same SQLite file. |
+| Time zone | Stored in a `Profile` table (`core_profile`), one row per account, linked to Django's own user | Chosen over a custom user model: simpler and works with the admin page as it is. Added in card #6. |
 | Home server | Raspberry Pi 4 with 4 GB RAM, 64-bit Linux, Docker 29 and Docker Compose 5 installed | Checked on 2026-10-27; SSH from my PC works. Not always on yet; it will be later. |
 | Hosting | After the MVP, the app runs in a Docker container on the Pi, started with Docker Compose | Opened at the Pi's address on my home network, for example `http://<pi-address>:3000`. No domain name or HTTPS in Stage 1. |
 | Deploying | Manual at first: on the Pi, pull the latest code from GitHub and rebuild the container | Automate later only if it becomes tedious. |
@@ -185,9 +186,9 @@ Goal: on my PC, only I can log in, and tests run automatically on every pull req
 
 - [ ] Sketch the 7 screens on paper or in Figma: Home (Up Next, and News later), Search, To Watch, Movie page, Series page (seasons with episode checkboxes), Calendar, Profile (account and time zone, statistics later)
 - [x] Set up the SQLite database on the PC with Django's built-in migrations (scripted table changes, section 4)
-- [ ] Set up Django's built-in login (username and password) and a page that only logged-in users can open
+- [x] Set up Django's built-in login (username and password) and a page that only logged-in users can open
 - [ ] Create my account in Django's admin page, since there is no public sign-up page
-- [ ] At the first login, pick my time zone from a list (the browser's time zone is suggested) and save it
+- [x] At the first login, pick my time zone from a list (the browser's time zone is suggested) and save it
 - [x] Set up GitHub Actions: lint (ruff) and tests run on every pull request
 - [x] Add the first simple test so the checks have something to run
 
@@ -435,3 +436,4 @@ Sorted by when each item matters.
 | 2026-10-29 | Card #3 built (pull request open): Django skeleton with a placeholder page, Pico CSS and htmx saved in the project, `.env` for the TMDB key, and the `tmdb_check` command, which worked with my real key. Cards #4 and #6 rewritten for Django. Week 1 is done once it is merged. |
 | 2026-10-29 | Card #3 merged, so Week 1 is done. Card #4 built (pull request open): ruff added to the dev tools and a GitHub Actions workflow that runs the lint and the tests on every pull request. The first simple tests came with card #3. |
 | 2026-10-29 | Card #4 merged. Card #5 built (pull request open): the SQLite database and Django's built-in migrations were already working from card #3, so this card adds the proof: tests that show tests use a temporary database and never `db.sqlite3`, a test that fails if a table change has no migration file, and the first docs page (`docs/data-model.md`). |
+| 2026-10-29 | Card #5 merged. Card #6 built (pull request open): login and logout, every page closed to people who are not logged in, a `Profile` table with the time zone, and the Profile page where it is chosen at the first login and changed later. Creating my own account in the admin page is still mine to do (`createsuperuser`, see the README). The time zone is only saved for now; "today" and the country come with the cards that need them. |
