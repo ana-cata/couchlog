@@ -3,7 +3,8 @@
 ## What it does
 
 - **Two lists, one per section.** The header has **Movies** and **Series**. Each opens on its **To Watch** tab: **Movies → To Watch** (`/movies/`) lists only films and **Series → To Watch** (`/series/`) lists only series. Each shows tiles (poster, name, year, movie or series), newest added first. An empty list says so ("No movies on your To Watch list yet" / "No series on your To Watch list yet") and links to Search.
-- **Tabs.** Under the section's name there is a small tab bar with the current tab underlined. Movies has **To Watch** and **History** (see [History](history.md)). Series has only **To Watch** for now: Watching, Finished and Dropped arrive with their own cards.
+- **Tabs.** Under the section's name there is a small tab bar with the current tab underlined. Movies has **To Watch** and **History** (see [History](history.md)). Series has **To Watch**, **Watching** and **Finished** (see [Series](series.md); Dropped arrives with its own card).
+- **Series → To Watch only lists series you have not started.** Once you mark an episode of a series, it moves to Series → Watching (its entry on this list stays, so un-marking every episode brings it back here).
 - **The old addresses still work.** `/to-watch/` sends you to `/movies/` and `/history/` to `/movies/history/`, so an old bookmark is not lost.
 - **Every tile is the same size.** A name is always given two lines, and a longer one is cut with "..." (hover to see the whole name). The year line is one line, and the button is always at the bottom of the tile, so the grid looks even.
 - **Add:** every search result has an "Add to To Watch" button under its tile, and so does each movie or series page, under the poster. Press it and the button turns into "Remove from To Watch" right away, without the page reloading. The title is still on the screen after you reload, log out and back in, or restart the app.
@@ -35,7 +36,7 @@
 The three buttons serve both sections, so they keep their addresses. Each sends `kind` (`movie` or `series`), `tmdb_id` and `next` (the page to come back to). Anything else is refused with a 400, and `next` is only followed if it is a page of this site. With no usable `next`, the browser goes back to the section of the title's kind (`SECTION_OF_KIND` in `core/views.py`).
 
 **The two sections** (`movies` and `series` in `core/views.py`)
-- Both are the same screen (`to_watch.html`) filtered by the title's kind: `ToWatchItem` entries of this account, with an empty `removed_at`, whose `title.kind` is `movie` (or `series`), newest `added_at` first. No table changed for this.
+- Both are the same screen (`to_watch.html`) filtered by the title's kind: `ToWatchItem` entries of this account, with an empty `removed_at`, whose `title.kind` is `movie` (or `series`), newest `added_at` first. For series, entries whose series you have marked an episode of are left out (`started_series` in `core/episodes.py`). No table changed for this.
 - The tab bar is one small partial (`_section_tabs.html`) used by the To Watch screen and by History. Pico's `aria-current="page"` marks the current tab, and `couchlog.css` underlines it.
 - "Recently removed" is built per kind (`_recently_removed(request, kind)`), and its undo buttons come back to that section.
 

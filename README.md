@@ -18,6 +18,7 @@ You need [uv](https://docs.astral.sh/uv/) (it installs Python and the packages).
 ## Useful commands
 
 - `uv run python manage.py tmdb_check` makes one request to TMDB and says whether your key works.
+- `uv run python manage.py refresh_series` asks TMDB again about every series on a To Watch list or with a watched episode, and saves new episodes, air dates and whether it has ended. Run it by hand now and then. See [docs/series.md](docs/series.md).
 - `uv run playwright install chromium` downloads the browser that the end-to-end test drives (about 150 MB). Do this once on each machine before the first `uv run pytest`.
 - `uv run pytest` runs the tests. They use made-up TMDB answers and a temporary database, never the real TMDB. One test opens a real (invisible) browser and walks through the app.
 - `uv run ruff check .` runs the lint (it looks for mistakes and untidy code).
@@ -35,5 +36,5 @@ On the same Wi-Fi: add the PC's address to `DJANGO_ALLOWED_HOSTS` in `.env` (for
 
 - `docs/` says what is built, one page per page of the app. For now: [docs/profile.md](docs/profile.md) (login and time zone), [docs/search.md](docs/search.md) (search and title pages), [docs/to-watch.md](docs/to-watch.md) (the Movies and Series sections and their To Watch lists), [docs/history.md](docs/history.md) (marking a movie as watched, and History), [docs/series.md](docs/series.md) (the series page and marking episodes), [docs/about.md](docs/about.md) (the TMDB credit) and [docs/data-model.md](docs/data-model.md) (the database and its tables).
 - `config/` holds the Django settings and the main list of addresses.
-- `core/` is the first app: the placeholder page, login, Profile, search, title, Movies, Series, History and About pages (`views.py`, `middleware.py`, `templates/core/`), the `Profile`, `Title`, `Episode`, `ToWatchItem` and `Watch` tables (`models.py`), the TMDB code (`tmdb.py`) and the `tmdb_check` command.
+- `core/` is the first app: the placeholder page, login, Profile, search, title, Movies, Series, History and About pages (`views.py`, `middleware.py`, `templates/core/`), the `Profile`, `Title`, `Episode`, `ToWatchItem` and `Watch` tables (`models.py`), the series logic (`episodes.py`), the TMDB code (`tmdb.py`) and the `tmdb_check` and `refresh_series` commands.
 - `core/static/core/` holds Pico CSS 2.1.1 (the styling), htmx 2.0.11 (small page updates without reloading), Couchlog's own few styles (`couchlog.css`) and the TMDB logo. They are saved in the project, so the app works without internet except for TMDB and its poster pictures.

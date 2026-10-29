@@ -88,13 +88,15 @@ def _day(text):
         return None
 
 
-def get_episodes(tmdb_id):
-    """Every episode of a series, specials included. Nothing is saved.
+def get_series_episodes(tmdb_id):
+    """A series' status and every one of its episodes, specials included. Nothing is saved.
 
-    One call lists the seasons, then there is one call per season, so a long series takes a moment.
+    One call gives the status and lists the seasons, then there is one call per season, so a long
+    series takes a moment.
     """
+    series = _get(f'/tv/{tmdb_id}')
     episodes = []
-    for season in _get(f'/tv/{tmdb_id}').get('seasons', []):
+    for season in series.get('seasons', []):
         number = season['season_number']
         try:
             data = _get(f'/tv/{tmdb_id}/season/{number}')
@@ -109,7 +111,7 @@ def get_episodes(tmdb_id):
                 'air_date': _day(raw.get('air_date')),
                 'runtime': raw.get('runtime') or None,
             })
-    return episodes
+    return {'status': series.get('status') or '', 'episodes': episodes}
 
 
 def get_title(kind, tmdb_id):

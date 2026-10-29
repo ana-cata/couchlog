@@ -281,3 +281,63 @@ def test_ticking_an_episode_does_not_move_the_page(live_server, page, respx_mock
     page.get_by_role('button', name='Mark episode 40 as not watched').click()
     expect(page.get_by_role('button', name='Mark episode 40 as watched')).to_be_visible()
     assert abs(page.evaluate('window.scrollY') - scrolled_before) < 2
+
+
+def test_a_series_found_in_search_and_marked_shows_up_under_watching(live_server, page, respx_mock, settings):
+    settings.TMDB_API_KEY = 'made-up-secret-key'
+    user = User.objects.create_user(username='made-up-user', password='made-up-password')
+    Profile.objects.create(user=user, timezone='Europe/Lisbon')
+    series = {'id': 1399, 'name': 'Made-up Series', 'first_air_date': '2011-04-17'}
+    respx_mock.get('https://api.themoviedb.org/3/search/multi').respond(
+        json={'page': 1, 'results': [{'media_type': 'tv', **series}]}
+    )
+    respx_mock.get('https://api.themoviedb.org/3/tv/1399').respond(
+        json={**series, 'status': 'Ended', 'seasons': [{'season_number': 1}]}
+    )
+    episodes = [
+        {'id': 6001, 'season_number': 1, 'episode_number': 1, 'name': 'Made-up pilot', 'air_date': '2011-04-17'},
+        {'id': 6002, 'season_number': 1, 'episode_number': 2, 'name': 'Made-up finale', 'air_date': '2011-04-24'},
+    ]
+    respx_mock.get('https://api.themoviedb.org/3/tv/1399/season/1').respond(
+        json={'season_number': 1, 'episodes': episodes}
+    )
+    page.route('https://image.tmdb.org/**', lambda route: route.abort())
+
+    page.goto(live_server.url)
+    page.get_by_label('Username').fill('made-up-user')
+    page.get_by_label('Password').fill('made-up-password')
+    page.get_by_role('button', name='Log in').click()
+
+    # Search for the series and open it. It is never added to the To Watch list.
+    page.get_by_role('link', name='Search', exact=True).click()
+    page.wait_for_load_state('load')
+    page.get_by_role('searchbox').press_sequentially('made-up')
+    page.locator('.tile').click()
+    expect(page.get_by_text('2011 · Series · Ended')).to_be_visible()
+    page.get_by_role('button', name='Mark episode 1 as watched').click()
+    expect(page.get_by_role('button', name='Mark episode 1 as not watched')).to_be_visible()
+
+    # It is under Series → Watching straight away, and not under To Watch.
+    page.get_by_role('link', name='Series', exact=True).click()
+    expect(page.locator('.tile')).to_have_count(0)
+    page.get_by_role('link', name='Watching', exact=True).click()
+    expect(page.locator('.tile')).to_contain_text('Made-up Series')
+
+    # Mark the last episode too: the series ended and every episode has aired, so it is finished.
+    page.locator('.tile').click()
+    page.get_by_role('button', name='Mark episode 2 as watched').click()
+    expect(page.get_by_role('button', name='Mark episode 2 as not watched')).to_be_visible()
+    page.get_by_role('link', name='Series', exact=True).click()
+    page.get_by_role('link', name='Finished', exact=True).click()
+    expect(page.locator('.tile')).to_contain_text('Made-up Series')
+    page.get_by_role('link', name='Watching', exact=True).click()
+    expect(page.get_by_text('No series in Watching yet')).to_be_visible()
+
+    # Un-mark one episode: back under Watching.
+    page.get_by_role('link', name='Finished', exact=True).click()
+    page.locator('.tile').click()
+    page.get_by_role('button', name='Mark episode 2 as not watched').click()
+    expect(page.get_by_role('button', name='Mark episode 2 as watched')).to_be_visible()
+    page.get_by_role('link', name='Series', exact=True).click()
+    page.get_by_role('link', name='Watching', exact=True).click()
+    expect(page.locator('.tile')).to_contain_text('Made-up Series')
