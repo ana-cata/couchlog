@@ -1,0 +1,49 @@
+# Data model
+
+The database and its tables. Several pages of the app share these tables, so they are described here and not on each page.
+
+## What it does
+
+- All of Couchlog's data lives in one file, `db.sqlite3`, in the project folder on the PC.
+- The file is private: it is never committed to GitHub, and it is not shared between the PC and the Raspberry Pi. The Pi starts with its own fresh database.
+- The file is created and changed only by running migrations (scripted table changes). Nobody edits tables by hand.
+- Tests never touch this file. They use a temporary database that disappears when the tests finish.
+
+## How it works
+
+**Create or update the database on the PC**
+- `uv run python manage.py migrate` creates `db.sqlite3` if it is missing, then applies every migration that has not run yet. It is safe to run again: when everything is up to date it does nothing.
+- To start over on the PC, stop the app, delete `db.sqlite3`, and run `migrate` again. Everything in it is lost, so only do this while the data is test data.
+
+**Change a table (from the first card that adds a model)**
+1. Change the model in the app's `models.py`.
+2. `uv run python manage.py makemigrations` writes a new migration file in the app's `migrations/` folder.
+3. `uv run python manage.py migrate` applies it to the PC's database.
+4. Commit the migration file together with the model change. The test `test_every_table_change_has_a_migration_file` fails if the file is missing.
+
+**Tests and the database**
+- `pytest-django` gives each test run a temporary database that lives in memory. It is built from the same migrations, so a test run also proves the migrations work from nothing.
+- A test can only use the database if it is marked `@pytest.mark.django_db`. Without the mark, touching the database is an error.
+- Each test starts from an empty database: what one test saves is gone for the next.
+- `core/tests/test_database.py` proves the temporary database is used and `db.sqlite3` is left alone.
+
+**Settings**
+- The database is set in `config/settings.py` under `DATABASES`: SQLite, file `db.sqlite3` in the project folder.
+- `*.sqlite3` and the other database file types are in `.gitignore`.
+
+**Tables that exist now**
+
+Only the tables that come with Django. Couchlog has no tables of its own yet; each card that adds some updates this list.
+
+| Table | What it holds | Used by |
+|---|---|---|
+| `auth_user` | The accounts (username, password, last login). I create them in Django's admin page. | Login (card #6) |
+| `auth_group`, `auth_permission` and their link tables | Groups and permissions. Not used by Couchlog for now. | Django's admin page |
+| `django_session` | Who is logged in, by browser session. | Login (card #6) |
+| `django_admin_log` | History of changes made in the admin page. | Django's admin page |
+| `django_content_type` | Django's internal list of tables. | Django itself |
+| `django_migrations` | Which migrations have already run on this database. | `migrate` |
+
+**Known limits**
+- The database path is fixed. When the app moves into Docker on the Pi (milestone M6), the path will need to be configurable so the file can live in a Docker volume.
+- Safe SQLite settings against power cuts, and automatic backups, come with the Pi (milestone M6).
