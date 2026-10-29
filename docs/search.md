@@ -5,8 +5,8 @@
 - **Search page** (`/search/`, linked as "Search" in the header). Type a title and matching movies and series appear below the box as you type, a moment after you stop typing. Pressing Enter also works.
 - Results are shown as **tiles** in a grid: the poster on top, the name below, then the year and whether it is a movie or a series. The whole tile is a link, and when the mouse is over a tile (or you tab to it) its title and year are underlined so the choice is easy to see. The grid fits the screen (about two tiles across on a phone, more on a wide screen), and every tile is the same size: a long name is cut with "..." (hover to see it all). People (actors, directors) that TMDB also finds are left out.
 - **Add to your list:** under each tile is an "Add to To Watch" button (or "Remove from To Watch" when the title is already on your list). See [To Watch](to-watch.md).
-- **Open one:** click a result to open its title page: poster, title, year, and TMDB's description, with the same To Watch button under the poster. A movie's page also has the date box and the **Mark as watched** button (see [History](history.md)). A series page is still just the basics: episodes and their checkboxes come with a later card.
-- **Searching saves nothing.** Search results and title pages are read from TMDB each time. Only a title you add to your To Watch list is saved.
+- **Open one:** click a result to open its title page: poster, title, year, and TMDB's description, with the same To Watch button under the poster. A movie's page also has the date box and the **Mark as watched** button (see [History](history.md)). A series page also lists its seasons and episodes, each with a round check button (see [Series](series.md)).
+- **Searching saves nothing.** Search results and movie pages are read from TMDB each time. Only a title you add to your To Watch list is saved, and a series is also saved the first time you open its page (with its episodes, see [Series](series.md)).
 - **If something goes wrong** you see a message instead of a crash:
   - TMDB cannot be reached, or does not accept the key: a short message under the box.
   - Nothing matches: "No movies or series match ...".
@@ -34,7 +34,7 @@
 
 **TMDB calls** (`core/tmdb.py`, server side only; the key never reaches the browser)
 - `GET /search/multi?query=...` for search. Only `movie` and `tv` results are kept (`tv` is called "series" in Couchlog). Only the first page (up to 20 results) is shown.
-- `GET /movie/<id>` and `GET /tv/<id>` for a title page.
+- `GET /movie/<id>` for a movie page, and `GET /tv/<id>` the first time a series is saved. A series page's episodes are described in [Series](series.md).
 - TMDB's 404 becomes a "not found"; other problems become a message that is fine to show to the user.
 - The year is the first four characters of TMDB's date, used as given (no time zone conversion).
 - Posters are loaded by the browser straight from TMDB's picture server (`https://image.tmdb.org/t/p/w342`), the same size in the tiles and on the title page. No key is involved, but it needs an internet connection.
@@ -42,4 +42,4 @@
 **Known limits**
 - Only the first 20 results; there is no "more results" button.
 - Search is in English (TMDB's default).
-- The title pages show only the basics, the To Watch button and (movies) the watched section. Seasons, episodes, runtimes and streaming services come with later cards.
+- The title pages show the basics, the To Watch button, and the watched section (movies) or the seasons and episodes (series). Runtimes and streaming services come with later cards.

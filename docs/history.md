@@ -25,7 +25,7 @@
 The buttons are normal forms, not htmx: the server saves, then sends the browser back to the page (the `next` field, only if it is a page of this site; History otherwise) with a message. Mark sends `kind` (only `movie`; a series is refused with a 400), `tmdb_id`, `watched_on` and `date_unknown`. Un-mark sends `watch_id`.
 
 **Tables** (see [data model](data-model.md))
-- `core_watch`: one row per watch: `user`, `title` (links to `core_title`), `watched_on` (a day; empty means date unknown) and `created_at`. There is deliberately no "one per title" limit: a rewatch will be another row (design rule 1), and episodes will use this table too, with a link to the episode added in the series card.
+- `core_watch`: one row per watch: `user`, `title` (links to `core_title`), `watched_on` (a day; empty means date unknown) and `created_at`. There is deliberately no "one per title" limit: a rewatch will be another row (design rule 1), and episodes use this table too, with a link to the episode (see [Series](series.md)); a movie's watch has no episode.
 - `core_towatchitem` gets one column, `removed_by_watch` (links to the watch). It is filled in only when marking a movie as watched took it off To Watch.
 
 **Mark** (`watched_add` in `core/views.py`)
@@ -44,7 +44,7 @@ The buttons are normal forms, not htmx: the server saves, then sends the browser
 **Screens**: `title.html` (the form or the "Watched" line, movies only), `history.html`, and `_tile_link.html` (the clickable poster, name and year, shared by To Watch, search and History).
 
 **Known limits**
-- Only movies for now; series episodes come with features 5 and 6. History belongs to the Movies section and lists films only (`history` in `core/views.py` filters on the title's kind), so episode watches will not show here.
+- Only movies are marked here; episodes are marked on the series page ([Series](series.md)). History belongs to the Movies section and lists films only (`history` in `core/views.py` filters on the title's kind), so episode watches do not show here.
 - One watch per movie in the screens. Pressing Mark twice at the very same moment (a double click) could still save two; Mark as not watched then removes one at a time.
 - The title page still reads TMDB every time it is opened, so it shows an error if TMDB is down (History does not need TMDB).
 - History has no search, filter or paging yet.

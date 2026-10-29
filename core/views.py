@@ -8,7 +8,7 @@ from django.core.exceptions import BadRequest
 from django.db import transaction
 from django.db.models import F
 from django.http import Http404
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -18,7 +18,10 @@ from django.views.decorators.vary import vary_on_headers
 
 from . import tmdb
 from .forms import TimeZoneForm, WatchedForm
-from .models import Profile, Title, ToWatchItem, Watch
+from .models import Episode, Profile, Title, ToWatchItem, Watch
+
+# How old our saved episodes may get before opening a series page asks TMDB again.
+EPISODES_REFRESH_AFTER = timedelta(days=1)
 
 # How long after removing a title from To Watch it can still be undone. The screen says the
 # number of seconds, which comes from here. After that, the way back is adding the title again.
@@ -61,6 +64,8 @@ def search(request):
 
 
 def title(request, kind, tmdb_id):
+    if kind == 'series':
+        return _series_page(request, tmdb_id)
     try:
         item = tmdb.get_title(kind, tmdb_id)
     except tmdb.TmdbNotFound:
@@ -77,6 +82,80 @@ def title(request, kind, tmdb_id):
             .first()
         )
         context['today'] = _today(request)
+    return render(request, 'core/title.html', context)
+
+
+def _refresh_episodes(series):
+    """Ask TMDB for the series' episodes and save them.
+
+    Episodes are matched with TMDB's own id: a renumbered or renamed episode is updated in place
+    (so its watches stay with it), a new one is added, and none is ever deleted. TMDB is asked first,
+    so when it fails nothing is saved.
+    """
+    episodes = tmdb.get_episodes(series.tmdb_id)
+    with transaction.atomic():
+        Episode.objects.bulk_create(
+            [Episode(title=series, **episode) for episode in episodes],
+            update_conflicts=True,
+            unique_fields=['title', 'tmdb_id'],
+            update_fields=['season_number', 'episode_number', 'name', 'air_date', 'runtime'],
+        )
+        series.episodes_refreshed_at = timezone.now()
+        series.save(update_fields=['episodes_refreshed_at'])
+
+
+def _series_page(request, tmdb_id):
+    """A series with its seasons and episodes, from our own saved copy (design rule 6)."""
+    try:
+        series = _saved_title('series', tmdb_id)
+    except tmdb.TmdbNotFound:
+        raise Http404 from None
+    except tmdb.TmdbError as problem:
+        return render(request, 'core/title.html', {'error': str(problem)})
+
+    # Saved episodes are refreshed when they are over a day old. If TMDB does not answer, the page
+    # still shows what was saved earlier, with a note.
+    notice = ''
+    saved_at = series.episodes_refreshed_at
+    if saved_at is None or saved_at < timezone.now() - EPISODES_REFRESH_AFTER:
+        try:
+            _refresh_episodes(series)
+        except tmdb.TmdbError as problem:
+            notice = f'{problem} Showing the episodes saved earlier.' if saved_at else str(problem)
+
+    today = _today(request)
+    # Watches are listed oldest first, so with rewatches (later) the latest one wins.
+    watches = {
+        watch.episode_id: watch
+        for watch in Watch.objects.filter(user=request.user, title=series, episode__isnull=False).order_by(
+            'created_at', 'id'
+        )
+    }
+    by_season = {}
+    for episode in series.episodes.order_by('season_number', 'episode_number', 'id'):
+        episode.watch = watches.get(episode.id)
+        episode.aired = _has_aired(episode, today)
+        by_season.setdefault(episode.season_number, []).append(episode)
+    # Specials (season 0) last.
+    numbers = sorted(by_season, key=lambda number: (number == 0, number))
+    seasons = [
+        {'number': number, 'name': 'Specials' if number == 0 else f'Season {number}', 'episodes': by_season[number]}
+        for number in numbers
+    ]
+    try:
+        open_season = int(request.GET['season'])
+    except (KeyError, ValueError):
+        open_season = numbers[0] if numbers else None
+
+    on_list = _my_item(request, 'series', tmdb_id).filter(removed_at=None).exists()
+    context = {
+        'item': series,
+        'on_list': on_list,
+        'next': request.get_full_path(),
+        'notice': notice,
+        'seasons': seasons,
+        'open_season': open_season,
+    }
     return render(request, 'core/title.html', context)
 
 
@@ -297,6 +376,53 @@ def watched_add(request):
     return _redirect_back(request, f'Marked “{title.title}” as watched.', True, 'history')
 
 
+def _posted_episode(request):
+    """The episode a button was pressed for."""
+    try:
+        episode_id = int(request.POST.get('episode_id', ''))
+    except ValueError:
+        raise BadRequest from None
+    return get_object_or_404(Episode.objects.select_related('title'), id=episode_id)
+
+
+def _has_aired(episode, today):
+    return episode.air_date is not None and episode.air_date <= today
+
+
+def _episode_row(request, episode):
+    """One episode's row in its current state, which htmx swaps in place so the page does not move."""
+    episode.watch = Watch.objects.filter(user=request.user, episode=episode).order_by('-created_at', '-id').first()
+    episode.aired = _has_aired(episode, _today(request))
+    return render(request, 'core/_episode_row.html', {'episode': episode, 'item': episode.title})
+
+
+def _answer_episode(request, episode, text='', ok=True):
+    """Reply to an episode button. With htmx: just the row, as it is now (the colour says what happened).
+    Without htmx: a redirect back to the series page, with a message (unless `text` is empty)."""
+    if request.headers.get('HX-Request'):
+        return _episode_row(request, episode)
+    return _redirect_back(request, text, ok, 'series')
+
+
+@require_POST
+def episode_watched_add(request):
+    """Mark one episode as watched, on the day the button is pressed (in the account's time zone)."""
+    episode = _posted_episode(request)
+    name = f'“{episode.title.title}” S{episode.season_number}E{episode.episode_number}'
+    today = _today(request)
+
+    if episode.air_date is None:
+        return _answer_episode(request, episode, f'{name} has no air date yet, so it cannot be marked.', False)
+    if episode.air_date > today:
+        return _answer_episode(request, episode, f'{name} has not aired yet, so it cannot be marked.', False)
+    # Watching it again is a later feature (Rewatch). For now a second press changes nothing.
+    if Watch.objects.filter(user=request.user, episode=episode).exists():
+        return _answer_episode(request, episode, f'{name} is already marked as watched.')
+
+    Watch.objects.create(user=request.user, title=episode.title, episode=episode, watched_on=today)
+    return _answer_episode(request, episode)
+
+
 @require_POST
 def watched_remove(request):
     """Undo a watch, right after marking it or any time later."""
@@ -304,8 +430,11 @@ def watched_remove(request):
         watch_id = int(request.POST.get('watch_id', ''))
     except ValueError:
         raise BadRequest from None
-    watch = Watch.objects.select_related('title').filter(user=request.user, id=watch_id).first()
+    watch = Watch.objects.select_related('title', 'episode').filter(user=request.user, id=watch_id).first()
     if watch is None:
+        if request.headers.get('HX-Request') and 'episode_id' in request.POST:
+            # An episode button on a page that is out of date (undone in another tab): show the row as it is now.
+            return _episode_row(request, _posted_episode(request))
         return _redirect_back(request, 'That watch is not in your history.', False, 'history')
 
     with transaction.atomic():
@@ -314,6 +443,9 @@ def watched_remove(request):
             removed_at=None, removed_by_watch=None
         )
         watch.delete()
+    if watch.episode_id:
+        # No message: the button turning gray says it.
+        return _answer_episode(request, watch.episode)
     text = f'Marked “{watch.title.title}” as not watched.'
     if back_on_list:
         text += ' It is back on your To Watch list.'
