@@ -114,6 +114,29 @@ def get_series_episodes(tmdb_id):
     return {'status': series.get('status') or '', 'episodes': episodes}
 
 
+# TMDB's number for a streaming (digital) release in a movie's list of release dates.
+DIGITAL_RELEASE = 4
+
+
+def get_movie_streaming_date(tmdb_id):
+    """The earliest streaming (digital) release of a movie in any country, or None when TMDB lists none.
+
+    TMDB gives it as a moment such as 2024-04-15T00:00:00.000Z (midnight UTC), and so does this. Nothing is saved.
+    """
+    data = _get(f'/movie/{tmdb_id}/release_dates')
+    moments = []
+    for country in data.get('results', []):
+        for release in country.get('release_dates', []):
+            if release.get('type') != DIGITAL_RELEASE:
+                continue
+            try:
+                moment = datetime.datetime.fromisoformat(release.get('release_date') or '')
+            except ValueError:
+                continue  # an entry with no date, or one that makes no sense: skip it, keep the others
+            moments.append(moment if moment.tzinfo else moment.replace(tzinfo=datetime.UTC))
+    return min(moments) if moments else None
+
+
 def get_title(kind, tmdb_id):
     """One movie or series from TMDB. Nothing is saved."""
     path = f'/movie/{tmdb_id}' if kind == 'movie' else f'/tv/{tmdb_id}'

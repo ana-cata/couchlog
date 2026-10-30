@@ -68,13 +68,13 @@ Series has three tabs. Nothing is stored for them: each is worked out every time
 - Marking an episode does not touch your To Watch list: the entry stays, only hidden from the To Watch tab while the series is being watched. If you un-mark every episode of a series that is on your list, it is back under To Watch.
 - Dropped (a tab you set by hand) comes with a later card.
 
-## Keeping series up to date: `refresh_series`
+## Keeping series up to date: `refresh_calendar`
 
-`uv run python manage.py refresh_series` asks TMDB again for every series that is on someone's To Watch list or has a watched episode, and saves its **new episodes, new air dates and status** (ended or still running).
-- It prints one line per series ("“Made-up Series”: Ended, 2 new episodes") and "Refreshed N series." One series failing (TMDB not answering) does not stop the others: it is reported on the error output, and the command ends with an error so a scheduler can tell. Run it again later.
-- Series nobody follows, and movies, are left alone.
+`uv run python manage.py refresh_calendar` asks TMDB again for every series that is on someone's To Watch list or has a watched episode, and saves its **new episodes, new air dates and status** (ended or still running). It also collects the streaming dates of the films on a To Watch list; that part is described on the [Calendar](calendar.md) page. (It was called `refresh_series` before the calendar card.)
+- It prints one line per series ("“Made-up Series”: Ended, 2 new episodes") and "Refreshed N series.", then the same for films. One title failing (TMDB not answering) does not stop the others: it is reported on the error output, and the command ends with an error so a scheduler can tell. Run it again later.
+- Series nobody follows are left alone.
 - Running it twice changes nothing the second time.
-- For now you run it **by hand**. The daily scheduled run comes with the calendar and the Raspberry Pi. Opening a series page also refreshes that one series when its saved copy is over a day old.
+- For now you run it **by hand**. The daily scheduled run comes with the Raspberry Pi (milestone M6). Opening a series page also refreshes that one series when its saved copy is over a day old.
 
 ## How it works
 
@@ -104,7 +104,7 @@ Series has three tabs. Nothing is stored for them: each is worked out every time
 
 **Opening a series** (`_series_page` in `core/views.py`)
 1. The series is saved from TMDB if our table does not have it yet (the same `_saved_title` the To Watch button uses, design rule 6).
-2. If its episodes were never saved, or were saved more than a day ago (`EPISODES_REFRESH_AFTER`), they are refreshed (`refresh_episodes` in `core/episodes.py`, the same code the `refresh_series` command uses): TMDB is asked for the status and the list of seasons (`GET /tv/<id>`), then for each season (`GET /tv/<id>/season/<n>`), so a long series takes a few seconds the first time. Only after all of that answered are the rows saved, in one database step, so a failure saves nothing.
+2. If its episodes were never saved, or were saved more than a day ago (`EPISODES_REFRESH_AFTER`), they are refreshed (`refresh_episodes` in `core/episodes.py`, the same code the `refresh_calendar` command uses): TMDB is asked for the status and the list of seasons (`GET /tv/<id>`), then for each season (`GET /tv/<id>/season/<n>`), so a long series takes a few seconds the first time. Only after all of that answered are the rows saved, in one database step, so a failure saves nothing.
 3. The page is built from our own table. A season that TMDB lists but cannot find (404) is skipped and the others are kept.
 
 **The progress bars** (`_progress.html`, `progress_by_series` in `core/episodes.py`, `_season_info` in `core/views.py`)
@@ -141,7 +141,7 @@ Series has three tabs. Nothing is stored for them: each is worked out every time
 - After "Yes" there is no one-step undo unless it marked a whole season; otherwise un-mark the episodes one at a time.
 - The question is only asked for the first mark in a series. Later, to mark many episodes you have not marked, use the season button; it marks the whole season, not only up to one episode.
 - Pressing a circle and then reloading the page, or leaving it, without answering simply drops the question: nothing was saved.
-- New episodes only appear when the series page is opened (and its copy is over a day old) or when `refresh_series` is run by hand. There is no daily schedule yet.
+- New episodes only appear when the series page is opened (and its copy is over a day old) or when `refresh_calendar` is run by hand. There is no daily schedule yet.
 - A series that TMDB has not yet marked as ended stays in Watching even when you have watched everything, until a refresh picks up the change.
 - How the tabs are worked out (`series_tabs` in `core/episodes.py`) looks at every series you have started each time a tab opens; that is fine for dozens of series.
 - The series' own details (poster, description) are saved once and not refreshed.

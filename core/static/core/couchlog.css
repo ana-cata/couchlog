@@ -269,6 +269,35 @@ header nav li {
   display: none;
 }
 
+/* The Calendar page: the titles of one day, each with a small poster on the left. */
+.calendar {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem;
+}
+
+.calendar li {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 0;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--pico-muted-border-color);
+}
+
+.calendar-poster {
+  flex: none;
+  width: 3rem;
+}
+
+.calendar-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-wrap: anywhere;
+}
+
 /* "Recently removed" on the To Watch screen: a name on the left, Undo on the right. */
 .removed {
   list-style: none;

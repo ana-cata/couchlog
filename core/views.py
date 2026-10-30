@@ -30,6 +30,7 @@ from .episodes import (
 )
 from .forms import TimeZoneForm, WatchedForm
 from .models import Episode, Profile, Title, ToWatchItem, Watch
+from .releases import upcoming
 
 # How old our saved episodes may get before opening a series page asks TMDB again.
 EPISODES_REFRESH_AFTER = timedelta(days=1)
@@ -45,6 +46,13 @@ SECTION_OF_KIND = {'movie': 'movies', 'series': 'series'}
 
 def home(request):
     return render(request, 'core/home.html', {'entries': up_next(request.user, _today(request))})
+
+
+def calendar(request):
+    """The upcoming releases of the series being watched and of the To Watch list, from what is saved. TMDB is not asked."""
+    zone = _zone(request)
+    today = timezone.now().astimezone(zone).date()
+    return render(request, 'core/calendar.html', {'days': upcoming(request.user, today, zone)})
 
 
 # The same address answers with a whole page or, for the live results, only the list.
@@ -153,10 +161,15 @@ def _series_page(request, tmdb_id):
     return render(request, 'core/title.html', context)
 
 
+def _zone(request):
+    """The account's own time zone."""
+    name = Profile.objects.filter(user=request.user).values_list('timezone', flat=True).first()
+    return ZoneInfo(name or 'UTC')
+
+
 def _today(request):
     """Today's date in the account's own time zone. The server's time zone does not matter."""
-    name = Profile.objects.filter(user=request.user).values_list('timezone', flat=True).first()
-    return timezone.now().astimezone(ZoneInfo(name or 'UTC')).date()
+    return timezone.now().astimezone(_zone(request)).date()
 
 
 def _saved_title(kind, tmdb_id):

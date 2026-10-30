@@ -27,6 +27,7 @@ urlpatterns = [
     path('series/', views.series, name='series'),
     path('series/watching/', views.series_watching, name='series_watching'),
     path('series/finished/', views.series_finished, name='series_finished'),
+    path('calendar/', views.calendar, name='calendar'),
     # The addresses these two screens had before they moved into Movies, so old bookmarks still work.
     path('to-watch/', RedirectView.as_view(pattern_name='movies')),
     path('history/', RedirectView.as_view(pattern_name='history')),

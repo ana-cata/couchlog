@@ -1,10 +1,12 @@
 """The first end-to-end test: a real browser walks through the app, as I would."""
 
 import datetime
+import io
 import os
 import re
 
 from django.contrib.auth.models import User
+from django.core.management import call_command
 from django.utils import timezone
 from playwright.sync_api import expect
 
@@ -501,3 +503,64 @@ def test_up_next_on_home_follows_the_check_buttons_and_the_series_page_bars(live
     page.goto(live_server.url)
     expect(card).to_contain_text('S1E3')
     expect(card).to_contain_text('2 of 3 aired episodes watched')
+
+
+def test_a_series_on_the_to_watch_list_shows_in_the_calendar_until_it_is_removed(
+    live_server, page, respx_mock, settings, monkeypatch
+):
+    # A long window, so a slow machine can never run out of undo time in the middle of this test.
+    monkeypatch.setattr('core.views.UNDO_WINDOW', datetime.timedelta(minutes=5))
+    settings.TMDB_API_KEY = 'made-up-secret-key'
+    user = User.objects.create_user(username='made-up-user', password='made-up-password')
+    Profile.objects.create(user=user, timezone='Europe/Lisbon')
+    series = {'id': 1399, 'name': 'Made-up Series', 'first_air_date': '2011-04-17'}
+    airs = datetime.date.today() + datetime.timedelta(days=30)
+    respx_mock.get('https://api.themoviedb.org/3/search/multi').respond(
+        json={'page': 1, 'results': [{'media_type': 'tv', **series}]}
+    )
+    respx_mock.get('https://api.themoviedb.org/3/tv/1399').respond(
+        json={**series, 'status': 'Returning Series', 'seasons': [{'season_number': 1}]}
+    )
+    episode = {'id': 6001, 'season_number': 1, 'episode_number': 1, 'name': 'Made-up premiere', 'air_date': airs.isoformat()}
+    respx_mock.get('https://api.themoviedb.org/3/tv/1399/season/1').respond(
+        json={'season_number': 1, 'episodes': [episode]}
+    )
+    page.route('https://image.tmdb.org/**', lambda route: route.abort())
+
+    page.goto(live_server.url)
+    page.get_by_label('Username').fill('made-up-user')
+    page.get_by_label('Password').fill('made-up-password')
+    page.get_by_role('button', name='Log in').click()
+
+    # Add the series to the To Watch list from the search results.
+    page.get_by_role('link', name='Search', exact=True).click()
+    page.wait_for_load_state('load')
+    page.get_by_role('searchbox').press_sequentially('made-up')
+    page.get_by_role('button', name='Add to To Watch').click()
+    expect(page.get_by_role('button', name='Remove from To Watch')).to_be_visible()
+
+    # Nothing is in the calendar until the job has collected the dates (run by hand for now).
+    page.get_by_role('link', name='Calendar', exact=True).click()
+    expect(page.get_by_text('Nothing coming up')).to_be_visible()
+    call_command('refresh_calendar', stdout=io.StringIO())
+
+    # Reloading shows the episode on the day TMDB gives.
+    page.reload()
+    item = page.locator('.calendar li')
+    expect(item).to_have_count(1)
+    expect(item).to_contain_text('Made-up Series')
+    expect(item).to_contain_text('S1E1 · Made-up premiere')
+    expect(page.get_by_role('heading', name=f'{airs:%A} {airs.day}')).to_be_visible()
+
+    # Removing the series from the list takes it off the calendar.
+    page.get_by_role('link', name='Series', exact=True).click()
+    page.get_by_role('button', name='Remove from To Watch').click()
+    page.get_by_role('link', name='Calendar', exact=True).click()
+    expect(item).to_have_count(0)
+    expect(page.get_by_text('Nothing coming up')).to_be_visible()
+
+    # Undo brings it back to the calendar too.
+    page.get_by_role('link', name='Series', exact=True).click()
+    page.get_by_role('button', name='Undo').click()
+    page.get_by_role('link', name='Calendar', exact=True).click()
+    expect(item).to_have_count(1)
