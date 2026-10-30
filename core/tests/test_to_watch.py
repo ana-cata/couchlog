@@ -39,6 +39,12 @@ def tmdb_key(settings):
     settings.TMDB_API_KEY = 'made-up-secret-key'
 
 
+@pytest.fixture(autouse=True)
+def release_dates(respx_mock):
+    """Adding a movie also collects its release dates for the Calendar. Here TMDB has none for any movie."""
+    respx_mock.get(url__regex=r'https://api\.themoviedb\.org/3/movie/\d+/release_dates').respond(json={'results': []})
+
+
 def make_client(name, **options):
     """A browser logged in as a new account (with a time zone chosen, so no redirect to Profile)."""
     user = User.objects.create_user(username=name, password='made-up-password')

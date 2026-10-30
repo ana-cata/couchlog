@@ -1,0 +1,36 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Calendar · Couchlog{% endblock %}
+
+{% block content %}
+  <h1>Calendar</h1>
+
+  {# Upcoming releases of the series being watched and the To Watch list, read from what is saved. Only days, never hours. #}
+  {% for day in days %}
+    {% ifchanged day.day.year day.day.month %}<h2>{{ day.day|date:"F Y" }}</h2>{% endifchanged %}
+    <h3>{{ day.day|date:"l j" }}</h3>
+    <ul class="calendar">
+      {% for item in day.items %}
+        <li>
+          <a href="{% url 'title' item.title.kind item.title.tmdb_id %}" class="calendar-poster" tabindex="-1" aria-hidden="true">
+            {% if item.title.poster_url %}
+              <img class="poster" src="{{ item.title.poster_url }}" alt="" loading="lazy">
+            {% else %}
+              <span class="poster no-poster">No poster</span>
+            {% endif %}
+          </a>
+          <div class="calendar-info">
+            <strong><a href="{% url 'title' item.title.kind item.title.tmdb_id %}">{{ item.title.title }}</a></strong>
+            <span>{{ item.text }}</span>
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+  {% empty %}
+    <p>
+      Nothing coming up. The calendar shows the next episodes of the series you are watching or have on your To Watch
+      list, and the cinema and streaming dates of the films on your To Watch list. The dates are collected when you
+      add a title to To Watch, and again by the <code>refresh_calendar</code> command, which you run by hand for now.
+    </p>
+  {% endfor %}
+{% endblock %}
