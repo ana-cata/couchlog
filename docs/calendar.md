@@ -50,6 +50,7 @@
 - A series with no IMDb id is not looked up at all. A series TVmaze does not know ends up with no rows. An id TVmaze no longer has (404 on the episodes) is forgotten and looked up again next time.
 - **TVmaze not answering** (no network, an error, or 429 "too many questions": it allows 20 per 10 seconds) never blocks anything. Adding a series still works and TMDB's episodes are there; the next `refresh_calendar` run collects the rest. In the command it is reported on the error output ("Could not refresh the upcoming episodes of “…” from TVmaze: …"), the other series go on, and the command ends with an error so a scheduler can tell.
 - Opening a series page does **not** ask TVmaze.
+- **A series saved before card #33 has no IMDb id yet**, so it has no TVmaze episodes until `refresh_calendar` runs: run it once after `migrate` (it does every series at once). Adding the series again does not help while its episodes are less than a day old, because they are not asked from TMDB again. A database that starts fresh (the Pi) does not have this gap.
 
 **Known limits**
 - **The day can be one early for you if your time zone is west of UTC** (the Americas). TMDB gives each streaming date as midnight UTC, so a film listed for Friday shows on Thursday evening in New York. For Europe, Africa, Asia and Australia the day is the same. It is the choice made on this card.

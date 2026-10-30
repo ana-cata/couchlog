@@ -435,6 +435,21 @@ def test_adding_a_series_puts_the_whole_season_on_the_calendar_at_once(client, r
     assert days[9] == (week(9), [('Made-up Series 800', 'S1E10 · TBA')])
 
 
+def test_a_series_saved_before_tvmaze_existed_gets_its_tvmaze_episodes_when_the_command_runs(client, respx_mock):
+    # Its episodes were refreshed a moment ago, but with no IMDb id saved (as every series saved before this feature).
+    series = make_series(800, imdb_id='', episodes_refreshed_at=NOW)
+    ToWatchItem.objects.create(user=client.user, title=series)
+    mock_tmdb_series(respx_mock, 800, 'tt800', [(9001, 1, 'Premiere', week(0).isoformat())])
+    mock_tvmaze(respx_mock, 'tt800', 48830, [tv_episode(1, number, week(number - 1).isoformat()) for number in range(1, 4)])
+    assert coming(client.user) == []
+
+    call_command('refresh_calendar', stdout=io.StringIO(), stderr=io.StringIO())
+
+    series.refresh_from_db()
+    assert series.imdb_id == 'tt800' and series.tvmaze_id == 48830
+    assert [day for day, _ in coming(client.user)] == [week(0), week(1), week(2)]
+
+
 def test_adding_still_works_when_tvmaze_does_not_answer(client, respx_mock):
     mock_tmdb_series(respx_mock, 800, 'tt800', [(9001, 1, 'Premiere', week(0).isoformat())])
     respx_mock.get(f'{TVMAZE}/lookup/shows', params={'imdb': 'tt800'}).mock(side_effect=httpx.ConnectError('no network'))
