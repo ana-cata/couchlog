@@ -18,12 +18,11 @@ from django.views.decorators.vary import vary_on_headers
 
 from . import tmdb, tvmaze
 from .episodes import (
-    earlier_to_ask_about,
-    episodes_up_to,
     mark_episodes,
     progress_by_series,
     refresh_episodes,
     series_tabs,
+    skipped_episodes,
     started_series,
     unmark_episodes,
     up_next,
@@ -154,8 +153,8 @@ def _series_page(request, tmdb_id):
         'seasons': seasons,
         'open_season': open_season,
         'progress': _series_progress(request, series),
-        # Without htmx, the question after a first mark ("did you watch the earlier episodes too?") comes back
-        # here and is shown once. It is worked out again here, so a page that is out of date asks nothing.
+        # Without htmx, the question after a mark that skips episodes ("did you watch the earlier episodes too?")
+        # comes back here and is shown once. It is worked out again here, so a page that is out of date asks nothing.
         'ask': _question(request, asked, today) if asked else None,
     }
     return render(request, 'core/title.html', context)
@@ -500,17 +499,19 @@ def _short_name(episode):
 
 
 def _question(request, episode, today):
-    """What to ask when `episode` is the first one marked in its series ("did you watch the earlier episodes
-    too?"), or None when there is nothing to ask."""
-    earlier = earlier_to_ask_about(request.user, episode, today)
-    if not earlier:
+    """What to ask when marking `episode` skips episodes ("did you watch the earlier episodes too?"), or None
+    when there is nothing to ask."""
+    last_marked, skipped = skipped_episodes(request.user, episode, today)
+    if not skipped:
         return None
     return {
         'item': episode.title,
         'episode': episode,
         'name': _short_name(episode),
-        'first': _short_name(earlier[0]),
-        'count': len(earlier) + 1,  # what "Yes" marks: the earlier ones and this one
+        # The nearest episode marked before it, or empty when nothing before it is marked.
+        'after': _short_name(last_marked) if last_marked else '',
+        'first': _short_name(skipped[0]),
+        'count': len(skipped) + 1,  # what "Yes" marks: the skipped ones and this one
     }
 
 
@@ -558,7 +559,7 @@ def _ask_earlier(request, question):
 def episode_watched_add(request):
     """Mark one episode as watched, on the day the button is pressed (in the account's time zone).
 
-    The first episode marked in a series asks first whether the earlier ones were watched too. The question's
+    An episode that skips unmarked episodes before it asks first whether those were watched too. The question's
     "No, only this one" sends `only_this` to skip it.
     """
     episode = _posted_episode(request)
@@ -575,8 +576,8 @@ def episode_watched_add(request):
     if not request.POST.get('only_this'):
         question = _question(request, episode, today)
         if question and request.POST.get('up_next'):
-            # Home has no place for the question, and its cards only offer an episode of a series that is
-            # already started. So this is a page that is out of date: nothing is marked, and the card
+            # Home has no place for the question, and its cards only offer the first episode left to watch,
+            # which skips nothing. So this is a page that is out of date: nothing is marked, and the card
             # comes back as it is now.
             return _answer_episode(request, episode)
         if question:
@@ -677,8 +678,8 @@ def season_watched_remove(request):
 
 @require_POST
 def episodes_watched_up_to(request):
-    """Watched up to here, the "Yes" of the question on a first mark: mark every episode that has aired and is
-    not marked yet, from season 1 episode 1 up to the chosen one, in one step."""
+    """The "Yes" of the question: mark the chosen episode and the episodes it skips (the ones that have aired and
+    are not marked, between the nearest episode marked before it and it), in one step."""
     episode = _posted_episode(request)
     if episode.season_number == 0:
         raise BadRequest  # specials are not in that order, and the page offers no question for them
@@ -689,7 +690,8 @@ def episodes_watched_up_to(request):
     if episode.air_date > _today(request):
         text = f'{name} has not aired yet, so nothing can be marked up to it.'
         return _answer_changed(request, episode.title, [], text, ok=False)
-    marked = mark_episodes(request.user, episodes_up_to(episode), _today(request))
+    _, skipped = skipped_episodes(request.user, episode, _today(request))
+    marked = mark_episodes(request.user, [*skipped, episode], _today(request))
     return _answer_changed(request, episode.title, marked)
 
 
