@@ -1,5 +1,5 @@
-"""Marking a whole season (and un-marking it by pressing its button again), and the question asked on the
-first episode marked in a series ("did you watch everything before it?")."""
+"""Marking a whole season (and un-marking it by pressing its button again), and the question asked when marking
+an episode skips episodes that are not marked ("did you watch everything before it?")."""
 
 import datetime
 import re
@@ -137,7 +137,7 @@ def unmark_season(client, number, next=SERIES_PAGE, **options):
 
 
 def up_to_here(client, tmdb_id, next=SERIES_PAGE, **options):
-    """The question's "Yes": mark the episode and every one before it."""
+    """The question's "Yes": mark the episode and the ones it skips (back to the nearest marked one before it)."""
     return client.post('/watched/up-to/add/', {'episode_id': eid(tmdb_id), 'next': next}, **options)
 
 
@@ -528,7 +528,7 @@ def test_with_htmx_a_circle_in_a_season_without_a_button_comes_back_as_just_the_
     assert 'season-action' not in body and Watch.objects.count() == 0
 
 
-# --- "Yes", the question's way of marking everything up to an episode --------------------------
+# --- "Yes", the question's way of marking an episode and the ones it skips ----------------------
 
 
 def test_yes_marks_every_aired_episode_before_it_across_seasons(opened):
@@ -547,7 +547,7 @@ def test_yes_in_the_first_season_marks_only_what_is_before_it(opened):
 
 
 def test_yes_leaves_episodes_already_marked_alone(opened):
-    mark_one(opened, 6002)
+    mark_one(opened, 6001)
     earlier = Watch.objects.get()
 
     up_to_here(opened, 6003)
@@ -556,6 +556,14 @@ def test_yes_leaves_episodes_already_marked_alone(opened):
     assert earlier.watched_on == TODAY
     assert watched(opened.user) == {6001, 6002, 6003}
     assert Watch.objects.count() == 3
+
+
+def test_yes_marks_only_what_is_between_the_nearest_marked_episode_and_this_one(opened):
+    mark_one(opened, 6003)  # episodes 1 and 2 before it were skipped, and stay that way
+
+    up_to_here(opened, 6103)
+
+    assert watched(opened.user) == {6003, 6101, 6103}  # not 6001 and 6002, not 6102 (no date)
 
 
 def test_yes_when_everything_before_it_is_marked_changes_nothing_and_says_nothing(opened):
@@ -617,7 +625,7 @@ def test_with_htmx_a_refusal_answers_with_no_rows(opened):
     assert '<li' not in body and Watch.objects.count() == 0
 
 
-# --- the question after the first episode marked in a series ----------------------------------
+# --- the question when marking an episode skips episodes that are not marked ------------------
 
 
 def test_the_first_episode_marked_in_a_series_asks_about_the_earlier_ones_and_saves_nothing_yet(opened):
@@ -628,7 +636,7 @@ def test_the_first_episode_marked_in_a_series_asks_about_the_earlier_ones_and_sa
     assert response.status_code == 302 and response['Location'] == where
     ask = question(after(opened, response))
     assert '<dialog open' in ask and 'Did you watch the earlier episodes too?' in ask
-    assert 'S1E3 is the first episode you mark in Made-up Series.' in ask
+    assert 'Nothing before S1E3 is marked in Made-up Series.' in ask
     assert 'from the beginning (S1E1)' in ask
     assert 'Yes, mark all 3' in ask and 'No, only S1E3' in ask
     assert '<form method="dialog">' in ask and 'Cancel' in ask  # closes the pop-up and nothing else
@@ -640,7 +648,7 @@ def test_the_question_counts_the_episodes_across_seasons_that_have_aired(opened)
     ask = question(after(opened, press_circle(opened, 6103)))
 
     # Season 1 (3), the first of season 2, and this one. Not the episode without a date.
-    assert 'S2E3 is the first episode you mark' in ask and 'Yes, mark all 5' in ask
+    assert 'Nothing before S2E3 is marked' in ask and 'Yes, mark all 5' in ask
 
 
 def test_the_question_follows_the_accounts_own_day(opened):
@@ -685,12 +693,89 @@ def test_the_very_first_episode_has_nothing_before_it_so_it_is_marked_without_as
     assert question(html) == '' and watched(opened.user) == {6001}
 
 
-def test_once_an_episode_is_marked_the_next_ones_do_not_ask(opened):
+def test_the_episode_right_after_a_marked_one_is_marked_without_asking(opened):
     mark_one(opened, 6001)
 
-    html = after(opened, press_circle(opened, 6003))  # 6002 is skipped, and that is fine
+    html = after(opened, press_circle(opened, 6002))
 
-    assert question(html) == '' and watched(opened.user) == {6001, 6003}
+    assert question(html) == '' and watched(opened.user) == {6001, 6002}
+
+
+def test_the_first_episode_of_the_next_season_after_a_marked_one_is_marked_without_asking(opened):
+    mark_one(opened, 6003)
+
+    html = after(opened, press_circle(opened, 6101))
+
+    assert question(html) == '' and watched(opened.user) == {6003, 6101}
+
+
+def test_an_episode_that_skips_one_asks_about_it_and_saves_nothing_yet(opened):
+    mark_one(opened, 6001)
+
+    ask = question(after(opened, press_circle(opened, 6003)))  # 6002 is skipped
+
+    assert 'S1E3 comes after S1E1, the last episode you marked before it in Made-up Series.' in ask
+    assert 'Did you watch everything from S1E2 up to it?' in ask
+    assert 'Yes, mark all 2' in ask and 'No, only S1E3' in ask and 'Cancel' in ask
+    assert watched(opened.user) == {6001}
+
+
+def test_the_question_looks_across_seasons_and_leaves_out_episodes_that_cannot_be_marked(opened):
+    mark_season(opened, 1)
+
+    ask = question(after(opened, press_circle(opened, 6103)))  # S2E1 skipped; S2E2 has no date
+
+    assert 'S2E3 comes after S1E3' in ask and 'from S2E1' in ask and 'Yes, mark all 2' in ask
+
+
+def test_it_asks_about_the_episodes_before_it_when_only_later_ones_are_marked(opened):
+    mark_one(opened, 6101)
+    mark_one(opened, 6103)  # a series that is well under way, with the first season skipped
+
+    ask = question(after(opened, press_circle(opened, 6003)))
+
+    assert 'Nothing before S1E3 is marked' in ask and 'Yes, mark all 3' in ask
+    up_to_here(opened, 6003)
+    assert watched(opened.user) == {6001, 6002, 6003, 6101, 6103}
+
+
+def test_yes_after_a_skip_marks_the_skipped_ones_and_each_can_be_taken_back_one_by_one(opened):
+    mark_one(opened, 6001)
+    before = snapshot()
+
+    up_to_here(opened, 6003)
+
+    assert watched(opened.user) == {6001, 6002, 6003}
+    unmark_one(opened, 6003)
+    unmark_one(opened, 6002)
+    assert snapshot() == before
+
+
+def test_no_after_a_skip_marks_only_that_episode_and_it_is_not_asked_about_again(opened):
+    mark_one(opened, 6001)
+
+    opened.post('/watched/episode/add/', {'episode_id': eid(6003), 'only_this': 1, 'next': SERIES_PAGE})
+    html = after(opened, press_circle(opened, 6101))  # 6002 was skipped on purpose, and is before the last marked one
+
+    assert watched(opened.user) == {6001, 6003, 6101} and question(html) == ''
+
+
+def test_a_missing_episode_between_two_marked_ones_is_marked_without_asking(opened):
+    mark_one(opened, 6001)
+    mark_one(opened, 6003)
+
+    html = after(opened, press_circle(opened, 6002))
+
+    assert question(html) == '' and watched(opened.user) == {6001, 6002, 6003}
+
+
+def test_cancel_after_a_skip_changes_nothing(opened):
+    mark_one(opened, 6001)
+    before = snapshot()
+
+    press_circle(opened, 6003)  # the pop-up's Cancel is a plain close: nothing is sent to the server
+
+    assert snapshot() == before
 
 
 def test_a_special_is_marked_without_asking(opened):
@@ -739,7 +824,8 @@ def test_another_accounts_marks_do_not_count(opened):
 
 def test_a_page_that_is_out_of_date_does_not_show_the_question(opened):
     press_circle(opened, 6003)
-    mark_one(opened, 6001)  # in another tab, say: the series has been started since
+    mark_one(opened, 6001)
+    mark_one(opened, 6002)  # in another tab, say: the episodes it asks about have been marked since
 
     assert question(page(opened)) == ''
 
@@ -753,6 +839,15 @@ def test_with_htmx_the_question_is_the_whole_answer_and_goes_into_the_page(opene
     assert '<dialog open' in body and 'Yes, mark all 3' in body
     assert 'hx-post="/watched/up-to/add/" hx-swap="none"' in body
     assert '<li' not in body and Watch.objects.count() == 0
+
+
+def test_with_htmx_a_skip_answers_with_the_question_and_saves_nothing_yet(opened):
+    mark_one(opened, 6001)
+
+    body = press_circle(opened, 6003, **HTMX).content.decode()
+
+    assert '<dialog open' in body and 'S1E3 comes after S1E1' in body and 'Yes, mark all 2' in body
+    assert '<li' not in body and watched(opened.user) == {6001}
 
 
 def test_with_htmx_no_answers_with_the_row_the_seasons_button_and_takes_the_question_off(opened):

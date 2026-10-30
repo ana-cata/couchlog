@@ -1,4 +1,4 @@
-{# The question after the first episode marked in a series: did you watch everything before it too? #}
+{# The question when marking an episode skips unmarked ones before it: did you watch them too? #}
 {# Pico shows a <dialog open> as a pop-up over the page, so it needs no JavaScript. Nothing is saved until one of the two #}
 {# buttons is pressed. "Cancel" just closes it (a form with method="dialog"). #}
 {# With htmx both answers use hx-swap="none": their answer is only the changed rows and season buttons, and an empty #ask that takes this question off the page. #}
@@ -6,8 +6,13 @@
   <article>
     <h3 id="ask-title">Did you watch the earlier episodes too?</h3>
     <p>
-      {{ ask.name }} is the first episode you mark in {{ ask.item.title }}.
-      Did you watch everything from the beginning ({{ ask.first }}) up to it?
+      {% if ask.after %}
+        {{ ask.name }} comes after {{ ask.after }}, the last episode you marked before it in {{ ask.item.title }}.
+        Did you watch everything from {{ ask.first }} up to it?
+      {% else %}
+        Nothing before {{ ask.name }} is marked in {{ ask.item.title }}.
+        Did you watch everything from the beginning ({{ ask.first }}) up to it?
+      {% endif %}
     </p>
     <footer>
       <form method="dialog">

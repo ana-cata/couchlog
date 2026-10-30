@@ -35,7 +35,7 @@
 - It is the same view as the series page's circle, so the same rules apply: an episode must have aired, and one already marked is not marked twice.
 - With htmx the answer is that series' card again (`_up_next_card`): the next episode, or nothing at all when the series has no episode left (htmx then removes the card). Without JavaScript the form is a normal form: the server saves and goes back to Home with the message "Marked “Series” S2E4 as watched.".
 - A card on a page that is out of date shows how things really are now: pressing a card whose episode was already marked (in another tab) saves nothing and shows the card as it is.
-- The "did you watch the earlier episodes too?" question is never asked from Home: a series in Watching already has a watched episode, and its next episode is the first one you have not watched. If a stale page would trigger it (the series was started again from nothing in another tab), nothing is marked and the series just is not on Home.
+- The "did you watch the earlier episodes too?" question is never asked from Home: the next episode is the first one you have not watched, so it skips nothing. If a stale page would trigger it (your marks changed in another tab), nothing is marked and the card comes back as it is now.
 
 **Known limits**
 - No Undo on Home (a decision on the card). Undo from the series page.

@@ -47,24 +47,38 @@ def episodes_up_to(episode):
     return up_to
 
 
-def earlier_to_ask_about(user, episode, today):
-    """The episodes to ask about when `episode` is the first one this account marks in its series.
+def skipped_episodes(user, episode, today):
+    """What marking `episode` skips over, which is what the page asks about: (last_marked, skipped).
 
-    Marking a regular episode that has aired, with nothing marked in the series yet, is a sign the earlier
-    episodes were watched too, so the page asks. These are the episodes before it that have aired, in page
-    order. It is empty (nothing to ask) for a special, for an episode that is not aired, when the series
-    already has a marked episode, or when nothing aired before it.
+    Marking a regular episode that has aired when episodes before it are not marked is a sign they were watched
+    too. `skipped` are the episodes that have aired and are not marked between the nearest episode this account
+    has marked before it (in the order the series page lists them) and `episode`, or all the episodes before it
+    that have aired when none before it is marked. They are in page order. `last_marked` is that nearest marked
+    episode, or None when there is none. Episodes marked after `episode`, and holes before `last_marked`, do not
+    matter: the account has already moved past those.
+
+    `skipped` is empty (nothing to ask) for a special, for an episode that has not aired, or when nothing is skipped.
     """
     if episode.season_number == 0 or episode.air_date is None or episode.air_date > today:
-        return []
-    if Watch.objects.filter(user=user, title_id=episode.title_id, episode__season_number__gt=0).exists():
-        return []
-    before = episodes_up_to(episode)[:-1]
-    return [earlier for earlier in before if earlier.air_date is not None and earlier.air_date <= today]
+        return None, []
+    marked = set(
+        Watch.objects.filter(user=user, title_id=episode.title_id, episode__season_number__gt=0).values_list(
+            'episode', flat=True
+        )
+    )
+    last_marked, skipped = None, []
+    for earlier in reversed(episodes_up_to(episode)[:-1]):
+        if earlier.id in marked:
+            last_marked = earlier
+            break
+        if earlier.air_date is not None and earlier.air_date <= today:
+            skipped.append(earlier)
+    skipped.reverse()
+    return last_marked, skipped
 
 
 def mark_episodes(user, episodes, today):
-    """Mark many episodes as watched at once, for "mark a season" and the question's "Yes" (everything up to here).
+    """Mark many episodes as watched at once, for "mark a season" and the question's "Yes" (the skipped ones and this one).
 
     Only an episode that has aired (on or before `today`, the account's own day) and that the account
     has not marked yet gets a watch, dated `today` like a single mark. The rest are left alone, so an
