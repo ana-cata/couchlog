@@ -1,11 +1,18 @@
-"""The calendar, apart from the screen: collecting a movie's streaming date, and what is coming up for an account.
+"""The calendar, apart from the screen: collecting a movie's dates and a series' extra upcoming episodes, and what
+is coming up for an account.
 
-Series need nothing of their own here: their episodes and air dates are saved by `refresh_episodes` (core/episodes.py).
+A series' own episodes and air dates are saved by `refresh_episodes` (core/episodes.py). TVmaze is the second
+source, for the upcoming episodes TMDB does not list yet (`refresh_upcoming` below).
 """
 
-from . import tmdb
+import datetime
+
+from django.db import transaction
+from django.utils import timezone
+
+from . import tmdb, tvmaze
 from .episodes import series_tabs
-from .models import Episode, Title, ToWatchItem
+from .models import Episode, Title, ToWatchItem, UpcomingEpisode
 
 
 def refresh_movie(movie):
@@ -16,6 +23,32 @@ def refresh_movie(movie):
     releases = tmdb.get_movie_releases(movie.tmdb_id)
     movie.cinema_at, movie.streaming_at = releases['cinema'], releases['streaming']
     movie.save(update_fields=['cinema_at', 'streaming_at'])
+
+
+def refresh_upcoming(series):
+    """Ask TVmaze for the series' upcoming episodes and save them, replacing the ones saved before.
+
+    The series is found on TVmaze by the IMDb id `refresh_episodes` saved (so that has to have run), and TVmaze's
+    id for it is remembered. A series with no IMDb id, or that TVmaze does not know, ends up with no rows. TVmaze
+    is asked first, so when it fails (it raises `tvmaze.TvmazeError`) nothing is changed.
+
+    Only episodes from yesterday on (UTC) are kept: the day of margin covers every time zone, and the Calendar
+    leaves out what has passed in the account's own day anyway.
+    """
+    show_id = series.tvmaze_id
+    if show_id is None and series.imdb_id:
+        show_id = tvmaze.find_show_id(series.imdb_id)
+    since = timezone.now().date() - datetime.timedelta(days=1)
+    try:
+        episodes = tvmaze.get_upcoming_episodes(show_id, since) if show_id else []
+    except tvmaze.TvmazeNotFound:
+        show_id, episodes = None, []  # the id remembered earlier is gone
+
+    with transaction.atomic():
+        series.upcoming_episodes.all().delete()
+        UpcomingEpisode.objects.bulk_create([UpcomingEpisode(title=series, **episode) for episode in episodes])
+        series.tvmaze_id = show_id
+        series.save(update_fields=['tvmaze_id'])
 
 
 def _episodes_text(episodes):
@@ -37,6 +70,9 @@ def upcoming(user, today, zone):
     the titles on the To Watch list. Each item is a dict: `title` and `text` (what is coming).
     - A series' episodes are on the air date TMDB gives, one item for each series and day (several episodes of
       the same day share it). Specials (season 0) and episodes with no air date are left out.
+    - The upcoming episodes TVmaze lists are added on TVmaze's date, unless TMDB already has the episode: TMDB wins
+      when it has an episode of the same season and number with a date (whichever date), or any episode of that
+      series on the same day (which also covers an episode TMDB numbers differently). So each shows once.
     - A movie is on its cinema date ("In cinemas") and on its streaming date ("Streaming release"), each turned
       into a day in `zone` (the account's own time zone) like "today" is. A date TMDB does not have yet is not
       there, so a movie with neither is left out.
@@ -54,6 +90,26 @@ def upcoming(user, today, zone):
     )
     for episode in coming:
         episodes_of_day.setdefault((episode.air_date, episode.title), []).append(episode)
+
+    # What TVmaze adds. Days TMDB has are worked out first, so two TVmaze episodes of one day do not hide each other.
+    tmdb_days = set(episodes_of_day)
+    from_tvmaze = list(
+        UpcomingEpisode.objects.filter(title__in=series_ids, air_date__gte=today)
+        .select_related('title')
+        .order_by('air_date', 'title_id', 'season_number', 'episode_number', 'id')
+    )
+    tmdb_numbers = set(
+        Episode.objects.filter(
+            title__in={episode.title_id for episode in from_tvmaze}, season_number__gt=0, air_date__isnull=False
+        ).values_list('title', 'season_number', 'episode_number')
+    )
+    for episode in from_tvmaze:
+        if (episode.title_id, episode.season_number, episode.episode_number) in tmdb_numbers:
+            continue
+        if (episode.air_date, episode.title) in tmdb_days:
+            continue
+        episodes_of_day.setdefault((episode.air_date, episode.title), []).append(episode)
+
     for (day, series), episodes in episodes_of_day.items():
         days.setdefault(day, []).append({'title': series, 'text': _episodes_text(episodes)})
 

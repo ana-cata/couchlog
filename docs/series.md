@@ -70,7 +70,7 @@ Series has three tabs. Nothing is stored for them: each is worked out every time
 
 ## Keeping series up to date: `refresh_calendar`
 
-`uv run python manage.py refresh_calendar` asks TMDB again for every series that is on someone's To Watch list or has a watched episode, and saves its **new episodes, new air dates and status** (ended or still running). It also collects the streaming dates of the films on a To Watch list; that part is described on the [Calendar](calendar.md) page. (It was called `refresh_series` before the calendar card.)
+`uv run python manage.py refresh_calendar` asks TMDB again for every series that is on someone's To Watch list or has a watched episode, and saves its **new episodes, new air dates and status** (ended or still running). It also asks TVmaze for each series' upcoming episodes, and collects the cinema and streaming dates of the films on a To Watch list; both are described on the [Calendar](calendar.md) page. (It was called `refresh_series` before the calendar card.)
 - It prints one line per series ("“Made-up Series”: Ended, 2 new episodes") and "Refreshed N series.", then the same for films. One title failing (TMDB not answering) does not stop the others: it is reported on the error output, and the command ends with an error so a scheduler can tell. Run it again later.
 - Series nobody follows are left alone.
 - Running it twice changes nothing the second time.

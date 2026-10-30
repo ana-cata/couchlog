@@ -39,6 +39,12 @@ class Title(models.Model):
     # "Canceled"...), as of the last refresh. Empty until the first time. A series only counts
     # as finished once this says it ended (see core/episodes.py).
     status = models.CharField(max_length=40, blank=True)
+    # Series only: its IMDb id as TMDB gives it (like "tt11691774"), empty when TMDB has none. It is how the series
+    # is found on TVmaze, the second source for upcoming episode dates.
+    imdb_id = models.CharField(max_length=20, blank=True)
+    # Series only: the series' own id on TVmaze, remembered so TVmaze is asked one question and not two. Empty until
+    # it was found, and when TVmaze does not know the series.
+    tvmaze_id = models.PositiveIntegerField(null=True, blank=True)
     # Movie only: the earliest cinema release and the earliest streaming (digital) release TMDB lists in any
     # country, as the moments TMDB gives them (always midnight UTC). Empty when TMDB has none yet. The calendar
     # turns each into a day in the account's own time zone when it is shown.
@@ -80,6 +86,26 @@ class Episode(models.Model):
 
     def __str__(self):
         return f'{self.title.title} S{self.season_number}E{self.episode_number}'
+
+
+class UpcomingEpisode(models.Model):
+    """An episode that TVmaze says is coming and that is not (yet) known by TMDB, kept for the Calendar only.
+
+    TVmaze often lists a whole season's weekly dates when TMDB lists only the first episode. These rows
+    are not `Episode`s: nothing can be watched, counted or marked through them, so no watch can ever point
+    at one. Each refresh replaces all of a series' rows, so rows come and go freely.
+    """
+
+    title = models.ForeignKey(Title, on_delete=models.CASCADE, related_name='upcoming_episodes')
+    season_number = models.PositiveIntegerField()
+    episode_number = models.PositiveIntegerField()
+    # As TVmaze gives it, which can be a placeholder such as "TBA".
+    name = models.CharField(max_length=300, blank=True)
+    # Only the day matters, as TVmaze gives it.
+    air_date = models.DateField()
+
+    def __str__(self):
+        return f'{self.title.title} S{self.season_number}E{self.episode_number} (TVmaze)'
 
 
 class Watch(models.Model):
