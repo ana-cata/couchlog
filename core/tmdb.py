@@ -114,27 +114,39 @@ def get_series_episodes(tmdb_id):
     return {'status': series.get('status') or '', 'episodes': episodes}
 
 
-# TMDB's number for a streaming (digital) release in a movie's list of release dates.
+# TMDB's numbers for the kinds of release in a movie's list of release dates: 1 is a premiere (an event, not
+# counted), 2 and 3 are in cinemas (limited and wide), 4 is streaming (digital), 5 is a disc, 6 is TV.
+CINEMA_RELEASES = (2, 3)
 DIGITAL_RELEASE = 4
 
 
-def get_movie_streaming_date(tmdb_id):
-    """The earliest streaming (digital) release of a movie in any country, or None when TMDB lists none.
+def get_movie_releases(tmdb_id):
+    """The earliest cinema release and the earliest streaming (digital) release of a movie in any country.
 
-    TMDB gives it as a moment such as 2024-04-15T00:00:00.000Z (midnight UTC), and so does this. Nothing is saved.
+    Returns {'cinema': moment or None, 'streaming': moment or None}, None when TMDB lists no such release.
+    A moment looks like 2024-04-15T00:00:00.000Z in TMDB's answer (midnight UTC), and so it is here.
+    Nothing is saved.
     """
     data = _get(f'/movie/{tmdb_id}/release_dates')
-    moments = []
+    earliest = {'cinema': None, 'streaming': None}
     for country in data.get('results', []):
         for release in country.get('release_dates', []):
-            if release.get('type') != DIGITAL_RELEASE:
+            kind = release.get('type')
+            if kind in CINEMA_RELEASES:
+                name = 'cinema'
+            elif kind == DIGITAL_RELEASE:
+                name = 'streaming'
+            else:
                 continue
             try:
                 moment = datetime.datetime.fromisoformat(release.get('release_date') or '')
             except ValueError:
                 continue  # an entry with no date, or one that makes no sense: skip it, keep the others
-            moments.append(moment if moment.tzinfo else moment.replace(tzinfo=datetime.UTC))
-    return min(moments) if moments else None
+            if moment.tzinfo is None:
+                moment = moment.replace(tzinfo=datetime.UTC)
+            if earliest[name] is None or moment < earliest[name]:
+                earliest[name] = moment
+    return earliest
 
 
 def get_title(kind, tmdb_id):

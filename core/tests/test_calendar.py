@@ -52,9 +52,13 @@ def make_series(tmdb_id=1, name=None):
     return Title.objects.create(kind='series', tmdb_id=tmdb_id, title=name or f'Made-up Series {tmdb_id}')
 
 
-def make_movie(tmdb_id=500, streaming_at=None, name=None):
+def make_movie(tmdb_id=500, streaming_at=None, name=None, cinema_at=None):
     return Title.objects.create(
-        kind='movie', tmdb_id=tmdb_id, title=name or f'Made-up Movie {tmdb_id}', streaming_at=streaming_at
+        kind='movie',
+        tmdb_id=tmdb_id,
+        title=name or f'Made-up Movie {tmdb_id}',
+        streaming_at=streaming_at,
+        cinema_at=cinema_at,
     )
 
 
@@ -282,8 +286,70 @@ def test_a_movie_that_already_streams_is_left_out(client):
     assert coming(client.user) == []
 
 
-def test_a_movie_with_no_streaming_date_is_left_out(client):
+def test_a_movie_with_no_dates_at_all_is_left_out(client):
     put_on_list(client.user, make_movie(500, None))
+
+    assert coming(client.user) == []
+
+
+# A film that is not out yet usually has a cinema date long before TMDB knows when it will stream.
+
+
+def test_a_movie_not_out_yet_with_only_a_cinema_date_is_on_that_date(client):
+    put_on_list(client.user, make_movie(500, cinema_at=midnight_utc(2026, 12, 16), name='Not Out Yet'))
+
+    assert coming(client.user) == [(datetime.date(2026, 12, 16), [('Not Out Yet', 'In cinemas')])]
+
+
+def test_a_movie_with_both_dates_is_on_both_days(client):
+    put_on_list(
+        client.user,
+        make_movie(500, cinema_at=midnight_utc(2026, 12, 16), streaming_at=midnight_utc(2027, 3, 5), name='Both'),
+    )
+
+    assert coming(client.user) == [
+        (datetime.date(2026, 12, 16), [('Both', 'In cinemas')]),
+        (datetime.date(2027, 3, 5), [('Both', 'Streaming release')]),
+    ]
+
+
+def test_a_movie_already_in_cinemas_is_only_on_its_streaming_date(client):
+    put_on_list(
+        client.user,
+        make_movie(500, cinema_at=midnight_utc(2026, 9, 1), streaming_at=midnight_utc(2026, 11, 20), name='Out'),
+    )
+
+    assert coming(client.user) == [(datetime.date(2026, 11, 20), [('Out', 'Streaming release')])]
+
+
+def test_a_movie_in_cinemas_and_streaming_on_the_same_day_has_two_lines(client):
+    put_on_list(
+        client.user,
+        make_movie(500, cinema_at=midnight_utc(2026, 11, 20), streaming_at=midnight_utc(2026, 11, 20), name='Same'),
+    )
+
+    assert coming(client.user) == [
+        (datetime.date(2026, 11, 20), [('Same', 'In cinemas'), ('Same', 'Streaming release')])
+    ]
+
+
+def test_a_cinema_date_is_turned_into_a_day_in_the_account_time_zone_too(db):
+    film = make_movie(500, cinema_at=midnight_utc(2026, 12, 16), name='Film')
+    lisbon, new_york = make_client('lisbon', 'Europe/Lisbon').user, make_client('new-york', 'America/New_York').user
+    put_on_list(lisbon, film)
+    put_on_list(new_york, film)
+
+    assert coming(lisbon, LISBON) == [(datetime.date(2026, 12, 16), [('Film', 'In cinemas')])]
+    assert coming(new_york, ZoneInfo('America/New_York')) == [(datetime.date(2026, 12, 15), [('Film', 'In cinemas')])]
+
+
+def test_a_movie_not_out_yet_that_is_not_on_the_list_or_was_watched_is_left_out(client):
+    make_movie(500, cinema_at=midnight_utc(2026, 12, 16))
+    watched = make_movie(501, cinema_at=midnight_utc(2026, 12, 16))
+    watch_of_it = Watch.objects.create(user=client.user, title=watched)
+    ToWatchItem.objects.create(
+        user=client.user, title=watched, removed_at=NOW, removed_by_watch=watch_of_it
+    )
 
     assert coming(client.user) == []
 
@@ -336,6 +402,7 @@ def test_the_page_shows_months_days_and_titles_with_links(client):
     make_episode(series, 2, 4, FRIDAY, name='The Return')
     put_on_list(client.user, series)
     put_on_list(client.user, make_movie(500, midnight_utc(2026, 12, 1), name='Made-up Film'))
+    put_on_list(client.user, make_movie(501, cinema_at=midnight_utc(2026, 12, 16), name='Made-up Blockbuster'))
 
     response = client.get('/calendar/')
 
@@ -343,8 +410,10 @@ def test_the_page_shows_months_days_and_titles_with_links(client):
     page = response.content.decode()
     # Months and days in order, each month named once.
     assert page.index('November 2026') < page.index('Friday 6') < page.index('December 2026') < page.index('Tuesday 1')
-    assert page.count('November 2026') == 1
+    assert page.index('Tuesday 1') < page.index('Wednesday 16')
+    assert page.count('November 2026') == 1 and page.count('December 2026') == 1
     assert 'S2E4 · The Return' in page and 'Streaming release' in page
+    assert 'Made-up Blockbuster' in page and 'In cinemas' in page
     assert 'href="/series/1/"' in page and 'href="/movie/500/"' in page
     assert '00:00' not in page and 'midnight' not in page  # only the day, never an hour
 

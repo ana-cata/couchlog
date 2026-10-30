@@ -54,7 +54,8 @@ def make_movie(tmdb_id, **fields):
 
 
 def release(kind, moment):
-    """One entry of a country's release dates. TMDB's kinds: 3 is cinema, 4 is streaming (digital), 5 is physical."""
+    """One entry of a country's release dates. TMDB's kinds: 1 premiere, 2 cinema (limited), 3 cinema, 4 streaming
+    (digital), 5 disc, 6 TV."""
     return {'type': kind, 'release_date': moment, 'certification': '', 'note': ''}
 
 
@@ -120,7 +121,7 @@ def test_it_leaves_alone_titles_nobody_follows(user, respx_mock):
         assert title.episodes_refreshed_at is None
     for film in (film_nobody_follows, film_removed):
         film.refresh_from_db()
-        assert film.streaming_at is None
+        assert film.cinema_at is None and film.streaming_at is None
 
 
 def test_a_series_followed_by_two_accounts_is_refreshed_once(user, respx_mock):
@@ -202,37 +203,52 @@ def test_without_a_tmdb_key_every_series_is_reported_and_nothing_crashes(user, r
     assert respx_mock.calls.call_count == 0
 
 
-# --- movies: the streaming date -----------------------------------------------------------------
+# --- movies: the cinema and streaming dates -------------------------------------------------------
 
 
-def test_a_movie_on_a_to_watch_list_gets_its_earliest_streaming_date_from_any_country(user, respx_mock):
+def test_a_movie_on_a_to_watch_list_gets_its_earliest_cinema_and_streaming_dates_from_any_country(user, respx_mock):
     film = make_movie(21)
     ToWatchItem.objects.create(user=user, title=film)
     mock_movie(
         respx_mock, 21,
         US=[release(3, '2026-10-01T00:00:00.000Z'), release(4, '2026-12-05T00:00:00.000Z')],
-        GB=[release(4, '2026-11-20T00:00:00.000Z')],
-        PT=[release(5, '2026-10-15T00:00:00.000Z')],  # a disc release is not streaming
+        GB=[release(4, '2026-11-20T00:00:00.000Z'), release(2, '2026-09-20T00:00:00.000Z')],
+        # A premiere, a disc and a TV release are neither cinema nor streaming, however early they are.
+        PT=[release(1, '2026-08-01T00:00:00.000Z'), release(5, '2026-08-15T00:00:00.000Z'), release(6, '2026-07-01T00:00:00.000Z')],
     )
 
     out, err, problem = run()
 
     film.refresh_from_db()
+    assert film.cinema_at == datetime.datetime(2026, 9, 20, tzinfo=datetime.UTC)
     assert film.streaming_at == datetime.datetime(2026, 11, 20, tzinfo=datetime.UTC)
-    assert '“Made-up Movie 21”: 2026-11-20' in out and 'Refreshed 1 movie.' in out
+    assert '“Made-up Movie 21”: in cinemas 2026-09-20, streaming 2026-11-20' in out and 'Refreshed 1 movie.' in out
     assert (err, problem) == ('', None)
 
 
-def test_a_movie_with_no_streaming_release_has_no_date_and_the_job_says_so(user, respx_mock):
+def test_a_movie_only_in_cinemas_so_far_has_a_cinema_date_and_no_streaming_date(user, respx_mock):
+    # The case of a film that is not out yet: TMDB knows when it reaches cinemas, but not yet when it streams.
     film = make_movie(22)
     ToWatchItem.objects.create(user=user, title=film)
-    mock_movie(respx_mock, 22, US=[release(3, '2026-10-01T00:00:00.000Z')])
+    mock_movie(respx_mock, 22, US=[release(3, '2026-12-16T00:00:00.000Z')])
 
     out, _err, problem = run()
 
     film.refresh_from_db()
-    assert film.streaming_at is None
-    assert 'no streaming date yet' in out and problem is None
+    assert film.cinema_at == datetime.datetime(2026, 12, 16, tzinfo=datetime.UTC) and film.streaming_at is None
+    assert 'in cinemas 2026-12-16, streaming no date yet' in out and problem is None
+
+
+def test_a_movie_with_no_dates_at_all_has_none_and_the_job_says_so(user, respx_mock):
+    film = make_movie(28)
+    ToWatchItem.objects.create(user=user, title=film)
+    mock_movie(respx_mock, 28)
+
+    out, _err, problem = run()
+
+    film.refresh_from_db()
+    assert film.cinema_at is None and film.streaming_at is None
+    assert 'in cinemas no date yet, streaming no date yet' in out and problem is None
 
 
 def test_an_entry_with_a_date_that_makes_no_sense_is_skipped_and_the_others_still_count(user, respx_mock):
@@ -246,20 +262,29 @@ def test_an_entry_with_a_date_that_makes_no_sense_is_skipped_and_the_others_stil
     assert film.streaming_at == datetime.datetime(2026, 11, 20, tzinfo=datetime.UTC)
 
 
-def test_a_new_streaming_date_replaces_the_old_one_and_running_twice_changes_nothing_more(user, respx_mock):
-    film = make_movie(24, streaming_at=datetime.datetime(2026, 11, 20, tzinfo=datetime.UTC))
+def test_new_dates_replace_the_old_ones_and_running_twice_changes_nothing_more(user, respx_mock):
+    film = make_movie(
+        24,
+        cinema_at=datetime.datetime(2026, 10, 1, tzinfo=datetime.UTC),
+        streaming_at=datetime.datetime(2026, 11, 20, tzinfo=datetime.UTC),
+    )
     ToWatchItem.objects.create(user=user, title=film)
-    mock_movie(respx_mock, 24, US=[release(4, '2026-12-01T00:00:00.000Z')])
+    mock_movie(respx_mock, 24, US=[release(3, '2026-10-15T00:00:00.000Z'), release(4, '2026-12-01T00:00:00.000Z')])
 
     run()
     run()
 
     film.refresh_from_db()
+    assert film.cinema_at == datetime.datetime(2026, 10, 15, tzinfo=datetime.UTC)
     assert film.streaming_at == datetime.datetime(2026, 12, 1, tzinfo=datetime.UTC)
 
 
 def test_a_movie_failing_keeps_what_was_saved_and_does_not_stop_the_rest(user, respx_mock):
-    broken = make_movie(25, streaming_at=datetime.datetime(2026, 11, 20, tzinfo=datetime.UTC))
+    broken = make_movie(
+        25,
+        cinema_at=datetime.datetime(2026, 10, 1, tzinfo=datetime.UTC),
+        streaming_at=datetime.datetime(2026, 11, 20, tzinfo=datetime.UTC),
+    )
     fine = make_movie(26)
     series = make_series(11)
     for title in (broken, fine, series):
@@ -273,7 +298,8 @@ def test_a_movie_failing_keeps_what_was_saved_and_does_not_stop_the_rest(user, r
     assert 'Could not refresh “Made-up Movie 25”' in err and 'Could not reach TMDB' in err
     assert 'Refreshed 1 series.' in out and 'Refreshed 1 movie.' in out
     broken.refresh_from_db(), fine.refresh_from_db()
-    assert broken.streaming_at == datetime.datetime(2026, 11, 20, tzinfo=datetime.UTC)  # nothing half saved
+    assert broken.cinema_at == datetime.datetime(2026, 10, 1, tzinfo=datetime.UTC)  # nothing half saved
+    assert broken.streaming_at == datetime.datetime(2026, 11, 20, tzinfo=datetime.UTC)
     assert fine.streaming_at == datetime.datetime(2026, 12, 1, tzinfo=datetime.UTC)
     assert problem == '1 title could not be refreshed. Run the command again later.'
 

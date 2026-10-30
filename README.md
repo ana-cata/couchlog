@@ -18,7 +18,7 @@ You need [uv](https://docs.astral.sh/uv/) (it installs Python and the packages).
 ## Useful commands
 
 - `uv run python manage.py tmdb_check` makes one request to TMDB and says whether your key works.
-- `uv run python manage.py refresh_calendar` asks TMDB again about every series on a To Watch list or with a watched episode (new episodes, air dates, whether it has ended) and about the films on a To Watch list (their streaming date). The Calendar page shows what it saved, so run it by hand now and then, and after adding something to To Watch. See [docs/calendar.md](docs/calendar.md) and [docs/series.md](docs/series.md).
+- `uv run python manage.py refresh_calendar` asks TMDB again about every series on a To Watch list or with a watched episode (new episodes, air dates, whether it has ended) and about the films on a To Watch list (their cinema and streaming dates). The Calendar page shows what it saved, so run it by hand now and then, and after adding something to To Watch. See [docs/calendar.md](docs/calendar.md) and [docs/series.md](docs/series.md).
 - `uv run playwright install chromium` downloads the browser that the end-to-end test drives (about 150 MB). Do this once on each machine before the first `uv run pytest`.
 - `uv run pytest` runs the tests. They use made-up TMDB answers and a temporary database, never the real TMDB. One test opens a real (invisible) browser and walks through the app.
 - `uv run ruff check .` runs the lint (it looks for mistakes and untidy code).

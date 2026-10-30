@@ -11,7 +11,7 @@ class Command(BaseCommand):
     help = (
         'Ask TMDB again for what the calendar shows: every series that is on someone\'s To Watch list or has a '
         'watched episode (new episodes, air dates, status), and every movie on someone\'s To Watch list '
-        '(its streaming date).'
+        '(their cinema and streaming dates).'
     )
 
     def handle(self, *args, **options):
@@ -49,8 +49,9 @@ class Command(BaseCommand):
                 self.stderr.write(f'Could not refresh “{movie.title}”: {problem}')
                 continue
             done += 1
-            streaming = movie.streaming_at.date().isoformat() if movie.streaming_at else 'no streaming date yet'
-            self.stdout.write(f'“{movie.title}”: {streaming}')
+            cinema = movie.cinema_at.date().isoformat() if movie.cinema_at else 'no date yet'
+            streaming = movie.streaming_at.date().isoformat() if movie.streaming_at else 'no date yet'
+            self.stdout.write(f'“{movie.title}”: in cinemas {cinema}, streaming {streaming}')
         self.stdout.write(self.style.SUCCESS(f'Refreshed {done} movie{"" if done == 1 else "s"}.'))
 
         if failed:

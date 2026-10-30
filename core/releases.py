@@ -9,12 +9,13 @@ from .models import Episode, Title, ToWatchItem
 
 
 def refresh_movie(movie):
-    """Ask TMDB for the movie's streaming date and save it (or save that there is none).
+    """Ask TMDB for the movie's cinema and streaming dates and save them (an empty one when TMDB has none).
 
     TMDB is asked first, so when it fails (it raises `tmdb.TmdbError`) nothing is saved.
     """
-    movie.streaming_at = tmdb.get_movie_streaming_date(movie.tmdb_id)
-    movie.save(update_fields=['streaming_at'])
+    releases = tmdb.get_movie_releases(movie.tmdb_id)
+    movie.cinema_at, movie.streaming_at = releases['cinema'], releases['streaming']
+    movie.save(update_fields=['cinema_at', 'streaming_at'])
 
 
 def _episodes_text(episodes):
@@ -36,8 +37,9 @@ def upcoming(user, today, zone):
     the titles on the To Watch list. Each item is a dict: `title` and `text` (what is coming).
     - A series' episodes are on the air date TMDB gives, one item for each series and day (several episodes of
       the same day share it). Specials (season 0) and episodes with no air date are left out.
-    - A movie is on its streaming date, turned into a day in `zone` (the account's own time zone) like
-      "today" is. A movie with no streaming date is left out.
+    - A movie is on its cinema date ("In cinemas") and on its streaming date ("Streaming release"), each turned
+      into a day in `zone` (the account's own time zone) like "today" is. A date TMDB does not have yet is not
+      there, so a movie with neither is left out.
     """
     watching, _ = series_tabs(user, today)
     listed = Title.objects.filter(id__in=ToWatchItem.objects.filter(user=user, removed_at=None).values('title'))
@@ -55,12 +57,15 @@ def upcoming(user, today, zone):
     for (day, series), episodes in episodes_of_day.items():
         days.setdefault(day, []).append({'title': series, 'text': _episodes_text(episodes)})
 
-    for movie in listed.filter(kind='movie', streaming_at__isnull=False):
-        day = movie.streaming_at.astimezone(zone).date()
-        if day >= today:
-            days.setdefault(day, []).append({'title': movie, 'text': 'Streaming release'})
+    for movie in listed.filter(kind='movie'):
+        for moment, text in ((movie.cinema_at, 'In cinemas'), (movie.streaming_at, 'Streaming release')):
+            if moment is None:
+                continue
+            day = moment.astimezone(zone).date()
+            if day >= today:
+                days.setdefault(day, []).append({'title': movie, 'text': text})
 
     return [
-        {'day': day, 'items': sorted(days[day], key=lambda item: item['title'].title.lower())}
+        {'day': day, 'items': sorted(days[day], key=lambda item: (item['title'].title.lower(), item['text']))}
         for day in sorted(days)
     ]

@@ -39,9 +39,10 @@ class Title(models.Model):
     # "Canceled"...), as of the last refresh. Empty until the first time. A series only counts
     # as finished once this says it ended (see core/episodes.py).
     status = models.CharField(max_length=40, blank=True)
-    # Movie only: the earliest streaming (digital) release TMDB lists in any country, as the moment TMDB
-    # gives it (always midnight UTC). Empty when TMDB has none yet. The calendar turns it into a day in
-    # the account's own time zone when it is shown.
+    # Movie only: the earliest cinema release and the earliest streaming (digital) release TMDB lists in any
+    # country, as the moments TMDB gives them (always midnight UTC). Empty when TMDB has none yet. The calendar
+    # turns each into a day in the account's own time zone when it is shown.
+    cinema_at = models.DateTimeField(null=True, blank=True)
     streaming_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
