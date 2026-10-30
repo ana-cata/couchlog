@@ -16,7 +16,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 from django.views.decorators.vary import vary_on_headers
 
-from . import tmdb
+from . import tmdb, tvmaze
 from .episodes import (
     earlier_to_ask_about,
     episodes_up_to,
@@ -30,7 +30,7 @@ from .episodes import (
 )
 from .forms import TimeZoneForm, WatchedForm
 from .models import Episode, Profile, Title, ToWatchItem, Watch
-from .releases import refresh_movie, upcoming
+from .releases import refresh_movie, refresh_upcoming, upcoming
 
 # How old our saved episodes may get before opening a series page asks TMDB again.
 EPISODES_REFRESH_AFTER = timedelta(days=1)
@@ -311,14 +311,17 @@ def _collect_dates(title):
     """Collect the dates the Calendar shows for a title that was just put on a To Watch list.
 
     A movie's cinema and streaming dates, or a series' episodes (when they were never saved, or are over a day
-    old). If TMDB does not answer, the title is still on the list and the next `refresh_calendar` run collects them.
+    old) and then its upcoming episodes from TVmaze. If TMDB or TVmaze does not answer, the title is still on the
+    list and the next `refresh_calendar` run collects them.
     """
     try:
         if title.kind == 'movie':
             refresh_movie(title)
-        elif title.episodes_refreshed_at is None or title.episodes_refreshed_at < timezone.now() - EPISODES_REFRESH_AFTER:
-            refresh_episodes(title)
-    except tmdb.TmdbError:
+        else:
+            if title.episodes_refreshed_at is None or title.episodes_refreshed_at < timezone.now() - EPISODES_REFRESH_AFTER:
+                refresh_episodes(title)
+            refresh_upcoming(title)
+    except (tmdb.TmdbError, tvmaze.TvmazeError):
         pass
 
 

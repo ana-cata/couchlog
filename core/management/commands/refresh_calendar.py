@@ -1,17 +1,18 @@
 from django.core.management.base import BaseCommand, CommandError
 from django.db.models import Q
 
-from core import tmdb
+from core import tmdb, tvmaze
 from core.episodes import refresh_episodes
 from core.models import Title, ToWatchItem, Watch
-from core.releases import refresh_movie
+from core.releases import refresh_movie, refresh_upcoming
 
 
 class Command(BaseCommand):
     help = (
         'Ask TMDB again for what the calendar shows: every series that is on someone\'s To Watch list or has a '
         'watched episode (new episodes, air dates, status), and every movie on someone\'s To Watch list '
-        '(their cinema and streaming dates).'
+        '(their cinema and streaming dates). Every series is also asked about on TVmaze, the second source for '
+        'upcoming episode dates.'
     )
 
     def handle(self, *args, **options):
@@ -33,7 +34,18 @@ class Command(BaseCommand):
                 continue
             done += 1
             new = series.episodes.count() - before
-            self.stdout.write(f'“{series.title}”: {series.status or "status unknown"}, {new} new episode{"" if new == 1 else "s"}')
+            line = f'“{series.title}”: {series.status or "status unknown"}, {new} new episode{"" if new == 1 else "s"}'
+            try:
+                refresh_upcoming(series)
+            except tvmaze.TvmazeError as problem:
+                # TMDB's part is saved. The upcoming episodes from TVmaze keep what they had.
+                failed += 1
+                self.stderr.write(f'Could not refresh the upcoming episodes of “{series.title}” from TVmaze: {problem}')
+            else:
+                more = series.upcoming_episodes.count()
+                if more:
+                    line += f', {more} upcoming on TVmaze'
+            self.stdout.write(line)
         self.stdout.write(self.style.SUCCESS(f'Refreshed {done} series.'))
 
         # A movie that was watched left the To Watch list, so only movies still waiting are asked about.

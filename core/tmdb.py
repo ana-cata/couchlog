@@ -89,12 +89,12 @@ def _day(text):
 
 
 def get_series_episodes(tmdb_id):
-    """A series' status and every one of its episodes, specials included. Nothing is saved.
+    """A series' status, IMDb id and every one of its episodes, specials included. Nothing is saved.
 
-    One call gives the status and lists the seasons, then there is one call per season, so a long
-    series takes a moment.
+    One call gives the status and the IMDb id and lists the seasons, then there is one call per season, so a
+    long series takes a moment.
     """
-    series = _get(f'/tv/{tmdb_id}')
+    series = _get(f'/tv/{tmdb_id}', {'append_to_response': 'external_ids'})
     episodes = []
     for season in series.get('seasons', []):
         number = season['season_number']
@@ -111,7 +111,11 @@ def get_series_episodes(tmdb_id):
                 'air_date': _day(raw.get('air_date')),
                 'runtime': raw.get('runtime') or None,
             })
-    return {'status': series.get('status') or '', 'episodes': episodes}
+    return {
+        'status': series.get('status') or '',
+        'imdb_id': (series.get('external_ids') or {}).get('imdb_id') or '',
+        'episodes': episodes,
+    }
 
 
 # TMDB's numbers for the kinds of release in a movie's list of release dates: 1 is a premiere (an event, not
