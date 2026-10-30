@@ -13,7 +13,8 @@
 - **Removing a title** from To Watch takes it off the calendar, and Undo brings it back, because the page is worked out each time it opens. A series you are already watching stays, since it is in Watching. A film you mark as watched leaves To Watch and the calendar; "Mark as not watched" brings it back.
 - **Your own calendar:** each account sees only its own series and list.
 - **Empty:** "Nothing coming up" appears, with a reminder of the command below.
-- **The dates are not live.** The page only shows what the `refresh_calendar` command saved. Run it by hand now and then (and after adding a series or film to To Watch). The daily run comes with the Raspberry Pi.
+- **Adding a title collects its dates at once.** When you press Add to To Watch, Couchlog asks TMDB for the film's cinema and streaming dates, or for the series' episodes, so the Calendar is right straight away. A series with many seasons can make the button take a few seconds the first time.
+- **The dates are not live after that.** The page only shows what was saved. Dates TMDB adds or changes later (a streaming date, new episodes) arrive when the `refresh_calendar` command runs. Run it by hand now and then; the daily run comes with the Raspberry Pi.
 - **Later:** the "in 3 days" labels (Countdown) and the News section on Home are separate cards.
 
 ## How it works
@@ -41,6 +42,7 @@
 - The earliest dates in the world are not necessarily the ones in your country. TMDB often has no streaming date for a film until shortly before it comes out, which is why the cinema date is also shown. A film with neither date is not on the calendar.
 - The earliest "limited" cinema showing counts as the cinema date, so a film with a festival or special run first can show up earlier than its wide release.
 - No country is used for the calendar. The time zone is only used to turn the film's date into your day.
-- A series or film you add to To Watch appears only after `refresh_calendar` has run (or, for a series, after you open its page).
+- If TMDB does not answer at the moment you add a title, the title is added but has no dates until the next `refresh_calendar` run (or, for a series, until you open its page).
+- **Only what TMDB lists is shown.** TMDB often has only the first episode of a new season (it lists one date now for Only Murders in the Building season 6, while other sites show weekly dates for all ten). The other episodes appear once TMDB adds them and the dates are refreshed. A second source for upcoming episode dates is a separate card.
 - Episode dates are used as TMDB gives them: for a show from another country the day may be one off.
 - The page lists every saved upcoming date; there is no limit or "next 30 days" cut.

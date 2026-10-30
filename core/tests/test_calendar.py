@@ -7,6 +7,7 @@ mock TMDB; the one that checks the page never asks TMDB would fail if it did.
 import datetime
 from zoneinfo import ZoneInfo
 
+import httpx
 import pytest
 import time_machine
 from django.contrib.auth.models import User
@@ -435,8 +436,7 @@ def test_the_page_says_so_when_nothing_is_coming_up(client):
     assert 'Nothing coming up' in page and 'refresh_calendar' in page
 
 
-def test_the_page_only_reads_what_is_saved_and_never_asks_tmdb(client, respx_mock, settings):
-    settings.TMDB_API_KEY = 'made-up-secret-key'
+def test_the_page_only_reads_what_is_saved_and_never_asks_tmdb(client, respx_mock, tmdb_key):
     series = make_series(1)
     make_episode(series, 1, 1, FRIDAY)
     put_on_list(client.user, series)
@@ -470,3 +470,122 @@ def test_the_header_links_to_the_calendar(client):
     page = client.get('/').content.decode()
 
     assert 'href="/calendar/"' in page and '>Calendar<' in page
+
+
+# --- collecting the dates when a title is added to To Watch -----------------------------------
+
+TMDB = 'https://api.themoviedb.org/3'
+
+
+@pytest.fixture
+def tmdb_key(settings):
+    settings.TMDB_API_KEY = 'made-up-secret-key'
+
+
+def mock_movie_on_tmdb(respx_mock, tmdb_id, *entries):
+    """TMDB's answers for a movie that is not saved yet: its details, and its release dates (the given entries)."""
+    respx_mock.get(f'{TMDB}/movie/{tmdb_id}').respond(
+        json={'id': tmdb_id, 'title': f'Made-up Movie {tmdb_id}', 'release_date': '2027-03-11'}
+    )
+    respx_mock.get(f'{TMDB}/movie/{tmdb_id}/release_dates').respond(
+        json={'results': [{'iso_3166_1': 'US', 'release_dates': list(entries)}]}
+    )
+
+
+def mock_series_on_tmdb(respx_mock, tmdb_id, air_date):
+    """TMDB's answers for a series that is not saved yet: the series, and its one season with one episode."""
+    respx_mock.get(f'{TMDB}/tv/{tmdb_id}').respond(
+        json={
+            'id': tmdb_id, 'name': f'Made-up Series {tmdb_id}', 'first_air_date': '2026-01-01',
+            'status': 'Returning Series', 'seasons': [{'season_number': 1}],
+        }
+    )
+    respx_mock.get(f'{TMDB}/tv/{tmdb_id}/season/1').respond(
+        json={
+            'season_number': 1,
+            'episodes': [{'id': 9001, 'season_number': 1, 'episode_number': 1, 'name': 'Premiere', 'air_date': air_date}],
+        }
+    )
+
+
+def add_to_watch(client, kind, tmdb_id):
+    return client.post('/to-watch/add/', {'kind': kind, 'tmdb_id': tmdb_id})
+
+
+def test_adding_a_movie_puts_it_on_the_calendar_at_once_without_running_the_job(client, respx_mock, tmdb_key):
+    mock_movie_on_tmdb(
+        respx_mock, 700, {'type': 3, 'release_date': '2027-03-11T00:00:00.000Z', 'certification': '', 'note': ''}
+    )
+
+    add_to_watch(client, 'movie', 700)
+
+    page = client.get('/calendar/').content.decode()
+    assert 'Made-up Movie 700' in page and 'In cinemas' in page and 'March 2027' in page and 'Thursday 11' in page
+
+
+def test_adding_a_series_puts_its_upcoming_episode_on_the_calendar_at_once(client, respx_mock, tmdb_key):
+    mock_series_on_tmdb(respx_mock, 800, FRIDAY.isoformat())
+
+    add_to_watch(client, 'series', 800)
+
+    assert coming(client.user) == [(FRIDAY, [('Made-up Series 800', 'S1E1 · Premiere')])]
+
+
+def test_a_movie_with_no_dates_yet_is_still_added_and_just_not_on_the_calendar(client, respx_mock, tmdb_key):
+    mock_movie_on_tmdb(respx_mock, 700)
+
+    response = add_to_watch(client, 'movie', 700)
+
+    assert response.status_code == 302
+    assert ToWatchItem.objects.filter(user=client.user, title__tmdb_id=700, removed_at=None).exists()
+    assert coming(client.user) == []
+
+
+def test_adding_still_works_when_tmdb_cannot_give_the_dates(client, respx_mock, tmdb_key):
+    mock_movie_on_tmdb(respx_mock, 700)
+    respx_mock.get(f'{TMDB}/movie/700/release_dates').mock(side_effect=httpx.ConnectError('no network'))
+    mock_series_on_tmdb(respx_mock, 800, FRIDAY.isoformat())
+    respx_mock.get(f'{TMDB}/tv/800/season/1').mock(side_effect=httpx.ConnectError('no network'))
+
+    movie_response = add_to_watch(client, 'movie', 700)
+    series_response = add_to_watch(client, 'series', 800)
+
+    assert movie_response.status_code == 302 and series_response.status_code == 302
+    assert ToWatchItem.objects.filter(user=client.user, removed_at=None).count() == 2
+    assert coming(client.user) == []  # the next `refresh_calendar` run collects them
+    assert Title.objects.get(tmdb_id=800).episodes_refreshed_at is None  # nothing half saved
+
+
+def test_adding_a_title_that_is_already_on_the_list_asks_tmdb_nothing_more(client, respx_mock, tmdb_key):
+    mock_movie_on_tmdb(respx_mock, 700)
+    add_to_watch(client, 'movie', 700)
+    asked = respx_mock.calls.call_count
+
+    add_to_watch(client, 'movie', 700)
+
+    assert respx_mock.calls.call_count == asked
+
+
+def test_a_series_another_account_added_a_moment_ago_is_not_asked_for_again(client, respx_mock, tmdb_key):
+    mock_series_on_tmdb(respx_mock, 800, FRIDAY.isoformat())
+    add_to_watch(client, 'series', 800)
+    asked = respx_mock.calls.call_count
+    other = make_client('someone-else')
+
+    add_to_watch(other, 'series', 800)
+
+    assert respx_mock.calls.call_count == asked
+    assert coming(other.user) == [(FRIDAY, [('Made-up Series 800', 'S1E1 · Premiere')])]
+
+
+def test_adding_a_movie_again_after_removing_it_collects_its_dates_again(client, respx_mock, tmdb_key):
+    mock_movie_on_tmdb(respx_mock, 700)
+    add_to_watch(client, 'movie', 700)
+    client.post('/to-watch/remove/', {'kind': 'movie', 'tmdb_id': 700})
+    respx_mock.get(f'{TMDB}/movie/700/release_dates').respond(
+        json={'results': [{'iso_3166_1': 'US', 'release_dates': [{'type': 4, 'release_date': '2027-05-01T00:00:00.000Z'}]}]}
+    )
+
+    add_to_watch(client, 'movie', 700)
+
+    assert coming(client.user) == [(datetime.date(2027, 5, 1), [('Made-up Movie 700', 'Streaming release')])]

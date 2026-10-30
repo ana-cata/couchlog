@@ -30,7 +30,7 @@ from .episodes import (
 )
 from .forms import TimeZoneForm, WatchedForm
 from .models import Episode, Profile, Title, ToWatchItem, Watch
-from .releases import upcoming
+from .releases import refresh_movie, upcoming
 
 # How old our saved episodes may get before opening a series page asks TMDB again.
 EPISODES_REFRESH_AFTER = timedelta(days=1)
@@ -307,6 +307,21 @@ def _redirect_back(request, text, ok, fallback):
     return redirect(next_url)
 
 
+def _collect_dates(title):
+    """Collect the dates the Calendar shows for a title that was just put on a To Watch list.
+
+    A movie's cinema and streaming dates, or a series' episodes (when they were never saved, or are over a day
+    old). If TMDB does not answer, the title is still on the list and the next `refresh_calendar` run collects them.
+    """
+    try:
+        if title.kind == 'movie':
+            refresh_movie(title)
+        elif title.episodes_refreshed_at is None or title.episodes_refreshed_at < timezone.now() - EPISODES_REFRESH_AFTER:
+            refresh_episodes(title)
+    except tmdb.TmdbError:
+        pass
+
+
 @require_POST
 def to_watch_add(request):
     kind, tmdb_id = _posted_title(request)
@@ -326,6 +341,7 @@ def to_watch_add(request):
         item.save(update_fields=['removed_at', 'added_at', 'removed_by_watch'])
     elif not created:
         return _answer(request, kind, tmdb_id, True, f'“{title.title}” is already on your To Watch list.')
+    _collect_dates(title)
     return _answer(request, kind, tmdb_id, True, f'Added “{title.title}” to your To Watch list.')
 
 

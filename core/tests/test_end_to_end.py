@@ -1,12 +1,10 @@
 """The first end-to-end test: a real browser walks through the app, as I would."""
 
 import datetime
-import io
 import os
 import re
 
 from django.contrib.auth.models import User
-from django.core.management import call_command
 from django.utils import timezone
 from playwright.sync_api import expect
 
@@ -37,6 +35,8 @@ def test_log_in_search_add_a_title_then_remove_it_and_undo(live_server, page, re
         json={'page': 1, 'results': [{'media_type': 'movie', **MADE_UP_MOVIE}]}
     )
     respx_mock.get('https://api.themoviedb.org/3/movie/603').respond(json=MADE_UP_MOVIE)
+    # Adding a movie also collects its release dates for the Calendar; here TMDB has none.
+    respx_mock.get('https://api.themoviedb.org/3/movie/603/release_dates').respond(json={'results': []})
     page.route('https://image.tmdb.org/**', lambda route: route.abort())
 
     # Log in.
@@ -539,13 +539,8 @@ def test_a_series_on_the_to_watch_list_shows_in_the_calendar_until_it_is_removed
     page.get_by_role('button', name='Add to To Watch').click()
     expect(page.get_by_role('button', name='Remove from To Watch')).to_be_visible()
 
-    # Nothing is in the calendar until the job has collected the dates (run by hand for now).
+    # Adding collected its dates, so the calendar shows the episode on the day TMDB gives, with no job run by hand.
     page.get_by_role('link', name='Calendar', exact=True).click()
-    expect(page.get_by_text('Nothing coming up')).to_be_visible()
-    call_command('refresh_calendar', stdout=io.StringIO())
-
-    # Reloading shows the episode on the day TMDB gives.
-    page.reload()
     item = page.locator('.calendar li')
     expect(item).to_have_count(1)
     expect(item).to_contain_text('Made-up Series')
