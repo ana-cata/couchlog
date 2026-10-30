@@ -205,6 +205,70 @@ header nav li {
   filter: brightness(1.15);
 }
 
+/* A progress bar with how many aired episodes are watched written under it: on the series page (the series and
+   each season) and on the Home cards. */
+.progress {
+  display: block;
+}
+
+.progress progress {
+  display: block;
+  width: 100%;
+  margin: 0.25rem 0;
+}
+
+.progress small {
+  display: block;
+  color: var(--pico-muted-color);
+}
+
+.series-progress {
+  margin-bottom: 1rem;
+}
+
+/* The Home page: one card for each series, with the poster on the left and the round check button on the right. */
+.up-next {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.up-next li {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 0;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--pico-muted-border-color);
+}
+
+.up-next-poster {
+  flex: none;
+  width: 4.5rem;
+}
+
+.up-next-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-wrap: anywhere;
+}
+
+.up-next-info small {
+  color: var(--pico-muted-color);
+}
+
+.up-next form {
+  margin: 0;
+  flex: none;
+}
+
+/* The "nothing to watch next" note is only there while the list has no card. */
+.up-next:has(li) + .up-next-empty {
+  display: none;
+}
+
 /* "Recently removed" on the To Watch screen: a name on the left, Undo on the right. */
 .removed {
   list-style: none;

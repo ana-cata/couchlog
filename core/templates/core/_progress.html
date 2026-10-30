@@ -1,0 +1,10 @@
+{# A progress bar: the episodes watched out of the episodes that have aired. Empty when nothing has aired (and for #}
+{# Specials), so there is never a bar with nothing to count. It is a span because the season's bar sits inside its #}
+{# summary line. `dom_id` is set where the bar must be found again: the answer to a button puts a new one in place #}
+{# of it (`oob` is set then, and htmx swaps it by its id). #}
+<span class="progress"{% if dom_id %} id="{{ dom_id }}"{% endif %}{% if oob %} hx-swap-oob="true"{% endif %}>
+  {% if aired %}
+    <progress value="{{ watched }}" max="{{ aired }}" aria-label="Episodes watched"></progress>
+    <small>{{ watched }} of {{ aired }} aired episode{{ aired|pluralize }} watched</small>
+  {% endif %}
+</span>

@@ -101,6 +101,32 @@ def started_series(user):
     return Watch.objects.filter(user=user, episode__isnull=False).values('title')
 
 
+def progress_by_series(user, series_ids, today):
+    """How far this account is in each of the given series, as {series id: (watched, aired)}.
+
+    `aired` counts the episodes that have aired (on or before `today`, the account's own day) and
+    `watched` counts those of them the account has watched. Specials (season 0) are left out, and so
+    are episodes that have not aired or have no date. Rule 2 of the design rules: an episode counts as
+    watched if it has at least one watch, so a rewatch counts once.
+    """
+    series_ids = list(series_ids)
+    aired = dict(
+        Episode.objects.filter(title__in=series_ids, season_number__gt=0, air_date__lte=today)
+        .values('title')
+        .annotate(count=Count('id'))
+        .values_list('title', 'count')
+    )
+    watched = dict(
+        Watch.objects.filter(
+            user=user, title__in=series_ids, episode__season_number__gt=0, episode__air_date__lte=today
+        )
+        .values('title')
+        .annotate(count=Count('episode', distinct=True))
+        .values_list('title', 'count')
+    )
+    return {series_id: (watched.get(series_id, 0), aired.get(series_id, 0)) for series_id in series_ids}
+
+
 def series_tabs(user, today):
     """The series this account has started, as two lists of series: (watching, finished).
 
@@ -119,24 +145,47 @@ def series_tabs(user, today):
     if not last_marked:
         return [], []
 
-    # Rule 2 of the design rules: an episode counts as watched if it has at least one watch.
-    aired = dict(
-        Episode.objects.filter(title__in=last_marked, season_number__gt=0, air_date__lte=today)
-        .values('title')
-        .annotate(count=Count('id'))
-        .values_list('title', 'count')
-    )
-    watched = dict(
-        marked.filter(episode__season_number__gt=0, episode__air_date__lte=today)
-        .values('title')
-        .annotate(count=Count('episode', distinct=True))
-        .values_list('title', 'count')
-    )
+    progress = progress_by_series(user, last_marked, today)
     series_by_id = Title.objects.in_bulk(last_marked)
 
     watching, finished = [], []
     for series_id in sorted(last_marked, key=last_marked.get, reverse=True):
         series = series_by_id[series_id]
-        all_watched = aired.get(series_id, 0) > 0 and watched.get(series_id, 0) >= aired[series_id]
+        watched, aired = progress[series_id]
+        all_watched = aired > 0 and watched >= aired
         (finished if series.status in ENDED_STATUSES and all_watched else watching).append(series)
     return watching, finished
+
+
+def up_next(user, today):
+    """What to watch next: one entry for each series in Watching that has an episode left to watch.
+
+    The next episode is the first one, in the order the series page lists them (season, then episode
+    number), that has aired (on or before `today`, the account's own day) and that the account has not
+    watched. Specials (season 0) and episodes that have not aired or have no date are never next. A
+    series with no such episode (caught up, or nothing aired yet) has no entry until one airs.
+
+    Each entry is a dict: `series`, `episode` (the next one), `watched` and `aired` (its progress).
+    The most recently marked series come first, like the Watching tab.
+    """
+    watching, _ = series_tabs(user, today)
+    unwatched = (
+        Episode.objects.filter(title__in=watching, season_number__gt=0, air_date__lte=today)
+        .exclude(watch__user=user)
+        .order_by('title', 'season_number', 'episode_number', 'id')
+    )
+    next_episode = {}
+    for episode in unwatched:
+        next_episode.setdefault(episode.title_id, episode)
+
+    progress = progress_by_series(user, next_episode, today)
+    return [
+        {
+            'series': series,
+            'episode': next_episode[series.id],
+            'watched': progress[series.id][0],
+            'aired': progress[series.id][1],
+        }
+        for series in watching
+        if series.id in next_episode
+    ]

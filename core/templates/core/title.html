@@ -56,9 +56,16 @@
         {% elif item.kind == 'series' %}
           <div class="seasons">
             {% if notice %}<p role="alert">{{ notice }}</p>{% endif %}
+            {# The series' bar and each season's bar (not the Specials): the answer to a button replaces them by id. #}
+            <div class="series-progress">
+              {% include 'core/_progress.html' with dom_id='progress-series' watched=progress.watched aired=progress.aired %}
+            </div>
             {% for season in seasons %}
               <details id="season-{{ season.number }}"{% if season.number == open_season %} open{% endif %}>
-                <summary>{{ season.name }} <small>· {{ season.episodes|length }} episode{{ season.episodes|length|pluralize }}</small></summary>
+                <summary>
+                  {{ season.name }} <small>· {{ season.episodes|length }} episode{{ season.episodes|length|pluralize }}</small>
+                  {% include 'core/_progress.html' with dom_id=season.progress_id watched=season.watched_count aired=season.aired_count %}
+                </summary>
                 {% include 'core/_season_action.html' %}
                 <ul class="episodes">
                   {% for episode in season.episodes %}
