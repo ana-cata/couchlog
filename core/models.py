@@ -151,3 +151,25 @@ class ToWatchItem(models.Model):
 
     def __str__(self):
         return f'{self.user}: {self.title}' + (' (removed)' if self.removed_at else '')
+
+
+class DroppedSeries(models.Model):
+    """A series one account gave up on (Series → Dropped).
+
+    It is the only status set by hand, and it wins over To Watch, Watching and Finished. Dropping touches
+    nothing else (not the watches, not the To Watch entry), so bringing the series back, which deletes this
+    row, puts everything back as it was.
+    """
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    title = models.ForeignKey(Title, on_delete=models.CASCADE)
+    dropped_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        constraints = (
+            # Dropping the same series twice never makes a second entry.
+            models.UniqueConstraint(fields=['user', 'title'], name='one_dropped_entry_per_series'),
+        )
+
+    def __str__(self):
+        return f'{self.user}: {self.title} (dropped)'

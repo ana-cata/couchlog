@@ -5,7 +5,7 @@
 {% elif results %}
   <ul class="results">
     {% for result in results %}
-      {% include 'core/_tile.html' with tile=result on_list=result.on_list live=True %}
+      {% include 'core/_tile.html' with tile=result on_list=result.on_list dropped=result.dropped live=True %}
     {% endfor %}
   </ul>
 {% endif %}

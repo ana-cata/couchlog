@@ -14,7 +14,9 @@
     </ul>
   {% elif tab == 'watching' %}
     <p>No series in Watching yet. Open a series and mark an episode as watched, and it shows up here. <a href="{% url 'search' %}">Search</a> for one.</p>
-  {% else %}
+  {% elif tab == 'finished' %}
     <p>No finished series yet. A series is finished when you have watched every episode that has aired and TMDB says it has ended.</p>
+  {% else %}
+    <p>No dropped series. Open a series and press “Stop watching” to move it here. Your history is kept, and “Bring back” puts it back.</p>
   {% endif %}
 {% endblock %}

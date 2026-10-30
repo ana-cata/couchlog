@@ -109,6 +109,13 @@ header nav li {
   font-size: 0.8rem;
 }
 
+/* A dropped series has this note where the button would be. */
+.dropped-note {
+  display: block;
+  margin-top: 0.5rem;
+  text-align: center;
+}
+
 /* Under a tile there is room for two lines of text, so "Add" and "Remove" are the same size. */
 .results :is(.to-watch-action, .watch-action) button {
   display: flex;

@@ -11,7 +11,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from . import tmdb, tvmaze
-from .episodes import series_tabs
+from .episodes import dropped_series, series_tabs
 from .models import Episode, Title, ToWatchItem, UpcomingEpisode
 
 
@@ -67,7 +67,7 @@ def upcoming(user, today, zone):
     """What this account is waiting for, from `today` on, as a list of days: [{'day': date, 'items': [...]}].
 
     The days are in order, and nothing in the past is here. The titles are the series in the Watching tab and
-    the titles on the To Watch list. Each item is a dict: `title` and `text` (what is coming).
+    the titles on the To Watch list, except dropped series. Each item is a dict: `title` and `text` (what is coming).
     - A series' episodes are on the air date TMDB gives, one item for each series and day (several episodes of
       the same day share it). Specials (season 0) and episodes with no air date are left out.
     - The upcoming episodes TVmaze lists are added on TVmaze's date, unless TMDB already has the episode: TMDB wins
@@ -79,7 +79,8 @@ def upcoming(user, today, zone):
     """
     watching, _ = series_tabs(user, today)
     listed = Title.objects.filter(id__in=ToWatchItem.objects.filter(user=user, removed_at=None).values('title'))
-    series_ids = {series.id for series in watching} | set(listed.filter(kind='series').values_list('id', flat=True))
+    to_watch_series = listed.filter(kind='series').exclude(id__in=dropped_series(user))
+    series_ids = {series.id for series in watching} | set(to_watch_series.values_list('id', flat=True))
 
     days = {}
     episodes_of_day = {}
