@@ -54,6 +54,28 @@
             {% endif %}
           </div>
         {% elif item.kind == 'series' %}
+          {% if dropped %}
+            <div class="watched-section">
+              <p><strong>You stopped watching this series.</strong> It is under Series → Dropped, and your history is kept.</p>
+              <form method="post" action="{% url 'series_bring_back' %}">
+                {% csrf_token %}
+                <input type="hidden" name="kind" value="series">
+                <input type="hidden" name="tmdb_id" value="{{ item.tmdb_id }}">
+                <input type="hidden" name="next" value="{{ next }}">
+                <button type="submit" class="outline secondary">Bring back</button>
+              </form>
+            </div>
+          {% elif can_drop %}
+            <div class="watched-section">
+              <form method="post" action="{% url 'series_drop' %}">
+                {% csrf_token %}
+                <input type="hidden" name="kind" value="series">
+                <input type="hidden" name="tmdb_id" value="{{ item.tmdb_id }}">
+                <input type="hidden" name="next" value="{{ next }}">
+                <button type="submit" class="outline secondary">Stop watching</button>
+              </form>
+            </div>
+          {% endif %}
           <div class="seasons">
             {% if notice %}<p role="alert">{{ notice }}</p>{% endif %}
             {# The series' bar and each season's bar (not the Specials): the answer to a button replaces them by id. #}

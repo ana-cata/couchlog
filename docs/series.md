@@ -52,22 +52,32 @@ Two ways to enter old history quickly. Both mark only the episodes that **have a
 
 ## The Series tabs
 
-Series has three tabs. Nothing is stored for them: each is worked out every time from your own watches and TMDB's status, so un-marking an episode moves a series back by itself (there is no separate undo).
+Series has four tabs. The first three are worked out every time from your own watches and TMDB's status, so un-marking an episode moves a series back by itself (there is no separate undo). **Dropped** is the one you set by hand (see below), and it wins over the other three.
 
 | Tab | A series is here when |
 |---|---|
-| **To Watch** (`/series/`) | it is on your To Watch list and you have marked **no** episode of it |
-| **Watching** (`/series/watching/`) | you have marked at least one episode (any episode, a special too), and it is not finished |
-| **Finished** (`/series/finished/`) | TMDB says it **ended or was cancelled** **and** you have watched **every episode that has aired**. Both are needed |
+| **To Watch** (`/series/`) | it is on your To Watch list and you have marked **no** episode of it, and you have not dropped it |
+| **Watching** (`/series/watching/`) | you have marked at least one episode (any episode, a special too), it is not finished and you have not dropped it |
+| **Finished** (`/series/finished/`) | TMDB says it **ended or was cancelled** **and** you have watched **every episode that has aired**. Both are needed. Not if you dropped it |
+| **Dropped** (`/series/dropped/`) | you pressed **Stop watching** on it and have not brought it back |
 
 - A series you are caught up on that is **still running** stays in Watching. It is simply not in Up Next on [Home](home.md) until a new episode airs.
 - A series that **ended but you have not watched completely** stays in Watching.
 - **Specials** (season 0) do not have to be watched to finish a series. Episodes that have not aired yet, or have no air date, do not count either. "Aired" follows your time zone.
 - If TMDB has not given a status yet (it is empty until the first refresh), the series cannot be finished: it stays in Watching.
 - A rewatch of an episode counts once: an episode is watched if it has at least one watch (design rule 2).
-- Watching and Finished show plain tiles (poster, name, year) with no To Watch button, newest-marked series first. Each says so when empty.
+- Watching, Finished and Dropped show plain tiles (poster, name, year) with no To Watch button. Watching and Finished list the newest-marked series first, Dropped the one dropped last first. Each says so when empty.
 - Marking an episode does not touch your To Watch list: the entry stays, only hidden from the To Watch tab while the series is being watched. If you un-mark every episode of a series that is on your list, it is back under To Watch.
-- Dropped (a tab you set by hand) comes with a later card.
+
+## Dropped series
+
+- **Stop watching** is a button on the series page, above the seasons. It is there for a series that is in one of your tabs: one you have marked an episode of, or one on your To Watch list. A series you never touched does not show it.
+- Pressing it moves the series to **Series → Dropped**, and the page says so. The series is then **in no other tab**, **not on Home** (Up Next) and **not on the [Calendar](calendar.md)**, even if it was also on your To Watch list.
+- **Nothing else changes:** your watches, your progress and your To Watch entry stay exactly as they were, so your history is kept.
+- **A dropped series' page** says "You stopped watching this series." and has a **Bring back** button. The episodes are still there. Marking an episode on it does **not** bring the series back: Dropped only changes with these two buttons.
+- **Bring back** is the undo, at any time, with no time limit. The series goes back to the tab its watches and TMDB's status give it (To Watch, Watching or Finished), and to Up Next and the Calendar, as if it had never been dropped.
+- **In [Search](search.md)** a dropped series shows "In your Dropped list" (a link to the tab) instead of the To Watch button, so there is no way to add it twice. Open it to bring it back.
+- **Your own list:** each account has its own Dropped tab, and one account can never drop or bring back another's.
 
 ## Keeping series up to date: `refresh_calendar`
 
@@ -86,6 +96,9 @@ Series has three tabs. Nothing is stored for them: each is worked out every time
 | `/series/` | Series → To Watch (see the tabs above) | Yes |
 | `/series/watching/` | Series → Watching | Yes |
 | `/series/finished/` | Series → Finished | Yes |
+| `/series/dropped/` | Series → Dropped | Yes |
+| `/series/drop/` | Stop watching (button, POST only). Sends `kind` (only `series`; a film is refused with a 400), `tmdb_id` and `next`. The series must already be saved (opening its page does that): otherwise "page not found" | Yes |
+| `/series/bring-back/` | Bring back (button, POST only). Sends `kind`, `tmdb_id` and `next` | Yes |
 | `/series/<TMDB id>/` | The series page. `?season=2` opens that season instead of the first | Yes |
 | `/watched/episode/add/` | Mark one episode as watched (round button, POST only). Sends `episode_id` (our own id for the episode) and `next`, and `only_this` when it is the pop-up's "No, only this one" (the check buttons on [Home](home.md) also send `up_next`). An episode that skips unmarked episodes answers with the pop-up question instead of marking | Yes |
 | `/watched/remove/` | Mark as not watched, the undo (round button, POST only). Sends `watch_id`, `episode_id` and `next`. The same address as the movie undo | Yes |
@@ -101,6 +114,7 @@ Series has three tabs. Nothing is stored for them: each is worked out every time
 - `core_episode`: one row per episode, saved from TMDB and shared by every account: `title` (the series), `tmdb_id` (TMDB's episode id), `season_number` (0 = Specials), `episode_number`, `name`, `air_date` (empty when TMDB has none) and `runtime` (minutes; not shown yet, for the time-spent feature). Unique on `title` + `tmdb_id`.
 - `core_title` gets `episodes_refreshed_at` (when the series' episodes were last asked from TMDB) and `status` (TMDB's own word, as of that refresh; empty until then).
 - `core_watch` gets `episode`: filled in for an episode watch (its `title` is the series), empty for a movie watch. An episode watch is its own row, like a movie watch (design rule 1).
+- `core_droppedseries` (migration `0009_dropped_series`): one row per account and dropped series: `user`, `title` and `dropped_at`. Unique on `user` + `title`, so dropping twice never makes a second row. **Dropping adds this row and nothing else; bringing back deletes it.** That is why it is a true undo.
 - No table change was needed for marking many episodes: each one is an ordinary watch row, exactly like a single mark.
 
 **Opening a series** (`_series_page` in `core/views.py`)
@@ -111,6 +125,11 @@ Series has three tabs. Nothing is stored for them: each is worked out every time
 **The progress bars** (`_progress.html`, `progress_by_series` in `core/episodes.py`, `_season_info` in `core/views.py`)
 - The series bar comes from `progress_by_series` (one database count for the series). Each season's bar is counted from that season's episodes already loaded for the page (`watched_count` and `aired_count` in `_season_info`; 0 and 0 for the Specials). Both use the same rule, and the test `test_the_bars_follow_what_is_watched_and_the_series_bar_is_the_seasons_added_up` checks they agree.
 - The bar is the browser's own `<progress>` element, in a `<span id="progress-series">` or `<span id="progress-season-<number>">`. The answers to the round button, the season button and the question (`_episode_answer.html`, `_bulk_result.html`) end with the new bars marked `hx-swap-oob="true"`, which htmx puts in place of the ones with the same id, like the season buttons.
+
+**Dropped** (`series_drop`, `series_bring_back` in `core/views.py`; `dropped_series` and `dropped_tab` in `core/episodes.py`)
+- `dropped_series(user)` gives the ids of the account's dropped series. `series_tabs` leaves them out of Watching and Finished (so Up Next, which follows Watching, leaves them out too), the Series → To Watch screen excludes them, and the Calendar (`upcoming` in `core/releases.py`) leaves them out of both the Watching and the To Watch series. `dropped_tab(user)` is the Dropped tab's list.
+- The series page asks `core_droppedseries` whether the series is dropped, and shows "Stop watching" only when it is not dropped and is on your list or has a watch of yours (`can_drop` in `_series_page`). Both buttons are normal forms: the server saves, then goes back to `next` with a message ("… is under Series → Dropped now. Bring it back any time." / "Brought … back. It is in its own tab again."). Dropping a series that is already dropped, or bringing back one that is not, changes nothing and says so.
+- Search and the To Watch button block (`_to_watch_button.html`): the search view marks each series result you dropped (`result['dropped']`, by TMDB id and kind), and the block shows "In your Dropped list" in place of the button. TMDB is not involved; it is one question to our own table.
 
 **Refreshing never loses a watch.** Episodes are matched with TMDB's own id and updated in place (number, name, date, runtime), new ones are added, and none is ever deleted. So if TMDB renumbers an episode, its watch stays on it. The test `test_a_renumbered_episode_keeps_its_watch_and_nothing_is_deleted` checks this.
 

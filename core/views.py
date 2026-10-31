@@ -18,6 +18,8 @@ from django.views.decorators.vary import vary_on_headers
 
 from . import tmdb, tvmaze
 from .episodes import (
+    dropped_series,
+    dropped_tab,
     mark_episodes,
     progress_by_series,
     refresh_episodes,
@@ -28,7 +30,7 @@ from .episodes import (
     up_next,
 )
 from .forms import TimeZoneForm, WatchedForm
-from .models import Episode, Profile, Title, ToWatchItem, Watch
+from .models import DroppedSeries, Episode, Profile, Title, ToWatchItem, Watch
 from .releases import refresh_movie, refresh_upcoming, upcoming
 
 # How old our saved episodes may get before opening a series page asks TMDB again.
@@ -71,8 +73,11 @@ def search(request):
         (item.title.kind, item.title.tmdb_id)
         for item in ToWatchItem.objects.filter(user=request.user, removed_at=None).select_related('title')
     }
+    # A series I dropped says so instead of offering the To Watch button.
+    dropped = set(DroppedSeries.objects.filter(user=request.user).values_list('title__tmdb_id', flat=True))
     for result in results:
         result['on_list'] = (result['kind'], result['tmdb_id']) in on_list
+        result['dropped'] = result['kind'] == 'series' and result['tmdb_id'] in dropped
 
     # htmx also asks for the whole page when it restores a page from its history.
     live_update = request.headers.get('HX-Request') and not request.headers.get('HX-History-Restore-Request')
@@ -144,10 +149,14 @@ def _series_page(request, tmdb_id):
         open_season = numbers[0] if numbers else None
 
     on_list = _my_item(request, 'series', tmdb_id).filter(removed_at=None).exists()
+    dropped = DroppedSeries.objects.filter(user=request.user, title=series).exists()
     asked = series.episodes.filter(id=request.session.pop('ask_earlier', 0)).first()
     context = {
         'item': series,
         'on_list': on_list,
+        'dropped': dropped,
+        # "Stop watching" is offered for a series that is in one of my tabs: started or on my To Watch list.
+        'can_drop': not dropped and (on_list or bool(watches)),
         'next': request.get_full_path(),
         'notice': notice,
         'seasons': seasons,
@@ -223,7 +232,8 @@ def _to_watch_screen(request, kind):
     if kind == 'series':
         # A series with an episode marked is being watched: it is under Watching now, not here.
         # Its entry on the list is untouched, so un-marking the episode brings it back here.
-        items = items.exclude(title__in=started_series(request.user))
+        # A dropped series is under Dropped only, and bringing it back returns it to the list the same way.
+        items = items.exclude(title__in=started_series(request.user)).exclude(title__in=dropped_series(request.user))
     context = {'items': items, 'section': SECTION_OF_KIND[kind], **_recently_removed(request, kind)}
     return render(request, 'core/to_watch.html', context)
 
@@ -237,9 +247,12 @@ def series(request):
 
 
 def _series_tab(request, tab):
-    watching, finished = series_tabs(request.user, _today(request))
-    context = {'titles': watching if tab == 'watching' else finished, 'section': 'series', 'tab': tab}
-    return render(request, 'core/series_tab.html', context)
+    if tab == 'dropped':
+        titles = dropped_tab(request.user)
+    else:
+        watching, finished = series_tabs(request.user, _today(request))
+        titles = watching if tab == 'watching' else finished
+    return render(request, 'core/series_tab.html', {'titles': titles, 'section': 'series', 'tab': tab})
 
 
 def series_watching(request):
@@ -248,6 +261,40 @@ def series_watching(request):
 
 def series_finished(request):
     return _series_tab(request, 'finished')
+
+
+def series_dropped(request):
+    return _series_tab(request, 'dropped')
+
+
+def _posted_series(request):
+    """The saved series a button on its page was pressed for."""
+    kind, tmdb_id = _posted_title(request)
+    if kind != 'series':
+        raise BadRequest
+    return get_object_or_404(Title, kind='series', tmdb_id=tmdb_id)
+
+
+@require_POST
+def series_drop(request):
+    """Stop watching: move the series to Dropped. Nothing else is touched, so bringing it back is the undo."""
+    series = _posted_series(request)
+    _, created = DroppedSeries.objects.get_or_create(user=request.user, title=series)
+    if created:
+        text = f'“{series.title}” is under Series → Dropped now. Bring it back any time.'
+    else:
+        text = f'“{series.title}” is already in your Dropped list.'
+    return _redirect_back(request, text, True, 'series_dropped')
+
+
+@require_POST
+def series_bring_back(request):
+    """Bring a dropped series back, any time later. It returns to the tab its watches and TMDB's status give it."""
+    series = _posted_series(request)
+    deleted, _ = DroppedSeries.objects.filter(user=request.user, title=series).delete()
+    if not deleted:
+        return _redirect_back(request, f'“{series.title}” is not in your Dropped list.', False, 'series')
+    return _redirect_back(request, f'Brought “{series.title}” back. It is in its own tab again.', True, 'series')
 
 
 # Only the "Recently removed" block of one section, which its To Watch screen asks for when time runs out.

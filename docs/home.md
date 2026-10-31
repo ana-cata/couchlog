@@ -13,7 +13,7 @@
 - **Undo:** there is no Undo button on Home. To take a check-off back, open the series and press the episode's green circle; that brings the episode and the bar back (see [Series](series.md)). On Home the card is back after a reload.
 - **Progress bars** are also on the series page: one for the whole series and one for each season (see [Series](series.md)).
 - **Your own Up Next:** each account sees only its own series and watches.
-- **Dropped series** (a later card) will not show on Home, because Home follows the Watching tab.
+- **A dropped series** is not on Home, because Home follows the Watching tab and a dropped series is in no other tab. Bringing it back (see [Series](series.md)) puts its card back if it has an episode left to watch.
 - **Later:** the News section ("coming soon") is added to this page by a later card.
 
 ## How it works

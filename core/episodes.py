@@ -1,12 +1,12 @@
 """Series and their episodes, apart from the screens: keeping them up to date, marking many episodes
-at once, and which tab of the Series section a series is in for an account (To Watch, Watching or Finished)."""
+at once, and which tab of the Series section a series is in for an account (To Watch, Watching, Finished or Dropped)."""
 
 from django.db import transaction
 from django.db.models import Count, Max
 from django.utils import timezone
 
 from . import tmdb
-from .models import Episode, Title, Watch
+from .models import DroppedSeries, Episode, Title, Watch
 
 # What TMDB says about a series that is over. A series is only "finished" for me once it says one of these.
 ENDED_STATUSES = ('Ended', 'Canceled', 'Cancelled')
@@ -116,6 +116,17 @@ def started_series(user):
     return Watch.objects.filter(user=user, episode__isnull=False).values('title')
 
 
+def dropped_series(user):
+    """The ids of the series this account dropped. A dropped series is in no other tab, Up Next or the Calendar."""
+    return DroppedSeries.objects.filter(user=user).values('title')
+
+
+def dropped_tab(user):
+    """The Dropped tab: the series this account dropped, the one dropped last first."""
+    entries = DroppedSeries.objects.filter(user=user).select_related('title').order_by('-dropped_at', '-id')
+    return [entry.title for entry in entries]
+
+
 def progress_by_series(user, series_ids, today):
     """How far this account is in each of the given series, as {series id: (watched, aired)}.
 
@@ -151,9 +162,10 @@ def series_tabs(user, today):
     A series is finished when TMDB says it ended or was cancelled **and** every episode that has
     aired (on or before `today`, the account's own day) is watched. Specials (season 0) do not have
     to be watched, and episodes that have not aired or have no date do not count. Every other
-    started series is watching, including one that is caught up but still running.
+    started series is watching, including one that is caught up but still running. A dropped series is in
+    neither list: Dropped wins over the other tabs (its watches are not touched).
     """
-    marked = Watch.objects.filter(user=user, episode__isnull=False)
+    marked = Watch.objects.filter(user=user, episode__isnull=False).exclude(title__in=dropped_series(user))
     last_marked = dict(
         marked.values('title').annotate(last=Max('created_at')).values_list('title', 'last')
     )
