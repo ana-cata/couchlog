@@ -11,7 +11,7 @@ class Command(BaseCommand):
     help = (
         'Ask TMDB again for what the calendar shows: every series that is on someone\'s To Watch list or has a '
         'watched episode (new episodes, air dates, status, typical episode runtime), and every movie on someone\'s '
-        'To Watch list (their cinema and streaming dates) and every watched movie with no runtime saved yet. '
+        'To Watch list (their cinema and streaming dates) and every watched movie with no runtime or no genres saved yet. '
         'Every series is also asked about on TVmaze, the second source for upcoming episode dates.'
     )
 
@@ -49,10 +49,12 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f'Refreshed {done} series.'))
 
         # A movie that was watched left the To Watch list, so only movies still waiting are asked about, and movies
-        # that were watched and have no runtime saved yet (saved before runtimes were kept): their time spent needs it.
+        # that were watched and have no runtime or no genres saved yet (saved before they were kept): their time spent
+        # needs the runtime, and their title page the genres.
         waiting = Q(id__in=ToWatchItem.objects.filter(removed_at=None).values('title'))
-        no_runtime = Q(runtime=None, id__in=Watch.objects.filter(episode=None).values('title'))
-        all_movies = Title.objects.filter(kind='movie').filter(waiting | no_runtime).order_by('title')
+        watched = Q(id__in=Watch.objects.filter(episode=None).values('title'))
+        incomplete = watched & (Q(runtime=None) | Q(genres=[]))
+        all_movies = Title.objects.filter(kind='movie').filter(waiting | incomplete).order_by('title')
         done = 0
         for movie in all_movies:
             try:

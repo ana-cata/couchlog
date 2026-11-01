@@ -59,6 +59,11 @@ def _backdrop_url(raw):
     return f'{BACKDROP_BASE_URL}{backdrop_path}' if backdrop_path else ''
 
 
+def _genres(raw):
+    """The genres in one TMDB movie or series, in TMDB's order, like [{'id': 18, 'name': 'Drama'}]. Empty when it has none."""
+    return [{'id': genre['id'], 'name': genre['name']} for genre in raw.get('genres') or []]
+
+
 def _title_from(raw, kind):
     """The few fields we show, from one TMDB movie or series. `kind` is 'movie' or 'series'."""
     if kind == 'movie':
@@ -77,6 +82,8 @@ def _title_from(raw, kind):
         'overview': raw.get('overview') or '',
         # A movie's runtime in minutes. Only a movie's own details have it: not a search result, not a series.
         'runtime': raw.get('runtime') or None,
+        # Only a title's own details have the genres: a search result has just their numbers.
+        'genres': _genres(raw),
     }
 
 
@@ -100,10 +107,10 @@ def _day(text):
 
 
 def get_series_episodes(tmdb_id):
-    """A series' status, IMDb id, banner and every one of its episodes, specials included. Nothing is saved.
+    """A series' status, IMDb id, banner, genres and every one of its episodes, specials included. Nothing is saved.
 
-    One call gives the status, the IMDb id and the banner and lists the seasons, then there is one call per
-    season, so a long series takes a moment.
+    One call gives the status, the IMDb id, the banner and the genres and lists the seasons, then there is one call
+    per season, so a long series takes a moment.
     """
     series = _get(f'/tv/{tmdb_id}', {'append_to_response': 'external_ids'})
     episodes = []
@@ -126,6 +133,7 @@ def get_series_episodes(tmdb_id):
         'status': series.get('status') or '',
         'imdb_id': (series.get('external_ids') or {}).get('imdb_id') or '',
         'backdrop_url': _backdrop_url(series),
+        'genres': _genres(series),
         'episodes': episodes,
     }
 
@@ -138,12 +146,12 @@ DIGITAL_RELEASE = 4
 
 def get_movie_releases(tmdb_id):
     """The earliest cinema release and the earliest streaming (digital) release of a movie in any country, and its
-    banner and runtime.
+    banner, runtime and genres.
 
     Returns {'cinema': moment or None, 'streaming': moment or None, 'backdrop_url': address or '', 'runtime': minutes
-    or None}, None when TMDB lists no such release or has no runtime. A moment looks like 2024-04-15T00:00:00.000Z in
-    TMDB's answer (midnight UTC), and so it is here. One call gives it all: the release dates are asked along with
-    the movie itself. Nothing is saved.
+    or None, 'genres': a list}, None when TMDB lists no such release or has no runtime. A moment looks like
+    2024-04-15T00:00:00.000Z in TMDB's answer (midnight UTC), and so it is here. One call gives it all: the release
+    dates are asked along with the movie itself. Nothing is saved.
     """
     data = _get(f'/movie/{tmdb_id}', {'append_to_response': 'release_dates'})
     earliest = {
@@ -151,6 +159,7 @@ def get_movie_releases(tmdb_id):
         'streaming': None,
         'backdrop_url': _backdrop_url(data),
         'runtime': data.get('runtime') or None,
+        'genres': _genres(data),
     }
     for country in (data.get('release_dates') or {}).get('results', []):
         for release in country.get('release_dates', []):
