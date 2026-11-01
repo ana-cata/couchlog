@@ -12,8 +12,16 @@ from .models import DroppedSeries, Episode, Title, Watch
 ENDED_STATUSES = ('Ended', 'Canceled', 'Cancelled')
 
 
+def typical_runtime(episodes):
+    """A series' typical episode runtime in minutes: the average of the runtimes of its episodes (as `tmdb` lists
+    them), rounded to a whole minute. Specials (season 0) and episodes with no runtime are left out. None when no
+    episode has one."""
+    runtimes = [episode['runtime'] for episode in episodes if episode['season_number'] > 0 and episode['runtime']]
+    return round(sum(runtimes) / len(runtimes)) if runtimes else None
+
+
 def refresh_episodes(series):
-    """Ask TMDB for the series' status, IMDb id, banner and episodes, and save them.
+    """Ask TMDB for the series' status, IMDb id, banner and episodes, and save them, with its typical episode runtime.
 
     Episodes are matched with TMDB's own id: a renumbered or renamed episode is updated in place
     (so its watches stay with it), a new one is added, and none is ever deleted. TMDB is asked first,
@@ -30,8 +38,9 @@ def refresh_episodes(series):
         series.status = details['status']
         series.imdb_id = details['imdb_id']
         series.backdrop_url = details['backdrop_url']
+        series.runtime = typical_runtime(details['episodes'])
         series.episodes_refreshed_at = timezone.now()
-        series.save(update_fields=['status', 'imdb_id', 'backdrop_url', 'episodes_refreshed_at'])
+        series.save(update_fields=['status', 'imdb_id', 'backdrop_url', 'runtime', 'episodes_refreshed_at'])
 
 
 def episodes_up_to(episode):

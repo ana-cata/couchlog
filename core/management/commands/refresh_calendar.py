@@ -10,9 +10,9 @@ from core.releases import refresh_movie, refresh_upcoming
 class Command(BaseCommand):
     help = (
         'Ask TMDB again for what the calendar shows: every series that is on someone\'s To Watch list or has a '
-        'watched episode (new episodes, air dates, status), and every movie on someone\'s To Watch list '
-        '(their cinema and streaming dates). Every series is also asked about on TVmaze, the second source for '
-        'upcoming episode dates.'
+        'watched episode (new episodes, air dates, status, typical episode runtime), and every movie on someone\'s '
+        'To Watch list (their cinema and streaming dates) and every watched movie with no runtime saved yet. '
+        'Every series is also asked about on TVmaze, the second source for upcoming episode dates.'
     )
 
     def handle(self, *args, **options):
@@ -48,10 +48,11 @@ class Command(BaseCommand):
             self.stdout.write(line)
         self.stdout.write(self.style.SUCCESS(f'Refreshed {done} series.'))
 
-        # A movie that was watched left the To Watch list, so only movies still waiting are asked about.
-        all_movies = Title.objects.filter(
-            kind='movie', id__in=ToWatchItem.objects.filter(removed_at=None).values('title')
-        ).order_by('title')
+        # A movie that was watched left the To Watch list, so only movies still waiting are asked about, and movies
+        # that were watched and have no runtime saved yet (saved before runtimes were kept): their time spent needs it.
+        waiting = Q(id__in=ToWatchItem.objects.filter(removed_at=None).values('title'))
+        no_runtime = Q(runtime=None, id__in=Watch.objects.filter(episode=None).values('title'))
+        all_movies = Title.objects.filter(kind='movie').filter(waiting | no_runtime).order_by('title')
         done = 0
         for movie in all_movies:
             try:

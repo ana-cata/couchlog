@@ -21,14 +21,16 @@ NEWS_DAYS = 7
 
 
 def refresh_movie(movie):
-    """Ask TMDB for the movie's cinema and streaming dates and banner and save them (an empty one when TMDB has none).
+    """Ask TMDB for the movie's cinema and streaming dates, banner and runtime and save them (an empty one when TMDB
+    has none).
 
     TMDB is asked first, so when it fails (it raises `tmdb.TmdbError`) nothing is saved.
     """
     releases = tmdb.get_movie_releases(movie.tmdb_id)
     movie.cinema_at, movie.streaming_at = releases['cinema'], releases['streaming']
     movie.backdrop_url = releases['backdrop_url']
-    movie.save(update_fields=['cinema_at', 'streaming_at', 'backdrop_url'])
+    movie.runtime = releases['runtime']
+    movie.save(update_fields=['cinema_at', 'streaming_at', 'backdrop_url', 'runtime'])
 
 
 def refresh_upcoming(series):
