@@ -624,7 +624,7 @@ def test_the_header_links_to_the_movies_and_series_sections(logged_in_client):
     header = page[page.index('<header'):page.index('</header>')]
 
     assert 'href="/movies/"' in header
-    assert 'href="/series/"' in header
+    assert 'href="/series/watching/">Series</a>' in header  # Series opens on its first tab, Watching
     # The two screens that moved are no longer links of their own in the header.
     assert 'href="/to-watch/"' not in header
     assert 'href="/history/"' not in header
@@ -652,7 +652,7 @@ def test_the_movies_section_has_the_tabs_to_watch_and_history(logged_in_client):
     assert 'href="/movies/history/">History</a>' in page
 
 
-def test_the_series_section_has_the_tabs_to_watch_watching_and_finished(logged_in_client):
+def test_the_series_section_has_the_tabs_watching_to_watch_and_finished(logged_in_client):
     page = to_watch_page(logged_in_client, 'series')
 
     assert 'href="/series/" aria-current="page">To Watch</a>' in page  # the tab you are on

@@ -64,12 +64,12 @@ A rewatch is one more watch with its own date (the day you pressed the button, i
 
 ## The Series tabs
 
-Series has four tabs. The first three are worked out every time from your own watches and TMDB's status, so un-marking an episode moves a series back by itself (there is no separate undo). **Dropped** is the one you set by hand (see below), and it wins over the other three.
+Series has four tabs, in this order: **Watching, To Watch, Finished, Dropped**. The **Series** link in the header opens the first one, Watching. The first three are worked out every time from your own watches and TMDB's status, so un-marking an episode moves a series back by itself (there is no separate undo). **Dropped** is the one you set by hand (see below), and it wins over the other three.
 
 | Tab | A series is here when |
 |---|---|
-| **To Watch** (`/series/`) | it is on your To Watch list and you have marked **no** episode of it, and you have not dropped it |
 | **Watching** (`/series/watching/`) | you have marked at least one episode (any episode, a special too), it is not finished and you have not dropped it |
+| **To Watch** (`/series/`) | it is on your To Watch list and you have marked **no** episode of it, and you have not dropped it |
 | **Finished** (`/series/finished/`) | TMDB says it **ended or was cancelled** **and** you have watched **every episode that has aired**. Both are needed. Not if you dropped it |
 | **Dropped** (`/series/dropped/`) | you pressed **Stop watching** on it and have not brought it back |
 
@@ -105,8 +105,8 @@ Series has four tabs. The first three are worked out every time from your own wa
 
 | Address | What | Needs login |
 |---|---|---|
-| `/series/` | Series → To Watch (see the tabs above) | Yes |
-| `/series/watching/` | Series → Watching | Yes |
+| `/series/watching/` | Series → Watching: the first tab, and where the **Series** link in the header goes | Yes |
+| `/series/` | Series → To Watch (see the tabs above). It keeps this address; only the header link moved | Yes |
 | `/series/finished/` | Series → Finished | Yes |
 | `/series/dropped/` | Series → Dropped | Yes |
 | `/series/drop/` | Stop watching (button, POST only). Sends `kind` (only `series`; a film is refused with a 400), `tmdb_id` and `next`. The series must already be saved (opening its page does that): otherwise "page not found" | Yes |

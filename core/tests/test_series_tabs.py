@@ -7,7 +7,7 @@ from django.contrib.auth.models import User
 from django.test import Client
 
 from core.episodes import series_tabs
-from core.models import Episode, Profile, Title, ToWatchItem, Watch
+from core.models import DroppedSeries, Episode, Profile, Title, ToWatchItem, Watch
 
 # The fixed "today" for the screen tests: 8 pm UTC on 28 Oct 2026 (still the 28th in Lisbon).
 NOW = datetime.datetime(2026, 10, 28, 20, 0, tzinfo=datetime.UTC)
@@ -327,6 +327,49 @@ def test_movies_are_not_affected(client_with_series):
     mark(client, client.first)
 
     assert tiles(page(client, '/movies/')) == ['/movie/603/']
+
+
+SERIES_TABS = ['/series/watching/', '/series/', '/series/finished/', '/series/dropped/']
+
+
+@pytest.mark.parametrize('url', SERIES_TABS)
+def test_the_tabs_are_in_the_order_watching_to_watch_finished_dropped(client_with_series, url):
+    html = page(client_with_series, url)
+    nav = html[html.index('<nav class="tabs"'):html.index('</nav>', html.index('<nav class="tabs"'))]
+
+    assert re.findall(r'<a href="([^"]+)"[^>]*>([^<]+)</a>', nav) == [
+        ('/series/watching/', 'Watching'),
+        ('/series/', 'To Watch'),
+        ('/series/finished/', 'Finished'),
+        ('/series/dropped/', 'Dropped'),
+    ]
+
+
+def test_the_series_link_in_the_header_opens_watching(client_with_series):
+    client = client_with_series
+    header = page(client, '/')
+    header = header[header.index('<header'):header.index('</header>')]
+    address = re.search(r'<a href="([^"]+)">Series</a>', header).group(1)
+
+    assert address == '/series/watching/'
+    assert 'href="/series/watching/" aria-current="page">Watching</a>' in page(client, address)
+
+
+def test_each_tab_still_lists_its_own_series_and_no_other(client_with_series):
+    client = client_with_series  # series 1 is on the To Watch list, nothing marked
+    watching, finished, dropped = make_series(2), make_series(3, status='Ended'), make_series(4)
+    make_watch(client.user, make_episode(watching, 1, 1))
+    make_watch(client.user, make_episode(finished, 1, 1))
+    DroppedSeries.objects.create(user=client.user, title=dropped)
+
+    lists = {url: tiles(page(client, url)) for url in SERIES_TABS}
+
+    assert lists == {
+        '/series/watching/': ['/series/2/'],
+        '/series/': ['/series/1/'],
+        '/series/finished/': ['/series/3/'],
+        '/series/dropped/': ['/series/4/'],
+    }
 
 
 @pytest.mark.django_db

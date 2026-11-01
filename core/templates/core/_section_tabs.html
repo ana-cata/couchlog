@@ -5,8 +5,8 @@
       <li><a href="{% url 'movies' %}"{% if tab == 'to_watch' %} aria-current="page"{% endif %}>To Watch</a></li>
       <li><a href="{% url 'history' %}"{% if tab == 'history' %} aria-current="page"{% endif %}>History</a></li>
     {% else %}
-      <li><a href="{% url 'series' %}"{% if tab == 'to_watch' %} aria-current="page"{% endif %}>To Watch</a></li>
       <li><a href="{% url 'series_watching' %}"{% if tab == 'watching' %} aria-current="page"{% endif %}>Watching</a></li>
+      <li><a href="{% url 'series' %}"{% if tab == 'to_watch' %} aria-current="page"{% endif %}>To Watch</a></li>
       <li><a href="{% url 'series_finished' %}"{% if tab == 'finished' %} aria-current="page"{% endif %}>Finished</a></li>
       <li><a href="{% url 'series_dropped' %}"{% if tab == 'dropped' %} aria-current="page"{% endif %}>Dropped</a></li>
     {% endif %}

@@ -64,6 +64,7 @@ def test_log_in_search_add_a_title_then_remove_it_and_undo(live_server, page, re
     page.reload()
     expect(page.locator('.tile')).to_have_count(1)
     page.get_by_role('link', name='Series', exact=True).click()
+    page.get_by_role('link', name='To Watch', exact=True).click()
     expect(page.get_by_text('No series on your To Watch list yet')).to_be_visible()
     expect(page.locator('.tile')).to_have_count(0)
     page.get_by_role('link', name='Movies', exact=True).click()
@@ -146,6 +147,7 @@ def test_a_page_left_open_stops_offering_undo_when_time_is_up(live_server, page,
     page.get_by_label('Password').fill('made-up-password')
     page.get_by_role('button', name='Log in').click()
     page.get_by_role('link', name='Series', exact=True).click()
+    page.get_by_role('link', name='To Watch', exact=True).click()
     page.get_by_role('button', name='Remove from To Watch').click()
     expect(page.get_by_role('heading', name='Recently removed')).to_be_visible()
     expect(page.get_by_role('button', name='Undo')).to_be_visible()
@@ -221,8 +223,9 @@ def test_open_a_series_tick_an_episode_and_untick_it(live_server, page, respx_mo
     page.get_by_label('Password').fill('made-up-password')
     page.get_by_role('button', name='Log in').click()
 
-    # Open the series from the Series section: its season is listed, and only the episode that has aired has a button.
+    # Open the series from the Series section's To Watch tab: its season is listed, and only the episode that has aired has a button.
     page.get_by_role('link', name='Series', exact=True).click()
+    page.get_by_role('link', name='To Watch', exact=True).click()
     page.locator('.tile').click()
     expect(page.get_by_text('Made-up pilot')).to_be_visible()
     expect(page.get_by_text('Airs 1 Jan 2999')).to_be_visible()
@@ -448,8 +451,10 @@ def test_a_series_found_in_search_and_marked_shows_up_under_watching(live_server
     page.get_by_role('button', name='Mark episode 1 as watched').click()
     expect(page.get_by_role('button', name='Mark episode 1 as not watched')).to_be_visible()
 
-    # It is under Series → Watching straight away, and not under To Watch.
+    # It is under Series → Watching straight away (the Series link opens it), and not under To Watch.
     page.get_by_role('link', name='Series', exact=True).click()
+    expect(page.locator('.tile')).to_contain_text('Made-up Series')
+    page.get_by_role('link', name='To Watch', exact=True).click()
     expect(page.locator('.tile')).to_have_count(0)
     page.get_by_role('link', name='Watching', exact=True).click()
     expect(page.locator('.tile')).to_contain_text('Made-up Series')
@@ -470,7 +475,6 @@ def test_a_series_found_in_search_and_marked_shows_up_under_watching(live_server
     page.get_by_role('button', name='Mark episode 2 as not watched').click()
     expect(page.get_by_role('button', name='Mark episode 2 as watched')).to_be_visible()
     page.get_by_role('link', name='Series', exact=True).click()
-    page.get_by_role('link', name='Watching', exact=True).click()
     expect(page.locator('.tile')).to_contain_text('Made-up Series')
 
 
@@ -572,6 +576,7 @@ def test_a_series_on_the_to_watch_list_shows_in_the_calendar_until_it_is_removed
 
     # Removing the series from the list takes it off the calendar.
     page.get_by_role('link', name='Series', exact=True).click()
+    page.get_by_role('link', name='To Watch', exact=True).click()
     page.get_by_role('button', name='Remove from To Watch').click()
     page.get_by_role('link', name='Calendar', exact=True).click()
     expect(item).to_have_count(0)
@@ -579,6 +584,7 @@ def test_a_series_on_the_to_watch_list_shows_in_the_calendar_until_it_is_removed
 
     # Undo brings it back to the calendar too.
     page.get_by_role('link', name='Series', exact=True).click()
+    page.get_by_role('link', name='To Watch', exact=True).click()
     page.get_by_role('button', name='Undo').click()
     page.get_by_role('link', name='Calendar', exact=True).click()
     expect(item).to_have_count(1)
