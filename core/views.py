@@ -1,5 +1,4 @@
 import math
-from collections import Counter
 from datetime import timedelta
 from zoneinfo import ZoneInfo
 
@@ -432,17 +431,24 @@ def to_watch_undo(request):
 def history(request):
     # Newest watch first. Watches with an unknown date go last, newest saved first among themselves.
     # History is the Movies section's tab, so it lists films only.
-    watches = list(
+    watches = (
         Watch.objects.filter(user=request.user, title__kind='movie')
         .select_related('title')
         .order_by(F('watched_on').desc(nulls_last=True), '-created_at', '-id')
     )
-    # A film watched again has a tile for each watch. The button under a tile takes back that watch only, so it
-    # says so when the film has others.
-    times = Counter(watch.title_id for watch in watches)
+    # A film watched again is still one tile, with the date of its latest watch (the first one in that order). All
+    # its watches are listed on its own page. The button under the tile takes back the watch the tile shows only,
+    # so it says so when the film has others (`times` is how many watches it has).
+    shown = {}
     for watch in watches:
-        watch.times = times[watch.title_id]
-    return render(request, 'core/history.html', {'watches': watches, 'section': 'movies', 'next': reverse('history')})
+        if watch.title_id in shown:
+            shown[watch.title_id].times += 1
+        else:
+            watch.times = 1
+            shown[watch.title_id] = watch
+    return render(
+        request, 'core/history.html', {'watches': list(shown.values()), 'section': 'movies', 'next': reverse('history')}
+    )
 
 
 @require_POST

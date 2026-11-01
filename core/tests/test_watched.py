@@ -320,15 +320,38 @@ def test_the_movie_page_offers_watch_again_and_lists_every_watch(logged_in_clien
     assert twice.count('Remove this watch') == 2 and 'Mark as not watched' not in twice
 
 
-def test_history_shows_every_watch_of_a_film_with_its_own_date(logged_in_client, movie_route):
-    mark(logged_in_client, watched_on='2026-05-01')
+def test_history_shows_a_film_watched_again_once_with_the_date_of_its_latest_watch(logged_in_client, movie_route):
     mark(logged_in_client, watched_on='2026-06-01')
+    mark(logged_in_client, watched_on='2026-05-01')  # an older rewatch, entered later
+    mark(logged_in_client, watched_on='2026-07-02', date_unknown='on')  # and one with no date
 
     html = page(logged_in_client, '/movies/history/')
 
-    assert tiles(html) == ['/movie/603/', '/movie/603/']
-    assert html.index('Watched 1 Jun 2026') < html.index('Watched 1 May 2026')
-    assert html.count('Remove this watch') == 2
+    assert tiles(html) == ['/movie/603/']  # one tile, not three
+    assert 'Watched 1 Jun 2026' in html and 'Watched 1 May 2026' not in html and 'Date unknown' not in html
+    assert html.count('Remove this watch') == 1  # it takes back the watch the tile shows, and says so
+
+
+def test_history_keeps_its_order_by_the_latest_watch_of_each_film(logged_in_client):
+    make_watch(logged_in_client.user, 1, datetime.date(2026, 1, 5))
+    make_watch(logged_in_client.user, 2, datetime.date(2026, 3, 1))
+    make_watch(logged_in_client.user, 3, None)
+    Watch.objects.create(user=logged_in_client.user, title=Title.objects.get(tmdb_id=1), watched_on=datetime.date(2026, 6, 1))
+
+    # Film 1 was watched again in June, so it is now the newest. Film 3 has no date and stays last.
+    assert tiles(page(logged_in_client, '/movies/history/')) == ['/movie/1/', '/movie/2/', '/movie/3/']
+
+
+def test_taking_back_the_watch_a_history_tile_shows_shows_the_next_one(logged_in_client, movie_route):
+    mark(logged_in_client, watched_on='2026-05-01')
+    mark(logged_in_client, watched_on='2026-06-01')
+    latest = Watch.objects.get(watched_on=datetime.date(2026, 6, 1))
+
+    unmark(logged_in_client, latest.id, next='/movies/history/')
+
+    html = page(logged_in_client, '/movies/history/')
+    assert tiles(html) == ['/movie/603/'] and 'Watched 1 May 2026' in html
+    assert 'Mark as not watched' in html  # one watch left: the button is the plain one again
 
 
 def test_taking_the_watches_back_one_by_one_puts_everything_back_as_it_was(logged_in_client, movie_route):
