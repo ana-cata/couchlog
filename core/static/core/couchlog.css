@@ -501,20 +501,16 @@ header nav li {
   margin: 0;
 }
 
-/* The Undo notice after a change: the sentence on the left, the button on the right. */
-.rating-undo {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-top: 0.5rem;
+/* The edit icon (a pencil) that opens the form once something is saved. It is only the icon, with no arrow. */
+.rating-section summary.rating-edit {
+  display: inline-flex;
+  width: fit-content;
+  padding: 0.25rem;
+  color: var(--pico-color);
 }
 
-.rating-undo button {
-  width: auto;
-  margin: 0;
-  padding: 0.25rem 0.6rem;
-  font-size: 0.8rem;
+.rating-section summary.rating-edit::after {
+  display: none;
 }
 
 /* "Time spent watching" on the Profile page: the name on the left, the time on the right. */

@@ -185,9 +185,8 @@ class DroppedSeries(models.Model):
 class Rating(models.Model):
     """One account's star rating and short note for one title (a movie or a series).
 
-    Removing the stars or the note empties them instead of deleting the row, because the row also remembers what was
-    there before the last change: that is what Undo brings back. A row with no stars and an empty note means "nothing
-    saved".
+    The row only exists while there is something to keep: removing both the stars and the note deletes it. Changing
+    either one is done by saving again from the title's page, which is also the way back after a mistake.
     """
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
@@ -195,11 +194,6 @@ class Rating(models.Model):
     # 1 to 5 whole stars. Empty means no rating, which is not the same as 1 star.
     stars = models.PositiveSmallIntegerField(null=True, blank=True)
     note = models.TextField(blank=True)
-    # The stars and the note as they were just before the last change, for Undo.
-    previous_stars = models.PositiveSmallIntegerField(null=True, blank=True)
-    previous_note = models.TextField(blank=True)
-    # When the last change was made. Undo works for a few seconds after it; empty again once the change was undone.
-    changed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         constraints = (

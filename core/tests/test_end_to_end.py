@@ -584,9 +584,7 @@ def test_a_series_on_the_to_watch_list_shows_in_the_calendar_until_it_is_removed
     expect(item).to_have_count(1)
 
 
-def test_rate_a_movie_change_it_undo_and_remove_it(live_server, page, respx_mock, settings, monkeypatch):
-    # A long window, so a slow machine can never run out of undo time in the middle of this test.
-    monkeypatch.setattr('core.views.UNDO_WINDOW', datetime.timedelta(minutes=5))
+def test_rate_a_movie_change_it_and_remove_it(live_server, page, respx_mock, settings):
     settings.TMDB_API_KEY = 'made-up-secret-key'
     user = User.objects.create_user(username='made-up-user', password='made-up-password')
     Profile.objects.create(user=user, timezone='Europe/Lisbon')
@@ -598,42 +596,46 @@ def test_rate_a_movie_change_it_undo_and_remove_it(live_server, page, respx_mock
     page.get_by_label('Password').fill('made-up-password')
     page.get_by_role('button', name='Log in').click()
     page.goto(live_server.url + '/movie/603/')
-    page.wait_for_load_state('load')  # htmx starts when the page has loaded
+    page.wait_for_load_state('load')
 
     # Nothing yet: the form is folded away. Open it, pick 4 stars, write a note and save.
     expect(page.get_by_text('Your rating:')).to_have_count(0)
     page.get_by_text('Rate it or add a note').click()
     page.get_by_label('4 out of 5 stars').check()
-    page.get_by_label('Note').fill('Loved the ending.')
+    page.locator('textarea[name="note"]').fill('Loved the ending.')
     page.get_by_role('button', name='Save', exact=True).click()
 
-    # Both are shown on the page, with a notice and an Undo button.
+    # Both are shown on the page. There is no Undo button: the edit icon is the way to change them.
     expect(page.get_by_text('Rating saved and note saved.')).to_be_visible()
     expect(page.get_by_text('Your rating: ★★★★☆')).to_be_visible()
     expect(page.get_by_text('Your note: Loved the ending.')).to_be_visible()
-    expect(page.get_by_role('button', name='Undo')).to_be_visible()
+    expect(page.get_by_role('button', name='Undo')).to_have_count(0)
+    edit = page.get_by_label('Change or remove your rating and note', exact=True).first
+    expect(edit).to_be_visible()
+    expect(edit.locator('svg')).to_be_visible()
 
-    # Change the stars only.
-    page.get_by_text('Change or remove your rating and note').click()
+    # Change the stars only: the icon opens the form, which has what is saved.
+    edit.click()
+    expect(page.get_by_label('4 out of 5 stars')).to_be_checked()
     page.get_by_label('2 out of 5 stars').check()
     page.get_by_role('button', name='Save', exact=True).click()
     expect(page.get_by_text('Your rating: ★★☆☆☆')).to_be_visible()
     expect(page.get_by_text('Your note: Loved the ending.')).to_be_visible()
 
-    # Undo brings back the 4 stars and the note.
-    page.get_by_role('button', name='Undo').click()
-    expect(page.get_by_text('Your rating: ★★★★☆')).to_be_visible()
-    expect(page.get_by_text('Brought back your previous rating and note.')).to_be_visible()
-    expect(page.get_by_role('button', name='Undo')).to_have_count(0)
-
-    # Remove both: "No rating" and an empty note. Undo brings them back, and both survive a reload.
-    page.get_by_text('Change or remove your rating and note').click()
+    # Remove both: "No rating" and an empty note. Nothing is left, and that survives a reload.
+    page.get_by_label('Change or remove your rating and note', exact=True).first.click()
     page.get_by_label('No rating').check()
-    page.get_by_label('Note').fill('')
+    page.locator('textarea[name="note"]').fill('')
     page.get_by_role('button', name='Save', exact=True).click()
     expect(page.get_by_text('Your rating:')).to_have_count(0)
     expect(page.get_by_text('Your note:')).to_have_count(0)
-    page.get_by_role('button', name='Undo').click()
     page.reload()
+    expect(page.get_by_text('Rate it or add a note')).to_be_visible()
+
+    # Editing again puts them back, which is the way back after a mistake.
+    page.get_by_text('Rate it or add a note').click()
+    page.get_by_label('4 out of 5 stars').check()
+    page.locator('textarea[name="note"]').fill('Loved the ending.')
+    page.get_by_role('button', name='Save', exact=True).click()
     expect(page.get_by_text('Your rating: ★★★★☆')).to_be_visible()
     expect(page.get_by_text('Your note: Loved the ending.')).to_be_visible()

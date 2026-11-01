@@ -1,7 +1,8 @@
 """Ratings and notes: the stars (1 to 5) and the short note of a movie or a series, saved from its page.
 
-Saving, changing and removing each leave the right values, and each can be undone for 10 seconds. A title does not
-have to be watched, or saved yet. Each account sees and changes only its own."""
+Saving, changing and removing each leave the right values, and the page's form is always there to change them back
+(there is no Undo button). A title does not have to be watched, or saved yet. Each account sees and changes only its
+own."""
 
 import datetime
 import re
@@ -27,7 +28,7 @@ MADE_UP_MOVIE = {
     'overview': 'A made-up story about a movie.',
 }
 
-# The fixed "now" for every test here.
+# The fixed "now" for every test here (so a saved series' episodes count as fresh and its page does not ask TMDB).
 NOW = datetime.datetime(2026, 11, 1, 20, 0, tzinfo=datetime.UTC)
 
 
@@ -38,8 +39,8 @@ def tmdb_key(settings):
 
 @pytest.fixture(autouse=True)
 def clock():
-    with time_machine.travel(NOW, tick=False) as traveller:
-        yield traveller
+    with time_machine.travel(NOW, tick=False):
+        yield
 
 
 def make_client(name):
@@ -75,10 +76,6 @@ def save(client, stars='', note='', kind='movie', tmdb_id=603, **extra):
     )
 
 
-def undo(client, kind='movie', tmdb_id=603, **extra):
-    return client.post('/rating/undo/', {'kind': kind, 'tmdb_id': tmdb_id, 'next': MOVIE_PAGE, **extra})
-
-
 def message_after(client, response):
     """The page the button sent the browser back to, as the browser shows it."""
     return client.get(response['Location']).content.decode()
@@ -88,10 +85,6 @@ def mine(client):
     """This account's saved stars and note for the movie, or None when it has no row."""
     rating = Rating.objects.filter(user=client.user, title__tmdb_id=603).first()
     return (rating.stars, rating.note) if rating else None
-
-
-def undo_form(page):
-    return 'action="/rating/undo/"' in page
 
 
 # --- saving, changing, removing ---------------------------------------------------------------
@@ -127,7 +120,8 @@ def test_the_box_is_empty_before_anything_is_saved(logged_in_client, movie_route
 
     assert re.search(r'name="stars" value=""[^>]* checked', page)  # "No rating"
     assert 'rating-stars' not in page
-    assert undo_form(page) is False
+    assert 'Rate it or add a note' in page
+    assert 'rating-edit' not in page
     assert Rating.objects.count() == 0
 
 
@@ -166,7 +160,7 @@ def test_rating_changes_nothing_but_the_rating(logged_in_client, movie_route):
 
     save(logged_in_client, 5, 'Great.')
     save(logged_in_client, 2, 'Meh.')
-    undo(logged_in_client)
+    save(logged_in_client, '', '')
 
     assert (list(ToWatchItem.objects.values()), list(Watch.objects.values())) == before
 
@@ -215,15 +209,28 @@ def test_removing_the_note_keeps_the_rating(logged_in_client, movie_route):
     assert 'Note removed.' in message_after(logged_in_client, response)
 
 
-def test_removing_both_leaves_nothing_shown(logged_in_client, movie_route):
+def test_removing_both_leaves_nothing_saved_or_shown(logged_in_client, movie_route):
     save(logged_in_client, 4, 'Remove me.')
 
-    save(logged_in_client, '', '')
+    response = save(logged_in_client, '', '')
 
-    assert mine(logged_in_client) == (None, '')
-    page = logged_in_client.get(MOVIE_PAGE).content.decode()
+    assert mine(logged_in_client) is None
+    assert Rating.objects.count() == 0  # nothing is kept
+    page = message_after(logged_in_client, response)
+    assert 'Rating removed and note removed.' in page
     assert 'rating-stars' not in page
     assert 'Remove me.' not in page
+    assert 'Rate it or add a note' in page
+
+
+def test_editing_again_puts_back_what_was_removed(logged_in_client, movie_route):
+    save(logged_in_client, 4, 'Loved the ending.')
+    save(logged_in_client, '', '')
+
+    save(logged_in_client, 4, 'Loved the ending.')
+
+    assert mine(logged_in_client) == (4, 'Loved the ending.')
+    assert Rating.objects.count() == 1
 
 
 def test_one_star_is_not_the_same_as_no_rating(logged_in_client, movie_route):
@@ -289,9 +296,8 @@ def test_a_save_for_no_real_title_is_refused(logged_in_client, data):
     assert Rating.objects.count() == 0
 
 
-def test_the_buttons_only_answer_to_a_post(logged_in_client):
+def test_the_button_only_answers_to_a_post(logged_in_client):
     assert logged_in_client.get('/rating/save/').status_code == 405
-    assert logged_in_client.get('/rating/undo/').status_code == 405
 
 
 def test_a_title_tmdb_does_not_know_is_not_found(logged_in_client, respx_mock):
@@ -311,7 +317,7 @@ def test_when_tmdb_does_not_answer_nothing_is_saved_and_a_message_says_so(logged
     assert Rating.objects.count() == 0
 
 
-def test_the_note_is_not_lost_from_the_page_when_a_save_is_refused(logged_in_client, movie_route):
+def test_a_refused_save_leaves_the_saved_note_on_the_page(logged_in_client, movie_route):
     save(logged_in_client, 4, 'Saved note.')
 
     save(logged_in_client, 4, 'x' * 600)
@@ -344,177 +350,59 @@ def test_saving_with_nothing_to_save_creates_no_row_and_does_not_ask_tmdb(logged
     assert Title.objects.count() == 0
 
 
-def test_saving_the_same_values_again_keeps_the_undo_of_the_earlier_change(logged_in_client, movie_route):
+def test_saving_the_same_values_again_changes_nothing(logged_in_client, movie_route):
     save(logged_in_client, 4, 'First.')
     save(logged_in_client, 2, 'Second.')
+    before = list(Rating.objects.values())
 
     response = save(logged_in_client, 2, 'Second.')  # pressed Save twice
 
     assert 'Nothing changed' in message_after(logged_in_client, response)
-    undo(logged_in_client)
-    assert mine(logged_in_client) == (4, 'First.')
-
-
-# --- undo ---------------------------------------------------------------------------------------
-
-
-def test_undoing_the_first_save_puts_everything_back_to_nothing(logged_in_client, movie_route):
-    save(logged_in_client, 4, 'Loved the ending.')
-
-    response = undo(logged_in_client)
-
-    assert 'Brought back your previous rating and note.' in message_after(logged_in_client, response)
-    assert mine(logged_in_client) == (None, '')
-    rating = Rating.objects.get()
-    assert (rating.previous_stars, rating.previous_note, rating.changed_at) == (None, '', None)
-    page = logged_in_client.get(MOVIE_PAGE).content.decode()
-    assert 'rating-stars' not in page and 'Loved the ending.' not in page and undo_form(page) is False
-
-
-def test_undoing_a_change_brings_back_the_previous_stars_and_note(logged_in_client, movie_route, clock):
-    save(logged_in_client, 4, 'Loved the ending.')
-    clock.shift(datetime.timedelta(minutes=5))
-    save(logged_in_client, 2, 'Second thoughts.')
-
-    undo(logged_in_client)
-
-    assert mine(logged_in_client) == (4, 'Loved the ending.')
-    assert Rating.objects.get().changed_at is None
-
-
-def test_undoing_a_removal_brings_back_what_was_removed(logged_in_client, movie_route, clock):
-    save(logged_in_client, 4, 'Loved the ending.')
-    clock.shift(datetime.timedelta(minutes=5))
-    save(logged_in_client, '', '')
-    assert mine(logged_in_client) == (None, '')
-
-    undo(logged_in_client)
-
-    assert mine(logged_in_client) == (4, 'Loved the ending.')
-
-
-def test_undoing_the_removal_of_only_the_stars_or_only_the_note(logged_in_client, movie_route, clock):
-    save(logged_in_client, 4, 'Loved the ending.')
-    clock.shift(datetime.timedelta(minutes=5))
-    save(logged_in_client, '', 'Loved the ending.')
-    undo(logged_in_client)
-    assert mine(logged_in_client) == (4, 'Loved the ending.')
-
-    clock.shift(datetime.timedelta(minutes=5))
-    save(logged_in_client, 4, '')
-    undo(logged_in_client)
-    assert mine(logged_in_client) == (4, 'Loved the ending.')
-
-
-def test_undo_only_goes_one_step_back(logged_in_client, movie_route, clock):
-    save(logged_in_client, 5, 'One.')
-    clock.shift(datetime.timedelta(minutes=5))
-    save(logged_in_client, 3, 'Two.')
-    clock.shift(datetime.timedelta(minutes=5))
-    save(logged_in_client, 1, 'Three.')
-
-    undo(logged_in_client)
-    response = undo(logged_in_client)  # nothing more to undo
-
-    assert 'nothing to undo' in message_after(logged_in_client, response)
-    assert mine(logged_in_client) == (3, 'Two.')
-
-
-def test_undo_with_nothing_saved_does_not_crash(logged_in_client):
-    response = undo(logged_in_client)
-
-    assert response.status_code == 302
-    assert 'nothing to undo' in message_after(logged_in_client, response)
-    assert Rating.objects.count() == 0
-
-
-def test_undo_works_just_inside_the_10_seconds(logged_in_client, movie_route, clock):
-    save(logged_in_client, 4, 'Mine.')
-    save(logged_in_client, 1, 'Changed.')
-    clock.shift(datetime.timedelta(seconds=9))
-
-    undo(logged_in_client)
-
-    assert mine(logged_in_client) == (4, 'Mine.')
-
-
-def test_undo_is_refused_after_the_10_seconds(logged_in_client, movie_route, clock):
-    save(logged_in_client, 4, 'Mine.')
-    save(logged_in_client, 1, 'Changed.')
-    clock.shift(datetime.timedelta(seconds=11))
-    before = list(Rating.objects.values())
-
-    response = undo(logged_in_client)
-
-    assert 'too late to undo' in message_after(logged_in_client, response)
     assert list(Rating.objects.values()) == before
-    assert mine(logged_in_client) == (1, 'Changed.')
 
 
-def test_after_10_seconds_the_page_offers_no_undo_but_the_rating_can_be_edited_again(
-    logged_in_client, movie_route, clock
-):
-    save(logged_in_client, 4, 'Mine.')
-    clock.shift(datetime.timedelta(seconds=11))
-
-    page = logged_in_client.get(MOVIE_PAGE).content.decode()
-    assert undo_form(page) is False
-    assert 'hx-get' not in page
-
-    save(logged_in_client, 5, 'Mine, edited.')
-    assert mine(logged_in_client) == (5, 'Mine, edited.')
+# --- no Undo button: the edit icon is always there ---------------------------------------------
 
 
-# --- the Undo notice ----------------------------------------------------------------------------
-
-
-def test_right_after_saving_the_page_offers_undo_for_10_seconds(logged_in_client, movie_route):
+def test_the_page_has_no_undo_button_but_always_has_the_edit_icon(logged_in_client, movie_route):
     save(logged_in_client, 4, 'Mine.')
 
-    page = logged_in_client.get(MOVIE_PAGE).content.decode()
+    for _ in range(2):  # right after saving, and again on a later visit
+        page = logged_in_client.get(MOVIE_PAGE).content.decode()
+        assert 'Undo' not in page
+        assert '/rating/undo/' not in page
+        assert 'hx-get' not in page
+        # The way to change or remove is the pencil icon, not words: its name is only for screen readers and the tooltip.
+        summary = re.search(r'<summary class="rating-edit"[^>]*>(.*?)</summary>', page, re.DOTALL)
+        assert summary
+        assert 'aria-label="Change or remove your rating and note"' in summary.group(0)
+        assert '<svg' in summary.group(1)
+        assert 'Change or remove' not in re.sub(r'<[^>]*>', '', summary.group(1))
 
-    assert undo_form(page)
-    assert 'You can undo this change for 10 seconds.' in page
-    # The notice asks again just after its time runs out, so an open page loses it by itself.
-    delay = int(re.search(r'hx-trigger="load delay:(\d+)s"', page).group(1))
-    assert delay == 11
-    assert 'hx-get="/rating/undo/notice/?kind=movie&amp;tmdb_id=603&amp;next=/movie/603/"' in page
 
-
-def test_the_notice_asks_again_sooner_the_less_time_is_left(logged_in_client, movie_route, clock):
-    save(logged_in_client, 4, 'Mine.')
-    clock.shift(datetime.timedelta(seconds=6))
+def test_the_edit_icon_opens_a_form_with_what_is_saved(logged_in_client, movie_route):
+    save(logged_in_client, 3, 'Mine.')
 
     page = logged_in_client.get(MOVIE_PAGE).content.decode()
 
-    assert int(re.search(r'hx-trigger="load delay:(\d+)s"', page).group(1)) == 5  # 4 seconds left, plus a second
+    form = page[page.index('<details') : page.index('</details>')]
+    assert form.index('rating-edit') < form.index('action="/rating/save/"')  # the icon opens the form
+    assert re.search(r'name="stars" value="3"[^>]* checked', form)
+    assert re.search(r'<textarea[^>]*>Mine\.</textarea>', form)
 
 
-def test_the_notice_alone_is_empty_once_the_time_has_run_out(logged_in_client, movie_route, clock):
-    save(logged_in_client, 4, 'Mine.')
-    address = '/rating/undo/notice/?kind=movie&tmdb_id=603&next=/movie/603/'
-    assert undo_form(logged_in_client.get(address).content.decode())
-
-    clock.shift(datetime.timedelta(seconds=11))
-    body = logged_in_client.get(address).content.decode()
-
-    assert undo_form(body) is False
-    assert 'hx-get' not in body
-    assert re.search(r'<div id="rating-undo">\s*</div>', body)
-
-
-@pytest.mark.parametrize('query', ['', '?kind=movie', '?kind=book&tmdb_id=1', '?kind=movie&tmdb_id=x'])
-def test_the_notice_needs_a_real_title(logged_in_client, query):
-    assert logged_in_client.get('/rating/undo/notice/' + query).status_code == 400
-
-
-def test_the_series_page_has_the_notice_too(logged_in_client, series):
+def test_the_series_page_has_the_edit_icon_too(logged_in_client, series):
     save(logged_in_client, 3, kind='series', tmdb_id=1399, next=SERIES_PAGE)
 
     page = logged_in_client.get(SERIES_PAGE).content.decode()
 
-    assert undo_form(page)
-    assert 'value="series"' in page
+    assert 'class="rating-edit"' in page
+    assert 'Undo' not in page
+
+
+def test_the_undo_addresses_are_gone(logged_in_client):
+    assert logged_in_client.post('/rating/undo/', {'kind': 'movie', 'tmdb_id': 603}).status_code == 404
+    assert logged_in_client.get('/rating/undo/notice/?kind=movie&tmdb_id=603').status_code == 404
 
 
 # --- only my own account ------------------------------------------------------------------------
@@ -528,8 +416,7 @@ def test_one_account_never_sees_the_rating_of_another(logged_in_client, movie_ro
 
     assert 'Private thought.' not in page
     assert 'rating-stars' not in page
-    assert undo_form(page) is False
-    assert other.get('/rating/undo/notice/?kind=movie&tmdb_id=603&next=/movie/603/').content.decode().count('<form') == 0
+    assert 'rating-edit' not in page
 
 
 def test_each_account_has_its_own_rating_for_the_same_title(logged_in_client, movie_route):
@@ -543,15 +430,16 @@ def test_each_account_has_its_own_rating_for_the_same_title(logged_in_client, mo
     assert Title.objects.count() == 1
 
 
-def test_one_account_cannot_change_or_undo_for_another(logged_in_client, movie_route):
+def test_one_account_cannot_change_or_remove_the_rating_of_another(logged_in_client, movie_route):
     save(logged_in_client, 4, 'Mine.')
-    save(logged_in_client, 2, 'Changed.')
     other = make_client('second-user')
     before = list(Rating.objects.values())
 
-    response = undo(other)
-    save(other, '', '')  # nothing of theirs to remove
+    response = save(other, '', '')  # nothing of theirs to remove
 
-    assert 'nothing to undo' in message_after(other, response)
+    assert 'Nothing changed' in message_after(other, response)
     assert list(Rating.objects.values()) == before
-    assert mine(logged_in_client) == (2, 'Changed.')
+    save(other, 1, 'Theirs.')
+    save(other, '', '')  # removing their own rating leaves mine alone
+    assert mine(logged_in_client) == (4, 'Mine.')
+    assert mine(other) is None
