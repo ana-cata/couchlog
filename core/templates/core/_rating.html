@@ -14,7 +14,7 @@
     {% else %}
       <summary>Rate it or add a note</summary>
     {% endif %}
-    <form method="post" action="{% url 'rating_save' %}">
+    <form method="post" action="{% url 'rating_save' %}" hx-boost="true" hx-push-url="false">
       {% csrf_token %}
       <input type="hidden" name="kind" value="{{ item.kind }}">
       <input type="hidden" name="tmdb_id" value="{{ item.tmdb_id }}">
