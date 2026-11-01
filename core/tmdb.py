@@ -8,6 +8,8 @@ from django.conf import settings
 TMDB_BASE_URL = 'https://api.themoviedb.org/3'
 # Posters are public pictures: the browser loads them from here directly, with no key.
 IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/w342'
+# Banners (the wide pictures, shown in the News section) are public too.
+BACKDROP_BASE_URL = 'https://image.tmdb.org/t/p/w780'
 
 
 class TmdbError(Exception):
@@ -51,6 +53,12 @@ def get_configuration():
     return _get('/configuration')
 
 
+def _backdrop_url(raw):
+    """The address of the banner in one TMDB movie or series, or empty when TMDB has none."""
+    backdrop_path = raw.get('backdrop_path')
+    return f'{BACKDROP_BASE_URL}{backdrop_path}' if backdrop_path else ''
+
+
 def _title_from(raw, kind):
     """The few fields we show, from one TMDB movie or series. `kind` is 'movie' or 'series'."""
     if kind == 'movie':
@@ -65,6 +73,7 @@ def _title_from(raw, kind):
         # TMDB dates look like 2010-07-16, or are empty. The year is used as given.
         'year': (date or '')[:4],
         'poster_url': f'{IMAGE_BASE_URL}{poster_path}' if poster_path else '',
+        'backdrop_url': _backdrop_url(raw),
         'overview': raw.get('overview') or '',
     }
 
@@ -89,10 +98,10 @@ def _day(text):
 
 
 def get_series_episodes(tmdb_id):
-    """A series' status, IMDb id and every one of its episodes, specials included. Nothing is saved.
+    """A series' status, IMDb id, banner and every one of its episodes, specials included. Nothing is saved.
 
-    One call gives the status and the IMDb id and lists the seasons, then there is one call per season, so a
-    long series takes a moment.
+    One call gives the status, the IMDb id and the banner and lists the seasons, then there is one call per
+    season, so a long series takes a moment.
     """
     series = _get(f'/tv/{tmdb_id}', {'append_to_response': 'external_ids'})
     episodes = []
@@ -114,6 +123,7 @@ def get_series_episodes(tmdb_id):
     return {
         'status': series.get('status') or '',
         'imdb_id': (series.get('external_ids') or {}).get('imdb_id') or '',
+        'backdrop_url': _backdrop_url(series),
         'episodes': episodes,
     }
 
@@ -125,15 +135,15 @@ DIGITAL_RELEASE = 4
 
 
 def get_movie_releases(tmdb_id):
-    """The earliest cinema release and the earliest streaming (digital) release of a movie in any country.
+    """The earliest cinema release and the earliest streaming (digital) release of a movie in any country, and its banner.
 
-    Returns {'cinema': moment or None, 'streaming': moment or None}, None when TMDB lists no such release.
-    A moment looks like 2024-04-15T00:00:00.000Z in TMDB's answer (midnight UTC), and so it is here.
-    Nothing is saved.
+    Returns {'cinema': moment or None, 'streaming': moment or None, 'backdrop_url': address or ''}, None when TMDB
+    lists no such release. A moment looks like 2024-04-15T00:00:00.000Z in TMDB's answer (midnight UTC), and so it
+    is here. One call gives both: the release dates are asked along with the movie itself. Nothing is saved.
     """
-    data = _get(f'/movie/{tmdb_id}/release_dates')
-    earliest = {'cinema': None, 'streaming': None}
-    for country in data.get('results', []):
+    data = _get(f'/movie/{tmdb_id}', {'append_to_response': 'release_dates'})
+    earliest = {'cinema': None, 'streaming': None, 'backdrop_url': _backdrop_url(data)}
+    for country in (data.get('release_dates') or {}).get('results', []):
         for release in country.get('release_dates', []):
             kind = release.get('type')
             if kind in CINEMA_RELEASES:

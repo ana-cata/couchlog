@@ -40,12 +40,6 @@ def tmdb_key(settings):
 
 
 @pytest.fixture(autouse=True)
-def release_dates(respx_mock):
-    """Adding a movie to To Watch also collects its release dates for the Calendar. Here TMDB has none."""
-    respx_mock.get(url__regex=r'https://api\.themoviedb\.org/3/movie/\d+/release_dates').respond(json={'results': []})
-
-
-@pytest.fixture(autouse=True)
 def clock():
     with time_machine.travel(NOW, tick=False) as traveller:
         yield traveller

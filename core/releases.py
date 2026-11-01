@@ -14,15 +14,21 @@ from . import tmdb, tvmaze
 from .episodes import dropped_series, series_tabs
 from .models import Episode, Title, ToWatchItem, UpcomingEpisode
 
+# How far ahead the News section on Home looks, in days. A release is in it when it comes out less than this many
+# days from today (today counts as day 0), so with 7 a release in 6 days is in and one in 7 days is not. This is the
+# one place it is set.
+NEWS_DAYS = 7
+
 
 def refresh_movie(movie):
-    """Ask TMDB for the movie's cinema and streaming dates and save them (an empty one when TMDB has none).
+    """Ask TMDB for the movie's cinema and streaming dates and banner and save them (an empty one when TMDB has none).
 
     TMDB is asked first, so when it fails (it raises `tmdb.TmdbError`) nothing is saved.
     """
     releases = tmdb.get_movie_releases(movie.tmdb_id)
     movie.cinema_at, movie.streaming_at = releases['cinema'], releases['streaming']
-    movie.save(update_fields=['cinema_at', 'streaming_at'])
+    movie.backdrop_url = releases['backdrop_url']
+    movie.save(update_fields=['cinema_at', 'streaming_at', 'backdrop_url'])
 
 
 def refresh_upcoming(series):
@@ -126,3 +132,36 @@ def upcoming(user, today, zone):
         {'day': day, 'items': sorted(days[day], key=lambda item: (item['title'].title.lower(), item['text']))}
         for day in sorted(days)
     ]
+
+
+def countdown_label(day, today):
+    """How far away a release is, counted in days: 'today', 'tomorrow' or 'in 3 days'.
+
+    `day` and `today` are both days in the account's own time zone, and `day` is not in the past.
+    """
+    days = (day - today).days
+    if days == 0:
+        return 'today'
+    if days == 1:
+        return 'tomorrow'
+    return f'in {days} days'
+
+
+def news(user, today, zone):
+    """What comes out soon, for the News section on Home: a list of {'title', 'day', 'label'}, the nearest day first.
+
+    It is the Calendar's own list (`upcoming`, so the same titles and the same days), cut to the days from `today`
+    up to but not including `today` + NEWS_DAYS. Each title is there once, on its nearest day: several episodes of
+    a series on one day are already one item, and a film with a cinema and a streaming date in the window is only
+    on the first. `label` is the countdown to that day.
+    """
+    last_day = today + datetime.timedelta(days=NEWS_DAYS - 1)
+    seen, entries = set(), []
+    for day in upcoming(user, today, zone):
+        if day['day'] > last_day:
+            break
+        for item in day['items']:
+            if item['title'].id not in seen:
+                seen.add(item['title'].id)
+                entries.append({'title': item['title'], 'day': day['day'], 'label': countdown_label(day['day'], today)})
+    return entries

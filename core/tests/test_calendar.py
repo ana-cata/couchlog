@@ -483,12 +483,12 @@ def tmdb_key(settings):
 
 
 def mock_movie_on_tmdb(respx_mock, tmdb_id, *entries):
-    """TMDB's answers for a movie that is not saved yet: its details, and its release dates (the given entries)."""
+    """TMDB's answer for a movie that is not saved yet: its details, with its release dates (the given entries)."""
     respx_mock.get(f'{TMDB}/movie/{tmdb_id}').respond(
-        json={'id': tmdb_id, 'title': f'Made-up Movie {tmdb_id}', 'release_date': '2027-03-11'}
-    )
-    respx_mock.get(f'{TMDB}/movie/{tmdb_id}/release_dates').respond(
-        json={'results': [{'iso_3166_1': 'US', 'release_dates': list(entries)}]}
+        json={
+            'id': tmdb_id, 'title': f'Made-up Movie {tmdb_id}', 'release_date': '2027-03-11',
+            'release_dates': {'results': [{'iso_3166_1': 'US', 'release_dates': list(entries)}]},
+        }
     )
 
 
@@ -542,8 +542,9 @@ def test_a_movie_with_no_dates_yet_is_still_added_and_just_not_on_the_calendar(c
 
 
 def test_adding_still_works_when_tmdb_cannot_give_the_dates(client, respx_mock, tmdb_key):
-    mock_movie_on_tmdb(respx_mock, 700)
-    respx_mock.get(f'{TMDB}/movie/700/release_dates').mock(side_effect=httpx.ConnectError('no network'))
+    # The movie's details come at once, then the same address (now with the release dates) does not answer.
+    details = httpx.Response(200, json={'id': 700, 'title': 'Made-up Movie 700', 'release_date': '2027-03-11'})
+    respx_mock.get(f'{TMDB}/movie/700').mock(side_effect=[details, httpx.ConnectError('no network')])
     mock_series_on_tmdb(respx_mock, 800, FRIDAY.isoformat())
     respx_mock.get(f'{TMDB}/tv/800/season/1').mock(side_effect=httpx.ConnectError('no network'))
 
@@ -582,9 +583,7 @@ def test_adding_a_movie_again_after_removing_it_collects_its_dates_again(client,
     mock_movie_on_tmdb(respx_mock, 700)
     add_to_watch(client, 'movie', 700)
     client.post('/to-watch/remove/', {'kind': 'movie', 'tmdb_id': 700})
-    respx_mock.get(f'{TMDB}/movie/700/release_dates').respond(
-        json={'results': [{'iso_3166_1': 'US', 'release_dates': [{'type': 4, 'release_date': '2027-05-01T00:00:00.000Z'}]}]}
-    )
+    mock_movie_on_tmdb(respx_mock, 700, {'type': 4, 'release_date': '2027-05-01T00:00:00.000Z'})
 
     add_to_watch(client, 'movie', 700)
 

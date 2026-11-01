@@ -32,6 +32,9 @@ class Title(models.Model):
     # The first four characters of TMDB's date, or empty when TMDB has none.
     year = models.CharField(max_length=4, blank=True)
     poster_url = models.CharField(max_length=300, blank=True)
+    # The wide banner picture, shown in the News section on Home. Empty when TMDB has none, and for a title saved
+    # before banners were kept, until `refresh_calendar` runs.
+    backdrop_url = models.CharField(max_length=300, blank=True)
     overview = models.TextField(blank=True)
     # Series only: when its episodes were last asked from TMDB. Empty until the first time.
     episodes_refreshed_at = models.DateTimeField(null=True, blank=True)

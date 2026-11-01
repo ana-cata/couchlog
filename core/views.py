@@ -16,7 +16,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 from django.views.decorators.vary import vary_on_headers
 
-from . import tmdb, tvmaze
+from . import releases, tmdb, tvmaze
 from .episodes import (
     dropped_series,
     dropped_tab,
@@ -31,7 +31,7 @@ from .episodes import (
 )
 from .forms import TimeZoneForm, WatchedForm
 from .models import DroppedSeries, Episode, Profile, Title, ToWatchItem, Watch
-from .releases import refresh_movie, refresh_upcoming, upcoming
+from .releases import news, refresh_movie, refresh_upcoming, upcoming
 
 # How old our saved episodes may get before opening a series page asks TMDB again.
 EPISODES_REFRESH_AFTER = timedelta(days=1)
@@ -46,7 +46,15 @@ SECTION_OF_KIND = {'movie': 'movies', 'series': 'series'}
 
 
 def home(request):
-    return render(request, 'core/home.html', {'entries': up_next(request.user, _today(request))})
+    """Home: News (what comes out in the next days) above Up Next. Both are worked out from what is saved."""
+    zone = _zone(request)
+    today = timezone.now().astimezone(zone).date()
+    context = {
+        'news': news(request.user, today, zone),
+        'news_days': releases.NEWS_DAYS,
+        'entries': up_next(request.user, today),
+    }
+    return render(request, 'core/home.html', context)
 
 
 def calendar(request):
@@ -185,7 +193,7 @@ def _saved_title(kind, tmdb_id):
     title = Title.objects.filter(kind=kind, tmdb_id=tmdb_id).first()
     if title is None:
         details = tmdb.get_title(kind, tmdb_id)
-        saved = {key: details[key] for key in ('title', 'year', 'poster_url', 'overview')}
+        saved = {key: details[key] for key in ('title', 'year', 'poster_url', 'backdrop_url', 'overview')}
         title, _ = Title.objects.get_or_create(kind=kind, tmdb_id=tmdb_id, defaults=saved)
     return title
 

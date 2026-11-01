@@ -1,6 +1,30 @@
 {% extends 'core/base.html' %}
 
 {% block content %}
+  <h1>News</h1>
+
+  {# What comes out in the next days: only the banner and the days left, a link to the title. Nothing is saved here. #}
+  {% if news %}
+    <ul class="news">
+      {% for entry in news %}
+        <li>
+          <a href="{% url 'title' entry.title.kind entry.title.tmdb_id %}">
+            {% if entry.title.backdrop_url %}
+              {# The alt text is the title, for screen readers: no title is written on the page. #}
+              <img class="banner" src="{{ entry.title.backdrop_url }}" alt="{{ entry.title.title }}" loading="lazy">
+            {% else %}
+              {# A title with no banner saved (yet) shows its name instead, or it could not be told apart. #}
+              <span class="banner no-banner">{{ entry.title.title }}</span>
+            {% endif %}
+            <span class="news-days">{{ entry.label }}</span>
+          </a>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="news-empty">Nothing coming out in the next {{ news_days }} day{{ news_days|pluralize }}.</p>
+  {% endif %}
+
   <h1>Up Next</h1>
 
   {# The next episode to watch of each series in Watching. A series with nothing left to watch is not here. #}

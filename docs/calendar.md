@@ -17,7 +17,7 @@
 - **Empty:** "Nothing coming up" appears, with a reminder of the command below.
 - **Adding a title collects its dates at once.** When you press Add to To Watch, Couchlog asks TMDB for the film's cinema and streaming dates, or for the series' episodes and then TVmaze for its upcoming episodes, so the Calendar is right straight away. A series with many seasons can make the button take a few seconds the first time.
 - **The dates are not live after that.** The page only shows what was saved. Dates TMDB or TVmaze add or change later (a streaming date, new episodes) arrive when the `refresh_calendar` command runs. Run it by hand now and then; the daily run comes with the Raspberry Pi.
-- **Later:** the "in 3 days" labels (Countdown) and the News section on Home are separate cards.
+- **No countdown here.** The "today", "tomorrow", "in 3 days" labels are only in the News section on [Home](home.md). The Calendar shows the days as before, and Home's News is cut from the same list (`upcoming()`), so the two always agree.
 
 ## How it works
 
@@ -37,7 +37,7 @@
 
 **The job: `refresh_calendar`** (`core/management/commands/refresh_calendar.py`)
 - `uv run python manage.py refresh_calendar` first refreshes the series (episodes, air dates, status, as `refresh_series` did before), then asks TMDB for the films on a To Watch list.
-- For a film it asks `GET /movie/<id>/release_dates` (`get_movie_releases` in `core/tmdb.py`) and saves the **earliest** entry of two kinds: types 2 and 3 (in cinemas, limited or wide) as `cinema_at`, and type 4 (streaming, "digital") as `streaming_at`. Premieres (type 1), discs (5) and TV (6) are not used. An entry with a missing or odd date is skipped. A kind TMDB has none of is emptied.
+- For a film it asks `GET /movie/<id>?append_to_response=release_dates` (`get_movie_releases` in `core/tmdb.py`; one call gives the dates and the film's banner for [Home](home.md)) and saves the **earliest** entry of two kinds: types 2 and 3 (in cinemas, limited or wide) as `cinema_at`, and type 4 (streaming, "digital") as `streaming_at`. Premieres (type 1), discs (5) and TV (6) are not used. An entry with a missing or odd date is skipped. A kind TMDB has none of is emptied.
 - For each series it then asks TVmaze (below) and adds ", 10 upcoming on TVmaze" to the series' line when TVmaze has any.
 - It prints one line per film ("“Made-up Movie”: in cinemas 2026-12-16, streaming no date yet") and "Refreshed N movies." A title that fails (TMDB not answering) is reported on the error output and the others go on; at the end the command exits with an error so a scheduler can tell. A failed title keeps what was saved.
 - Films that were watched, removed or that nobody has on a list are not asked about. Running it twice changes nothing the second time.
