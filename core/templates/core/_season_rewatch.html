@@ -1,0 +1,29 @@
+{# Next to the season's button: "Watch Season N again", once every episode that has aired is marked, and a small "−" #}
+{# that takes back one rewatch (the latest watch of every episode that has more than one) while there is one to take #}
+{# back. A season with nothing aired has neither. Answers put it in place like the season button (see _season_action.html), #}
+{# and the page lines the two up in a `season-buttons` box. #}
+{# `oob` is set when it comes back after a change: htmx then puts it in place of the one already on the page. #}
+{% if season.has_aired %}
+  <div id="season-rewatch-{{ season.number }}" class="season-rewatch"{% if oob %} hx-swap-oob="true"{% endif %}>
+    {% if season.all_marked %}
+      <form class="season-action" method="post" action="{% url 'season_watched_again' %}"
+            hx-post="{% url 'season_watched_again' %}" hx-swap="none">
+        {% csrf_token %}
+        <input type="hidden" name="tmdb_id" value="{{ item.tmdb_id }}">
+        <input type="hidden" name="season" value="{{ season.number }}">
+        <input type="hidden" name="next" value="{% url 'title' 'series' item.tmdb_id %}?season={{ season.number }}#season-{{ season.number }}">
+        <button type="submit" class="outline secondary">Watch {{ season.name }} again</button>
+      </form>
+    {% endif %}
+    {% if season.can_take_back %}
+      <form class="season-action" method="post" action="{% url 'season_watched_again_remove' %}"
+            hx-post="{% url 'season_watched_again_remove' %}" hx-swap="none">
+        {% csrf_token %}
+        <input type="hidden" name="tmdb_id" value="{{ item.tmdb_id }}">
+        <input type="hidden" name="season" value="{{ season.number }}">
+        <input type="hidden" name="next" value="{% url 'title' 'series' item.tmdb_id %}?season={{ season.number }}#season-{{ season.number }}">
+        <button type="submit" class="take-back outline secondary" aria-label="Take back one rewatch of {{ season.name }}" title="Take back one rewatch of {{ season.name }}">&minus;</button>
+      </form>
+    {% endif %}
+  </div>
+{% endif %}

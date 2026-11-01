@@ -141,7 +141,7 @@ def test_the_movie_page_shows_the_date_it_was_watched_and_the_way_to_undo(logged
     assert '<strong>Watched</strong>' in html
     assert 'on 5 Mar 2026' in html
     assert 'Mark as not watched' in html
-    assert 'Mark as watched' not in html  # a second watch is the later Rewatch feature
+    assert 'Mark as watched' not in html  # a second watch is "Watch again" (see the rewatch tests below)
 
 
 # --- marking --------------------------------------------------------------------------------
@@ -211,16 +211,6 @@ def test_whether_a_day_is_in_the_future_depends_on_my_time_zone(db, movie_route)
     assert Watch.objects.get().watched_on == datetime.date(2026, 10, 29)
 
 
-def test_marking_the_same_movie_twice_keeps_one_watch(logged_in_client, movie_route):
-    mark(logged_in_client, watched_on='2026-05-01')
-    first = watch_snapshot()
-
-    response = mark(logged_in_client, watched_on='2026-06-01')
-
-    assert watch_snapshot() == first
-    assert 'already marked as watched' in after(logged_in_client, response)
-
-
 def test_a_next_address_on_another_site_is_not_followed(logged_in_client, movie_route):
     response = mark(logged_in_client, next='https://elsewhere.example/')
 
@@ -287,6 +277,137 @@ def test_a_watched_movie_can_be_added_to_to_watch_again(logged_in_client, movie_
     assert (item.removed_at, item.removed_by_watch) == (None, None)
     assert tiles(page(logged_in_client, '/movies/')) == ['/movie/603/']
     assert Watch.objects.count() == 1  # still watched
+
+
+# --- watching a film again --------------------------------------------------------------------
+
+
+def test_watch_again_adds_a_watch_with_its_own_date_each_time(logged_in_client, movie_route):
+    mark(logged_in_client, watched_on='2026-05-01')
+
+    response = mark(logged_in_client, watched_on='2026-06-01')
+    mark(logged_in_client, watched_on='2026-07-01')
+    mark(logged_in_client, watched_on='2026-07-02', date_unknown='on')  # an older rewatch can have an unknown date
+
+    days = [watch.watched_on for watch in Watch.objects.order_by('id')]
+    assert days == [datetime.date(2026, 5, 1), datetime.date(2026, 6, 1), datetime.date(2026, 7, 1), None]
+    assert 'Added another watch of “Made-up Movie”.' in after(logged_in_client, response)
+    assert movie_route.call_count == 1  # the rewatches used our saved copy
+
+
+def test_a_day_in_the_future_is_refused_for_a_rewatch_too(logged_in_client, movie_route):
+    mark(logged_in_client, watched_on='2026-05-01')
+    before = watch_snapshot()
+
+    response = mark(logged_in_client, watched_on='2026-10-29')
+
+    assert watch_snapshot() == before
+    assert 'That day has not happened yet.' in after(logged_in_client, response)
+
+
+def test_the_movie_page_offers_watch_again_and_lists_every_watch(logged_in_client, movie_route):
+    assert 'Watch again' not in page(logged_in_client, '/movie/603/')  # nothing to watch again yet
+    mark(logged_in_client, watched_on='2026-05-01')
+
+    once = page(logged_in_client, '/movie/603/')
+    assert '<strong>Watched</strong>' in once and 'Mark as not watched' in once
+    assert 'Watch again' in once and 'Mark as watched' not in once
+
+    mark(logged_in_client, watched_on='2026-06-01')
+    twice = page(logged_in_client, '/movie/603/')
+    assert '<strong>Watched 2 times</strong>' in twice
+    assert twice.index('on 1 Jun 2026') < twice.index('on 1 May 2026')  # the newest first, like History
+    assert twice.count('Remove this watch') == 2 and 'Mark as not watched' not in twice
+
+
+def test_history_shows_every_watch_of_a_film_with_its_own_date(logged_in_client, movie_route):
+    mark(logged_in_client, watched_on='2026-05-01')
+    mark(logged_in_client, watched_on='2026-06-01')
+
+    html = page(logged_in_client, '/movies/history/')
+
+    assert tiles(html) == ['/movie/603/', '/movie/603/']
+    assert html.index('Watched 1 Jun 2026') < html.index('Watched 1 May 2026')
+    assert html.count('Remove this watch') == 2
+
+
+def test_taking_the_watches_back_one_by_one_puts_everything_back_as_it_was(logged_in_client, movie_route):
+    add_to_watch(logged_in_client)
+    ToWatchItem.objects.update(added_at=LONG_AGO)
+    before = to_watch_snapshot()
+    for day in ('2026-05-01', '2026-06-01', '2026-07-01'):
+        mark(logged_in_client, watched_on=day)
+    first, second, third = Watch.objects.order_by('id').values_list('id', flat=True)
+
+    for watch_id in (third, second):
+        response = unmark(logged_in_client, watch_id)
+        assert 'Removed one watch of “Made-up Movie”.' in after(logged_in_client, response)
+        assert tiles(page(logged_in_client, '/movies/')) == []  # still watched, so still off To Watch
+    assert list(Watch.objects.values_list('id', flat=True)) == [first]
+
+    response = unmark(logged_in_client, first)
+
+    assert 'It is back on your To Watch list.' in after(logged_in_client, response)
+    assert Watch.objects.count() == 0
+    assert to_watch_snapshot() == before  # on the list again, with its old date added
+
+
+def test_taking_back_the_watch_that_took_the_film_off_the_list_keeps_it_off_while_others_remain(
+    logged_in_client, movie_route
+):
+    add_to_watch(logged_in_client)
+    ToWatchItem.objects.update(added_at=LONG_AGO)
+    before = to_watch_snapshot()
+    mark(logged_in_client, watched_on='2026-05-01')
+    mark(logged_in_client, watched_on='2026-06-01')
+    first, second = Watch.objects.order_by('id').values_list('id', flat=True)
+
+    unmark(logged_in_client, first)  # the older watch, the one that took it off the list
+
+    item = ToWatchItem.objects.get()
+    assert item.removed_at is not None and item.removed_by_watch_id == second  # the entry follows the watch left
+    html = page(logged_in_client, '/movies/')
+    assert tiles(html) == [] and 'Recently removed' not in html
+
+    unmark(logged_in_client, second)
+
+    assert to_watch_snapshot() == before
+
+
+def test_a_film_put_back_on_the_list_leaves_it_when_watched_again_and_returns_when_that_is_taken_back(
+    logged_in_client, movie_route
+):
+    add_to_watch(logged_in_client)
+    mark(logged_in_client, watched_on='2026-05-01')
+    add_to_watch(logged_in_client)  # to watch it once more
+    ToWatchItem.objects.update(added_at=LONG_AGO)
+    before = to_watch_snapshot()
+    assert tiles(page(logged_in_client, '/movies/')) == ['/movie/603/']
+
+    mark(logged_in_client, watched_on='2026-06-01')  # a watched film leaves the list
+    assert tiles(page(logged_in_client, '/movies/')) == []
+    unmark(logged_in_client, Watch.objects.order_by('-id').first().id)
+
+    assert Watch.objects.count() == 1  # the first watch is still there
+    assert to_watch_snapshot() == before
+
+
+def test_each_account_has_its_own_rewatches(logged_in_client, movie_route):
+    add_to_watch(logged_in_client)
+    mark(logged_in_client, watched_on='2026-05-01')
+    mark(logged_in_client, watched_on='2026-06-01')
+    other = make_client('second-user')
+    mark(other, watched_on='2026-07-01')
+
+    assert '<strong>Watched</strong>' in page(other, '/movie/603/')  # one watch, not three
+    assert tiles(page(other, '/movies/history/')) == ['/movie/603/']
+
+    mine = list(Watch.objects.filter(user=logged_in_client.user).order_by('id').values_list('id', flat=True))
+    for watch_id in mine:
+        unmark(logged_in_client, watch_id)
+
+    assert Watch.objects.filter(user=other.user).count() == 1  # the other account's watch was never touched
+    assert tiles(page(logged_in_client, '/movies/')) == ['/movie/603/']  # and mine do not count as theirs
 
 
 # --- the history screen ---------------------------------------------------------------------

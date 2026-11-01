@@ -1,4 +1,5 @@
 import math
+from collections import Counter
 from datetime import timedelta
 from zoneinfo import ZoneInfo
 
@@ -6,7 +7,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_not_required
 from django.core.exceptions import BadRequest
 from django.db import transaction
-from django.db.models import F
+from django.db.models import F, Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -23,9 +24,11 @@ from .episodes import (
     mark_episodes,
     progress_by_series,
     refresh_episodes,
+    rewatch_episodes,
     series_tabs,
     skipped_episodes,
     started_series,
+    take_back_rewatch,
     unmark_episodes,
     up_next,
 )
@@ -106,11 +109,12 @@ def title(request, kind, tmdb_id):
     on_list = _my_item(request, kind, tmdb_id).filter(removed_at=None).exists()
     context = {'item': item, 'on_list': on_list, 'next': request.get_full_path()}
     if kind == 'movie':
-        # Series are marked episode by episode (a later card), so only movies get this section.
-        context['watch'] = (
-            Watch.objects.filter(user=request.user, title__kind=kind, title__tmdb_id=tmdb_id)
-            .order_by('-created_at', '-id')
-            .first()
+        # Series are marked episode by episode, so only movies get this section. Every watch of the film is
+        # listed, newest day first like History.
+        context['watches'] = list(
+            Watch.objects.filter(user=request.user, title__kind=kind, title__tmdb_id=tmdb_id).order_by(
+                F('watched_on').desc(nulls_last=True), '-created_at', '-id'
+            )
         )
         context['today'] = _today(request)
     return render(request, 'core/title.html', context)
@@ -136,16 +140,10 @@ def _series_page(request, tmdb_id):
             notice = f'{problem} Showing the episodes saved earlier.' if saved_at else str(problem)
 
     today = _today(request)
-    # Watches are listed oldest first, so with rewatches (later) the latest one wins.
-    watches = {
-        watch.episode_id: watch
-        for watch in Watch.objects.filter(user=request.user, title=series, episode__isnull=False).order_by(
-            'created_at', 'id'
-        )
-    }
+    watches = _watches_by_episode(request.user, title=series, episode__isnull=False)
     by_season = {}
     for episode in series.episodes.order_by('season_number', 'episode_number', 'id'):
-        episode.watch = watches.get(episode.id)
+        episode.watch, episode.watch_count = watches.get(episode.id, (None, 0))
         episode.aired = _has_aired(episode, today)
         by_season.setdefault(episode.season_number, []).append(episode)
     # Specials (season 0) last.
@@ -434,11 +432,16 @@ def to_watch_undo(request):
 def history(request):
     # Newest watch first. Watches with an unknown date go last, newest saved first among themselves.
     # History is the Movies section's tab, so it lists films only.
-    watches = (
+    watches = list(
         Watch.objects.filter(user=request.user, title__kind='movie')
         .select_related('title')
         .order_by(F('watched_on').desc(nulls_last=True), '-created_at', '-id')
     )
+    # A film watched again has a tile for each watch. The button under a tile takes back that watch only, so it
+    # says so when the film has others.
+    times = Counter(watch.title_id for watch in watches)
+    for watch in watches:
+        watch.times = times[watch.title_id]
     return render(request, 'core/history.html', {'watches': watches, 'section': 'movies', 'next': reverse('history')})
 
 
@@ -460,9 +463,8 @@ def watched_add(request):
     except tmdb.TmdbError as problem:
         return _redirect_back(request, str(problem), False, 'history')
 
-    # Watching it again is a later feature (Rewatch). For now a second press changes nothing.
-    if Watch.objects.filter(user=request.user, title=title).exists():
-        return _redirect_back(request, f'“{title.title}” is already marked as watched.', True, 'history')
+    # Pressing it for a movie that is already watched is "Watch again": one more watch with its own date.
+    again = Watch.objects.filter(user=request.user, title=title).exists()
 
     with transaction.atomic():
         watch = Watch.objects.create(user=request.user, title=title, watched_on=form.cleaned_data['watched_on'])
@@ -471,7 +473,8 @@ def watched_add(request):
         ToWatchItem.objects.filter(user=request.user, title=title, removed_at=None).update(
             removed_at=timezone.now(), removed_by_watch=watch
         )
-    return _redirect_back(request, f'Marked “{title.title}” as watched.', True, 'history')
+    text = f'Added another watch of “{title.title}”.' if again else f'Marked “{title.title}” as watched.'
+    return _redirect_back(request, text, True, 'history')
 
 
 def _posted_episode(request):
@@ -487,16 +490,25 @@ def _has_aired(episode, today):
     return episode.air_date is not None and episode.air_date <= today
 
 
+def _watches_by_episode(user, **where):
+    """This account's watches of episodes, as {episode id: (its latest watch, how many times it was watched)}.
+
+    `where` says which watches to look at. An episode watched again has several; the latest is the one the "−"
+    button takes back."""
+    found = {}
+    for watch in Watch.objects.filter(user=user, **where).order_by('created_at', 'id'):
+        _, count = found.get(watch.episode_id, (None, 0))
+        found[watch.episode_id] = (watch, count + 1)
+    return found
+
+
 def _with_state(request, episodes):
-    """Give each episode what its row needs: this account's watch for it, and whether it has aired."""
+    """Give each episode what its row needs: this account's latest watch for it and how many it has, and whether
+    it has aired."""
     today = _today(request)
-    # Watches are listed oldest first, so with rewatches (later) the latest one wins.
-    watches = {
-        watch.episode_id: watch
-        for watch in Watch.objects.filter(user=request.user, episode__in=episodes).order_by('created_at', 'id')
-    }
+    watches = _watches_by_episode(request.user, episode__in=episodes)
     for episode in episodes:
-        episode.watch = watches.get(episode.id)
+        episode.watch, episode.watch_count = watches.get(episode.id, (None, 0))
         episode.aired = _has_aired(episode, today)
     return episodes
 
@@ -521,8 +533,11 @@ def _season_info(number, episodes):
         'aired_count': len(counted),
         # A season none of whose episodes has aired has nothing to mark, so it gets no button.
         'has_aired': bool(aired),
-        # Once every episode that has aired is marked, the button un-marks the season instead.
+        # Once every episode that has aired is marked, the button un-marks the season instead, and the season
+        # can be watched again.
         'all_marked': bool(aired) and all(episode.watch for episode in aired),
+        # The "−" next to "Watch Season N again" is there while some episode has been watched more than once.
+        'can_take_back': any(episode.watch_count > 1 for episode in episodes),
     }
 
 
@@ -615,7 +630,8 @@ def episode_watched_add(request):
     """Mark one episode as watched, on the day the button is pressed (in the account's time zone).
 
     An episode that skips unmarked episodes before it asks first whether those were watched too. The question's
-    "No, only this one" sends `only_this` to skip it.
+    "No, only this one" sends `only_this` to skip it. An episode that is already watched gets one more watch each
+    time its circle is pressed (the "−" button, `watched_remove`, takes the latest back), and asks nothing.
     """
     episode = _posted_episode(request)
     name = f'“{episode.title.title}” S{episode.season_number}E{episode.episode_number}'
@@ -625,10 +641,13 @@ def episode_watched_add(request):
         return _answer_episode(request, episode, f'{name} has no air date yet, so it cannot be marked.', False)
     if episode.air_date > today:
         return _answer_episode(request, episode, f'{name} has not aired yet, so it cannot be marked.', False)
-    # Watching it again is a later feature (Rewatch). For now a second press changes nothing.
-    if Watch.objects.filter(user=request.user, episode=episode).exists():
+    watched_before = Watch.objects.filter(user=request.user, episode=episode).exists()
+    if watched_before and (request.POST.get('up_next') or request.POST.get('only_this')):
+        # Pressing the circle of an episode that is already watched counts as another time watched. But Home's
+        # check and the question's "No, only this one" are about marking it for the first time, so on one of them
+        # that is out of date (the episode was marked in another tab) nothing is added.
         return _answer_episode(request, episode, f'{name} is already marked as watched.')
-    if not request.POST.get('only_this'):
+    if not watched_before and not request.POST.get('only_this'):
         question = _question(request, episode, today)
         if question and request.POST.get('up_next'):
             # Home has no place for the question, and its cards only offer the first episode left to watch,
@@ -659,15 +678,35 @@ def watched_remove(request):
         return _redirect_back(request, 'That watch is not in your history.', False, 'history')
 
     with transaction.atomic():
-        # If this watch took the title off To Watch, it goes back as it was (the date added is untouched).
-        back_on_list = ToWatchItem.objects.filter(removed_by_watch=watch).update(
-            removed_at=None, removed_by_watch=None
-        )
+        # A film can be watched more than once, and this takes back only this watch. If it took the title off To
+        # Watch, it goes back as it was (the date added is untouched) when this is the newest watch of the film,
+        # which is the undo of the latest press, and so when it is the only one ("Mark as not watched"). Taking
+        # back an older watch while newer ones remain leaves the film off the list: the entry now points at the
+        # earliest watch that is left, so taking those back one by one ends with the film back on the list.
+        others = Watch.objects.none()
+        newer = False
+        if watch.episode_id is None:
+            others = Watch.objects.filter(user=request.user, title_id=watch.title_id, episode=None).exclude(id=watch.id)
+            newer = others.filter(
+                Q(created_at__gt=watch.created_at) | Q(created_at=watch.created_at, id__gt=watch.id)
+            ).exists()
+        back_on_list = 0
+        if newer:
+            ToWatchItem.objects.filter(removed_by_watch=watch).update(
+                removed_by_watch=others.order_by('created_at', 'id').first()
+            )
+        else:
+            back_on_list = ToWatchItem.objects.filter(removed_by_watch=watch).update(
+                removed_at=None, removed_by_watch=None
+            )
         watch.delete()
     if watch.episode_id:
-        # No message: the button turning gray says it.
+        # No message: the button turning gray (or the count going down) says it.
         return _answer_episode(request, watch.episode)
-    text = f'Marked “{watch.title.title}” as not watched.'
+    if others.exists():
+        text = f'Removed one watch of “{watch.title.title}”.'
+    else:
+        text = f'Marked “{watch.title.title}” as not watched.'
     if back_on_list:
         text += ' It is back on your To Watch list.'
     return _redirect_back(request, text, True, 'history')
@@ -729,6 +768,28 @@ def season_watched_remove(request):
     series, _, episodes = _posted_season(request)
     unmarked = unmark_episodes(request.user, episodes)
     return _answer_changed(request, series, unmarked)
+
+
+@require_POST
+def season_watched_again(request):
+    """Watch a season again: one more watch, dated today, for every episode of it that has aired, in one step.
+
+    Only a season that is watched through can be watched again (the page only offers the button then). When it
+    is not, nothing happens and nothing is said.
+    """
+    series, _, episodes = _posted_season(request)
+    again = rewatch_episodes(request.user, episodes, _today(request))
+    return _answer_changed(request, series, again)
+
+
+@require_POST
+def season_watched_again_remove(request):
+    """Take back one season rewatch, the "−" next to "Watch Season N again": the latest watch of every episode of
+    the season that has more than one goes. It is the undo of `season_watched_again`. When no episode has more
+    than one watch, nothing happens."""
+    series, _, episodes = _posted_season(request)
+    taken_back = take_back_rewatch(request.user, episodes)
+    return _answer_changed(request, series, taken_back)
 
 
 @require_POST

@@ -5,6 +5,7 @@
 {% for episode in episodes %}{% include 'core/_episode_row.html' with oob=True %}{% endfor %}
 {% for season in seasons %}
   {% include 'core/_season_action.html' with oob=True %}
+  {% include 'core/_season_rewatch.html' with oob=True %}
   {% include 'core/_progress.html' with oob=True dom_id=season.progress_id watched=season.watched_count aired=season.aired_count %}
 {% endfor %}
 {% include 'core/_progress.html' with oob=True dom_id='progress-series' watched=progress.watched aired=progress.aired %}

@@ -17,7 +17,7 @@
               {% csrf_token %}
               <input type="hidden" name="watch_id" value="{{ watch.id }}">
               <input type="hidden" name="next" value="{{ next }}">
-              <button type="submit" class="outline secondary">Mark as not watched</button>
+              <button type="submit" class="outline secondary">{% if watch.times > 1 %}Remove this watch{% else %}Mark as not watched{% endif %}</button>
             </form>
           </div>
         </li>

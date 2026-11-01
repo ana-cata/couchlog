@@ -424,8 +424,11 @@ def test_there_is_no_up_to_here_button_and_no_notice_or_undo_button(opened):
 
     assert 'Up to here' not in html and 'up-to' not in html.replace('/watched/up-to/add/', '')
     assert 'Undo' not in html and 'bulk-notice' not in html and 'name="batch"' not in html
-    for tmdb_id in (6001, 6002, 6003, 6101, 6103):  # aired: the circle is the only button of the row
+    for tmdb_id in (6001, 6002, 6003):  # aired and marked: the circle and the "−" that takes a watch back
+        assert row(html, tmdb_id).count('<button') == 2
+    for tmdb_id in (6101, 6103):  # aired and not marked: the circle is the only button of the row
         assert row(html, tmdb_id).count('<button') == 1
+    assert row(html, 6102).count('<button') == 0  # no air date: no button
 
 
 def test_the_buttons_use_htmx_so_the_page_does_not_reload(opened):
@@ -801,11 +804,13 @@ def test_an_episode_that_cannot_be_marked_is_refused_without_asking(opened, tmdb
 
 
 def test_an_episode_already_marked_is_not_asked_about(opened):
-    mark_one(opened, 6003)
+    mark_one(opened, 6003)  # on its own: the episodes before it are not marked
 
     html = after(opened, press_circle(opened, 6003))
 
-    assert question(html) == '' and 'already marked as watched' in html
+    # Pressing the green circle again is a rewatch: one more watch, and no question.
+    assert question(html) == '' and Watch.objects.filter(episode__tmdb_id=6003).count() == 2
+    assert watched(opened.user) == {6003}
 
 
 def test_after_everything_is_un_marked_the_next_first_mark_asks_again(opened):

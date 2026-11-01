@@ -24,34 +24,39 @@
 
         {% if item.kind == 'movie' %}
           <div class="watched-section">
-            {% if watch %}
-              <p>
-                <strong>Watched</strong>
-                {% if watch.watched_on %}on {{ watch.watched_on|date:"j M Y" }}{% else %}(date unknown){% endif %}
-              </p>
-              <form method="post" action="{% url 'watched_remove' %}">
-                {% csrf_token %}
-                <input type="hidden" name="watch_id" value="{{ watch.id }}">
-                <input type="hidden" name="next" value="{{ next }}">
-                <button type="submit" class="outline secondary">Mark as not watched</button>
-              </form>
-            {% else %}
-              <form method="post" action="{% url 'watched_add' %}">
-                {% csrf_token %}
-                <input type="hidden" name="kind" value="{{ item.kind }}">
-                <input type="hidden" name="tmdb_id" value="{{ item.tmdb_id }}">
-                <input type="hidden" name="next" value="{{ next }}">
-                <label>
-                  Watched on
-                  <input type="date" name="watched_on" value="{{ today|date:'Y-m-d' }}" max="{{ today|date:'Y-m-d' }}">
-                </label>
-                <label>
-                  <input type="checkbox" name="date_unknown">
-                  Date unknown
-                </label>
-                <button type="submit">Mark as watched</button>
-              </form>
+            {# Every watch with its date and its own button to take it back. With one watch that button is "Mark as not watched". #}
+            {% if watches %}
+              <p><strong>Watched{% if watches|length > 1 %} {{ watches|length }} times{% endif %}</strong></p>
+              <ul class="watch-list">
+                {% for watch in watches %}
+                  <li>
+                    <span>{% if watch.watched_on %}on {{ watch.watched_on|date:"j M Y" }}{% else %}(date unknown){% endif %}</span>
+                    <form method="post" action="{% url 'watched_remove' %}">
+                      {% csrf_token %}
+                      <input type="hidden" name="watch_id" value="{{ watch.id }}">
+                      <input type="hidden" name="next" value="{{ next }}">
+                      <button type="submit" class="outline secondary">{% if watches|length > 1 %}Remove this watch{% else %}Mark as not watched{% endif %}</button>
+                    </form>
+                  </li>
+                {% endfor %}
+              </ul>
             {% endif %}
+            {# The same date box marks the film the first time and adds another watch after that. #}
+            <form method="post" action="{% url 'watched_add' %}">
+              {% csrf_token %}
+              <input type="hidden" name="kind" value="{{ item.kind }}">
+              <input type="hidden" name="tmdb_id" value="{{ item.tmdb_id }}">
+              <input type="hidden" name="next" value="{{ next }}">
+              <label>
+                {% if watches %}Watched again on{% else %}Watched on{% endif %}
+                <input type="date" name="watched_on" value="{{ today|date:'Y-m-d' }}" max="{{ today|date:'Y-m-d' }}">
+              </label>
+              <label>
+                <input type="checkbox" name="date_unknown">
+                Date unknown
+              </label>
+              <button type="submit">{% if watches %}Watch again{% else %}Mark as watched{% endif %}</button>
+            </form>
           </div>
         {% elif item.kind == 'series' %}
           {% if dropped %}
@@ -88,7 +93,10 @@
                   {{ season.name }} <small>· {{ season.episodes|length }} episode{{ season.episodes|length|pluralize }}</small>
                   {% include 'core/_progress.html' with dom_id=season.progress_id watched=season.watched_count aired=season.aired_count %}
                 </summary>
-                {% include 'core/_season_action.html' %}
+                <div class="season-buttons">
+                  {% include 'core/_season_action.html' %}
+                  {% include 'core/_season_rewatch.html' %}
+                </div>
                 <ul class="episodes">
                   {% for episode in season.episodes %}
                     {% include 'core/_episode_row.html' %}
