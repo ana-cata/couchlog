@@ -112,6 +112,44 @@ def unmark_episodes(user, episodes):
     return [episode for episode in episodes if episode.id in marked]
 
 
+def rewatch_episodes(user, episodes, today):
+    """Watch many episodes again at once, for "Watch Season N again": one more watch, dated `today`, for each
+    episode of `episodes` that has aired (on or before `today`, the account's own day).
+
+    It only works on a season that is watched through: every episode that has aired must already have a watch
+    of this account, as the page only offers the button then. Otherwise it would mark episodes for the first
+    time, so a page that is out of date gets nothing done.
+
+    Returns the episodes that got a watch (none when there was nothing to do).
+    """
+    aired = [episode for episode in episodes if episode.air_date is not None and episode.air_date <= today]
+    watched = set(Watch.objects.filter(user=user, episode__in=aired).values_list('episode', flat=True))
+    if not aired or len(watched) < len(aired):
+        return []
+    Watch.objects.bulk_create(
+        [Watch(user=user, title_id=episode.title_id, episode=episode, watched_on=today) for episode in aired]
+    )
+    return aired
+
+
+def take_back_rewatch(user, episodes):
+    """Take back one season rewatch: remove the latest watch of each episode of `episodes` that has more than one.
+
+    An episode with a single watch keeps it (it is still watched). So it undoes `rewatch_episodes`, which added
+    exactly one watch to each. If the episodes have different counts (one was pressed again on its own), it still
+    takes one off each of them: that is the known limit.
+
+    Returns the episodes that lost a watch.
+    """
+    by_episode = {}
+    for watch in Watch.objects.filter(user=user, episode__in=episodes).order_by('created_at', 'id'):
+        by_episode.setdefault(watch.episode_id, []).append(watch)
+    latest = [watches[-1] for watches in by_episode.values() if len(watches) > 1]
+    Watch.objects.filter(id__in=[watch.id for watch in latest]).delete()
+    changed = {watch.episode_id for watch in latest}
+    return [episode for episode in episodes if episode.id in changed]
+
+
 def started_series(user):
     """The ids of the series this account has marked at least one episode of (any episode, a special too)."""
     return Watch.objects.filter(user=user, episode__isnull=False).values('title')

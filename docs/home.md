@@ -21,9 +21,9 @@
 - **Check it off** with the round button. The episode is marked as watched (on the day you pressed the button, in your time zone, like on the series page) and the card turns into the next episode, with the bar moved. The page does not reload or move.
 - **Nothing left to watch:** when you check off the last episode that has aired, the card goes. The series stays in Watching; it comes back on Home by itself when a new episode airs (or `refresh_calendar` brings one in).
 - **A finished series** (TMDB says it ended and you watched everything that has aired) is not on Home. A series on your To Watch list that you have not started is not on Home either.
-- **Order:** the series you marked most recently come first.
+- **Order:** the series you watched most recently come first. A rewatch is a watch too, so a series you watch again moves to the top; nothing else about its card changes.
 - **Empty:** "Nothing to watch next." shows whenever the list has no card, also right after you check off the last one.
-- **Undo:** there is no Undo button on Home. To take a check-off back, open the series and press the episode's green circle; that brings the episode and the bar back (see [Series](series.md)). On Home the card is back after a reload.
+- **Undo:** there is no Undo button on Home. To take a check-off back, open the series and press the "−" next to the episode's green circle; that brings the episode and the bar back (see [Series](series.md)). On Home the card is back after a reload.
 - **Progress bars** are also on the series page: one for the whole series and one for each season (see [Series](series.md)).
 - **Your own Up Next:** each account sees only its own series and watches.
 - **A dropped series** is not on Home, because Home follows the Watching tab and a dropped series is in no other tab. Bringing it back (see [Series](series.md)) puts its card back if it has an episode left to watch.
@@ -53,9 +53,9 @@
 - `up_next(user, today)` takes the series in Watching (`series_tabs`), finds for each the first aired episode of season 1 and up with none of your watches (ordered by season, episode number, then id, like the series page), and returns one entry per series that has one: `series`, `episode`, `watched`, `aired`.
 
 **The check button** (`episode_watched_add` in `core/views.py`, `_up_next_card.html`)
-- It is the same view as the series page's circle, so the same rules apply: an episode must have aired, and one already marked is not marked twice.
+- It is the same view as the series page's circle, so the same rules apply: an episode must have aired. Unlike the series page, pressing it for an episode that is already marked does not count a rewatch: Home's button is only about marking the next episode for the first time.
 - With htmx the answer is that series' card again (`_up_next_card`): the next episode, or nothing at all when the series has no episode left (htmx then removes the card). Without JavaScript the form is a normal form: the server saves and goes back to Home with the message "Marked “Series” S2E4 as watched.".
-- A card on a page that is out of date shows how things really are now: pressing a card whose episode was already marked (in another tab) saves nothing and shows the card as it is.
+- A card on a page that is out of date shows how things really are now: pressing a card whose episode was already marked (in another tab) saves nothing (no rewatch either) and shows the card as it is.
 - The "did you watch the earlier episodes too?" question is never asked from Home: the next episode is the first one you have not watched, so it skips nothing. If a stale page would trigger it (your marks changed in another tab), nothing is marked and the card comes back as it is now.
 
 **Known limits**

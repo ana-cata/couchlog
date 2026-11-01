@@ -390,15 +390,19 @@ def test_an_episode_that_has_not_aired_has_no_button_and_cannot_be_marked(logged
     assert 'no air date yet' in after(logged_in_client, response)
 
 
-def test_marking_an_episode_that_is_already_marked_changes_nothing(logged_in_client, tmdb_series):
+def test_pressing_the_circle_of_a_watched_episode_counts_another_watch_dated_that_day(
+    logged_in_client, tmdb_series, clock
+):
     page(logged_in_client)
     mark(logged_in_client, 6001)
-    before = snapshot()
+    clock.shift(datetime.timedelta(days=2))  # still long after the episode aired
 
     response = mark(logged_in_client, 6001)
 
-    assert snapshot() == before
-    assert 'already marked as watched' in after(logged_in_client, response)
+    watches = Watch.objects.order_by('id')
+    assert [watch.watched_on for watch in watches] == [datetime.date(2026, 10, 28), datetime.date(2026, 10, 30)]
+    assert {watch.episode.tmdb_id for watch in watches} == {6001}
+    assert 'already marked' not in after(logged_in_client, response)  # a rewatch, not a refusal
 
 
 def test_marking_an_episode_moves_the_series_from_to_watch_to_watching_without_touching_the_list(
@@ -588,15 +592,16 @@ def test_with_htmx_an_episode_that_has_not_aired_comes_back_without_a_button(log
     assert Watch.objects.count() == 0
 
 
-def test_with_htmx_marking_an_episode_twice_shows_it_green_and_saves_one_watch(logged_in_client, tmdb_series):
+def test_with_htmx_marking_an_episode_twice_shows_it_green_and_counts_it_twice(logged_in_client, tmdb_series):
     page(logged_in_client)
     episode = episode_of(6001)
     logged_in_client.post('/watched/episode/add/', {'episode_id': episode.id}, **HTMX)
 
     response = logged_in_client.post('/watched/episode/add/', {'episode_id': episode.id}, **HTMX)
 
-    assert is_watched(response.content.decode(), 1)
-    assert Watch.objects.count() == 1
+    body = response.content.decode()
+    assert 'class="check watched"' in body and '2×' in body
+    assert Watch.objects.count() == 2
 
 
 def test_with_htmx_a_page_that_is_out_of_date_shows_the_row_as_it_is_now(logged_in_client, tmdb_series):

@@ -169,6 +169,56 @@ header nav li {
   font-size: 0.85rem;
 }
 
+/* The season's buttons side by side: "Mark Season 2 as watched", then "Watch Season 2 again" and its "−" once
+   the season is watched through. They wrap on a narrow screen. */
+.season-buttons,
+.season-rewatch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.season-buttons {
+  margin: 0.5rem 0;
+}
+
+.season-buttons .season-action {
+  margin: 0;
+}
+
+/* The small round "−" that takes back the latest watch of an episode, or one rewatch of a season. */
+.take-back,
+.season-action .take-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.75rem;
+  min-width: 1.75rem;
+  height: 1.75rem;
+  margin: 0;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+/* The "−" and the round check button of an episode, side by side. */
+.episode-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: none;
+}
+
+/* How many times an episode was watched ("2×"), after its name. */
+.watch-count {
+  margin-left: 0.25rem;
+  font-size: 0.85em;
+  color: var(--pico-muted-color);
+}
+
 /* The pop-up after the first episode marked in a series ("did you watch the earlier episodes too?"). Pico draws
    the pop-up itself; this only lines the buttons up side by side (they wrap on a narrow screen). */
 #ask footer {
@@ -412,6 +462,33 @@ header nav li {
 
 .watched-section form {
   max-width: 20rem;
+}
+
+/* A film's watches on its page: the date on the left, the button to take that watch back on the right. */
+.watch-list {
+  list-style: none;
+  max-width: 20rem;
+  padding: 0;
+}
+
+.watch-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0;
+  padding: 0.25rem 0;
+}
+
+.watch-list form {
+  margin: 0;
+}
+
+.watch-list button {
+  width: auto;
+  margin: 0;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.8rem;
 }
 
 /* The date under a tile in History. */

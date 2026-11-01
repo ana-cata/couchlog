@@ -227,6 +227,23 @@ def test_the_series_marked_most_recently_come_first(user):
     assert [row[0] for row in next_ones(user)] == [2, 3, 1]
 
 
+def test_a_rewatch_counts_as_the_latest_watch_so_that_series_moves_to_the_top(user):
+    """The only thing a rewatch changes here: the order, because the series is ordered by its latest watch."""
+    long_ago = datetime.datetime(2020, 1, 1, tzinfo=datetime.UTC)
+    episodes = {}
+    for tmdb_id, days in ((1, 0), (2, 9)):
+        series = make_series(tmdb_id)
+        episodes[tmdb_id] = make_episode(series, 1, 1)
+        make_watch(user, episodes[tmdb_id], created_at=long_ago + datetime.timedelta(days=days))
+        make_episode(series, 1, 2)
+    assert next_ones(user) == [(2, 'S1E2', 1, 2), (1, 'S1E2', 1, 2)]
+
+    make_watch(user, episodes[1], created_at=long_ago + datetime.timedelta(days=20))  # series 1 watched again
+
+    # Same next episodes and same bars, the series just comes first now.
+    assert next_ones(user) == [(1, 'S1E2', 1, 2), (2, 'S1E2', 1, 2)]
+
+
 def test_whether_an_episode_has_aired_follows_the_accounts_own_day(user):
     series = make_series()
     make_watch(user, make_episode(series, 1, 1))

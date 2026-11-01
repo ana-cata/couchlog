@@ -389,6 +389,29 @@ def test_the_first_mark_asks_and_the_season_button_marks_and_un_marks_a_season_w
     expect(watched).to_have_count(39)
     expect(page.get_by_role('button', name='Mark Season 1 as watched')).to_be_visible()
 
+    # Watch the season again. It is offered once everything is marked, adds one watch to each episode (the rows say
+    # "2×"), and the "−" next to it takes exactly that back. The page never reloads.
+    counts = page.locator('.watch-count')
+    expect(page.get_by_role('button', name='Watch Season 1 again')).to_have_count(0)
+    page.get_by_role('button', name='Mark Season 1 as watched').click()
+    expect(watched).to_have_count(40)
+    page.get_by_role('button', name='Watch Season 1 again').click()
+    expect(counts).to_have_count(40)
+    take_back = page.get_by_role('button', name='Take back one rewatch of Season 1')
+    take_back.click()
+    expect(counts).to_have_count(0)
+    expect(take_back).to_have_count(0)
+    expect(watched).to_have_count(40)
+
+    # An episode's green circle pressed again counts it twice, and its "−" takes the second one back.
+    page.get_by_role('button', name='Watch episode 5 again').click()
+    expect(counts).to_have_count(1)
+    expect(counts).to_have_text('2×')
+    expect(take_back).to_be_visible()  # a rewatch is there to take back
+    page.get_by_role('button', name='Take back the latest watch of episode 5').click()
+    expect(counts).to_have_count(0)
+    expect(watched).to_have_count(40)
+
 
 def test_a_series_found_in_search_and_marked_shows_up_under_watching(live_server, page, respx_mock, settings):
     settings.TMDB_API_KEY = 'made-up-secret-key'
