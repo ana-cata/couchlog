@@ -13,7 +13,7 @@ ENDED_STATUSES = ('Ended', 'Canceled', 'Cancelled')
 
 
 def refresh_episodes(series):
-    """Ask TMDB for the series' status, IMDb id and episodes, and save them.
+    """Ask TMDB for the series' status, IMDb id, banner and episodes, and save them.
 
     Episodes are matched with TMDB's own id: a renumbered or renamed episode is updated in place
     (so its watches stay with it), a new one is added, and none is ever deleted. TMDB is asked first,
@@ -29,8 +29,9 @@ def refresh_episodes(series):
         )
         series.status = details['status']
         series.imdb_id = details['imdb_id']
+        series.backdrop_url = details['backdrop_url']
         series.episodes_refreshed_at = timezone.now()
-        series.save(update_fields=['status', 'imdb_id', 'episodes_refreshed_at'])
+        series.save(update_fields=['status', 'imdb_id', 'backdrop_url', 'episodes_refreshed_at'])
 
 
 def episodes_up_to(episode):

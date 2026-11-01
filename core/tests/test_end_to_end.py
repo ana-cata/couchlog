@@ -34,9 +34,8 @@ def test_log_in_search_add_a_title_then_remove_it_and_undo(live_server, page, re
     respx_mock.get('https://api.themoviedb.org/3/search/multi').respond(
         json={'page': 1, 'results': [{'media_type': 'movie', **MADE_UP_MOVIE}]}
     )
+    # Adding a movie also collects its release dates for the Calendar (from this same answer); here TMDB has none.
     respx_mock.get('https://api.themoviedb.org/3/movie/603').respond(json=MADE_UP_MOVIE)
-    # Adding a movie also collects its release dates for the Calendar; here TMDB has none.
-    respx_mock.get('https://api.themoviedb.org/3/movie/603/release_dates').respond(json={'results': []})
     page.route('https://image.tmdb.org/**', lambda route: route.abort())
 
     # Log in.

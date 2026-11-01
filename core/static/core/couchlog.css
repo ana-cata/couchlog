@@ -233,6 +233,64 @@ header nav li {
   margin-bottom: 1rem;
 }
 
+/* The News section on Home: wide banners in a grid, each with the days left in its corner. */
+.news {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 2rem;
+  display: grid;
+  /* Small enough for two banners side by side on a phone, so Up Next is not pushed far down the page. */
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: 1rem;
+}
+
+.news li {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.news a {
+  display: block;
+  position: relative;
+  text-decoration: none;
+  overflow: hidden;
+  border-radius: var(--pico-border-radius);
+}
+
+.banner {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  background: var(--pico-muted-border-color);
+}
+
+/* A title with no banner: its name on a plain background, with room at the bottom for the days left. */
+.no-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 0.75rem 2.5rem;
+  text-align: center;
+  font-size: 0.85rem;
+  line-height: 1.25;
+  color: var(--pico-muted-color);
+}
+
+/* Dark with white text whatever the picture and the theme, so it can always be read. */
+.news-days {
+  position: absolute;
+  left: 0.5rem;
+  bottom: 0.5rem;
+  padding: 0.1rem 0.7rem;
+  border-radius: 1rem;
+  background: rgb(0 0 0 / 0.75);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
 /* The Home page: one card for each series, with the poster on the left and the round check button on the right. */
 .up-next {
   list-style: none;

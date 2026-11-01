@@ -10,7 +10,7 @@ from django.core.management.base import CommandError
 from core.models import Episode, Title, ToWatchItem, Watch
 
 TV_URL = 'https://api.themoviedb.org/3/tv/{}'
-MOVIE_URL = 'https://api.themoviedb.org/3/movie/{}/release_dates'
+MOVIE_URL = 'https://api.themoviedb.org/3/movie/{}'
 
 # Made-up TMDB answers. The tests never call the real TMDB.
 
@@ -59,10 +59,12 @@ def release(kind, moment):
     return {'type': kind, 'release_date': moment, 'certification': '', 'note': ''}
 
 
-def mock_movie(respx_mock, tmdb_id, **countries):
-    """TMDB's release dates of a movie, from {country code: [release entries]}."""
+def mock_movie(respx_mock, tmdb_id, backdrop_path=None, **countries):
+    """TMDB's answer for a movie, with its release dates from {country code: [release entries]} and its banner."""
     results = [{'iso_3166_1': country, 'release_dates': entries} for country, entries in countries.items()]
-    respx_mock.get(MOVIE_URL.format(tmdb_id)).respond(json={'id': tmdb_id, 'results': results})
+    respx_mock.get(MOVIE_URL.format(tmdb_id)).respond(
+        json={'id': tmdb_id, 'backdrop_path': backdrop_path, 'release_dates': {'results': results}}
+    )
 
 
 def run():
@@ -284,6 +286,7 @@ def test_a_movie_failing_keeps_what_was_saved_and_does_not_stop_the_rest(user, r
         25,
         cinema_at=datetime.datetime(2026, 10, 1, tzinfo=datetime.UTC),
         streaming_at=datetime.datetime(2026, 11, 20, tzinfo=datetime.UTC),
+        backdrop_url='https://image.tmdb.org/t/p/w780/made-up-saved-banner.jpg',
     )
     fine = make_movie(26)
     series = make_series(11)
@@ -300,8 +303,52 @@ def test_a_movie_failing_keeps_what_was_saved_and_does_not_stop_the_rest(user, r
     broken.refresh_from_db(), fine.refresh_from_db()
     assert broken.cinema_at == datetime.datetime(2026, 10, 1, tzinfo=datetime.UTC)  # nothing half saved
     assert broken.streaming_at == datetime.datetime(2026, 11, 20, tzinfo=datetime.UTC)
+    assert broken.backdrop_url == 'https://image.tmdb.org/t/p/w780/made-up-saved-banner.jpg'
     assert fine.streaming_at == datetime.datetime(2026, 12, 1, tzinfo=datetime.UTC)
     assert problem == '1 title could not be refreshed. Run the command again later.'
+
+
+# --- banners (the wide pictures of the News section) ------------------------------------------------
+
+
+def test_the_job_saves_a_series_banner_for_a_series_saved_before_banners_were_kept(user, respx_mock):
+    series = make_series(31)
+    ToWatchItem.objects.create(user=user, title=series)
+    assert series.backdrop_url == ''
+    respx_mock.get(TV_URL.format(31)).respond(json={**series_answer(31), 'backdrop_path': '/made-up-banner.jpg'})
+    respx_mock.get(TV_URL.format(31) + '/season/1').respond(json=season_answer())
+
+    run()
+
+    series.refresh_from_db()
+    assert series.backdrop_url == 'https://image.tmdb.org/t/p/w780/made-up-banner.jpg'
+
+
+def test_the_job_saves_a_movie_banner_with_its_dates_in_one_call(user, respx_mock):
+    film = make_movie(29)
+    ToWatchItem.objects.create(user=user, title=film)
+    mock_movie(respx_mock, 29, backdrop_path='/made-up-banner.jpg', US=[release(3, '2026-12-16T00:00:00.000Z')])
+
+    run()
+
+    film.refresh_from_db()
+    assert film.backdrop_url == 'https://image.tmdb.org/t/p/w780/made-up-banner.jpg'
+    assert film.cinema_at == datetime.datetime(2026, 12, 16, tzinfo=datetime.UTC)
+    assert respx_mock.calls.call_count == 1
+
+
+def test_a_title_tmdb_has_no_banner_for_is_saved_with_none(user, respx_mock):
+    film = make_movie(30, backdrop_url='https://image.tmdb.org/t/p/w780/old.jpg')
+    series = make_series(32)
+    ToWatchItem.objects.create(user=user, title=film)
+    ToWatchItem.objects.create(user=user, title=series)
+    mock_movie(respx_mock, 30)  # no backdrop_path
+    mock_series(respx_mock, 32)
+
+    run()
+
+    film.refresh_from_db(), series.refresh_from_db()
+    assert film.backdrop_url == '' and series.backdrop_url == ''
 
 
 def test_a_movie_that_was_watched_is_no_longer_asked_about(user, respx_mock):

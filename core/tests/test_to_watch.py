@@ -39,12 +39,6 @@ def tmdb_key(settings):
     settings.TMDB_API_KEY = 'made-up-secret-key'
 
 
-@pytest.fixture(autouse=True)
-def release_dates(respx_mock):
-    """Adding a movie also collects its release dates for the Calendar. Here TMDB has none for any movie."""
-    respx_mock.get(url__regex=r'https://api\.themoviedb\.org/3/movie/\d+/release_dates').respond(json={'results': []})
-
-
 def make_client(name, **options):
     """A browser logged in as a new account (with a time zone chosen, so no redirect to Profile)."""
     user = User.objects.create_user(username=name, password='made-up-password')
@@ -122,15 +116,22 @@ def test_adding_saves_the_tmdb_details_in_our_own_table(logged_in_client, respx_
 
 def test_the_list_works_from_the_saved_details_not_from_tmdb(logged_in_client, respx_mock):
     route = respx_mock.get(MOVIE_URL).respond(json=MADE_UP_MOVIE)
-    add(logged_in_client)
-    assert route.call_count == 1
 
-    # Opening the list asks TMDB for nothing; a second account adding it does not either.
+    def details_asked():
+        # The release dates for the Calendar are asked at the same address, with this extra word.
+        return sum('append_to_response' not in call.request.url.params for call in route.calls)
+
+    add(logged_in_client)
+    assert details_asked() == 1
+    asked = route.call_count
+
+    # Opening the list asks TMDB for nothing; a second account adding it does not ask for the details again.
     assert 'Made-up Movie' in to_watch_page(logged_in_client)
+    assert route.call_count == asked
     other = make_client('second-user')
     add(other)
 
-    assert route.call_count == 1
+    assert details_asked() == 1
     assert Title.objects.count() == 1
     assert ToWatchItem.objects.count() == 2
 
@@ -160,13 +161,14 @@ def test_adding_the_same_title_twice_keeps_one_entry(logged_in_client, respx_moc
     route = respx_mock.get(MOVIE_URL).respond(json=MADE_UP_MOVIE)
     add(logged_in_client)
     first = snapshot()
+    asked = route.call_count
 
     response = add(logged_in_client, next='/movies/')
     page = logged_in_client.get(response['Location']).content.decode()
 
     assert snapshot() == first
     assert Title.objects.count() == 1
-    assert route.call_count == 1
+    assert route.call_count == asked
     assert 'already on your To Watch list' in page
     assert page.count('class="tile"') == 1
 
@@ -402,12 +404,13 @@ def test_undo_still_works_just_inside_the_10_seconds(logged_in_client):
     assert item.removed_at is None
 
 
-def test_after_the_10_seconds_a_title_comes_back_by_adding_it_again(logged_in_client):
+def test_after_the_10_seconds_a_title_comes_back_by_adding_it_again(logged_in_client, respx_mock):
     item = make_removed_title(logged_in_client.user, 603, datetime.timedelta(seconds=20))
     item.added_at = LONG_AGO
     item.save()
+    respx_mock.get(MOVIE_URL).respond(json=MADE_UP_MOVIE)  # only for the Calendar's dates: the details are saved
 
-    add(logged_in_client)  # the details are already saved, so TMDB is not asked
+    add(logged_in_client)
 
     item.refresh_from_db()
     assert item.removed_at is None
