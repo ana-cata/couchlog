@@ -24,6 +24,32 @@ class TimeZoneForm(forms.Form):
         ]
 
 
+NOTE_MAX_LENGTH = 500
+# What the page offers besides "No rating": 1 to 5 whole stars, each with the characters that show it.
+STAR_CHOICES = [(number, '★' * number) for number in range(1, 6)]
+
+
+class RatingForm(forms.Form):
+    """The stars and the note on a title's page. Leaving the stars on "No rating" or the note empty removes it."""
+
+    stars = forms.TypedChoiceField(
+        choices=[('', 'No rating'), *((str(number), text) for number, text in STAR_CHOICES)],
+        coerce=int,
+        empty_value=None,
+        required=False,
+    )
+    note = forms.CharField(required=False)
+
+    def clean_note(self):
+        # A browser sends a line break as two characters, but counts it as one in the box, so count it as one here too.
+        note = self.cleaned_data['note'].replace('\r\n', '\n')
+        if len(note) > NOTE_MAX_LENGTH:
+            raise forms.ValidationError(
+                f'The note can be at most {NOTE_MAX_LENGTH} characters, and yours has {len(note)}. Nothing was saved.'
+            )
+        return note
+
+
 class WatchedForm(forms.Form):
     """The date on the "Mark as watched" button: a day that has happened, or "unknown"."""
 

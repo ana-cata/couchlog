@@ -31,8 +31,8 @@ from .episodes import (
     unmark_episodes,
     up_next,
 )
-from .forms import TimeZoneForm, WatchedForm
-from .models import DroppedSeries, Episode, Profile, Title, ToWatchItem, Watch
+from .forms import NOTE_MAX_LENGTH, STAR_CHOICES, RatingForm, TimeZoneForm, WatchedForm
+from .models import DroppedSeries, Episode, Profile, Rating, Title, ToWatchItem, Watch
 from .releases import news, refresh_movie, refresh_upcoming, upcoming
 from .time_spent import describe, minutes_watched
 
@@ -107,7 +107,7 @@ def title(request, kind, tmdb_id):
     except tmdb.TmdbError as problem:
         return render(request, 'core/title.html', {'error': str(problem)})
     on_list = _my_item(request, kind, tmdb_id).filter(removed_at=None).exists()
-    context = {'item': item, 'on_list': on_list, 'next': request.get_full_path()}
+    context = {'item': item, 'on_list': on_list, 'next': request.get_full_path(), **_rating_box(request, kind, tmdb_id)}
     if kind == 'movie':
         # Series are marked episode by episode, so only movies get this section. Every watch of the film is
         # listed, newest day first like History.
@@ -164,6 +164,7 @@ def _series_page(request, tmdb_id):
         # "Stop watching" is offered for a series that is in one of my tabs: started or on my To Watch list.
         'can_drop': not dropped and (on_list or bool(watches)),
         'next': request.get_full_path(),
+        **_rating_box(request, 'series', tmdb_id),
         'notice': notice,
         'seasons': seasons,
         'open_season': open_season,
@@ -427,6 +428,60 @@ def to_watch_undo(request):
     item.removed_at = None
     item.save(update_fields=['removed_at'])
     return _answer(request, kind, tmdb_id, True, f'Put “{item.title.title}” back on your To Watch list.')
+
+
+def _my_rating(request, kind, tmdb_id):
+    """This account's rating and note for a title, or None when nothing is saved for it."""
+    return Rating.objects.filter(user=request.user, title__kind=kind, title__tmdb_id=tmdb_id).first()
+
+
+def _rating_box(request, kind, tmdb_id):
+    """What the rating box on a title's page shows: this account's saved stars and note."""
+    return {'rating': _my_rating(request, kind, tmdb_id), 'star_choices': STAR_CHOICES, 'note_max': NOTE_MAX_LENGTH}
+
+
+@require_POST
+def rating_save(request):
+    """Save, change or remove the stars and the note of a title, all in one Save.
+
+    "No rating" removes the stars and an empty note removes the note, each without touching the other; with both
+    gone nothing is kept. Saving what is already saved changes nothing. The title does not need to be watched, and if
+    it is not saved yet it is saved from TMDB first. There is no Undo button: the page's form is always there to
+    put the stars and the note back.
+    """
+    kind, tmdb_id = _posted_title(request)
+    form = RatingForm(request.POST)
+    if not form.is_valid():
+        problem = ' '.join(error for errors in form.errors.values() for error in errors)
+        return _redirect_back(request, problem, False, 'search')
+    stars, note = form.cleaned_data['stars'], form.cleaned_data['note']
+
+    rating = _my_rating(request, kind, tmdb_id)
+    if (stars, note) == ((rating.stars, rating.note) if rating else (None, '')):
+        return _redirect_back(request, 'Nothing changed, so nothing was saved.', True, 'search')
+
+    try:
+        title = _saved_title(kind, tmdb_id)
+    except tmdb.TmdbNotFound:
+        raise Http404 from None
+    except tmdb.TmdbError as problem:
+        return _redirect_back(request, str(problem), False, 'search')
+
+    said = []
+    with transaction.atomic():
+        rating, _ = Rating.objects.get_or_create(user=request.user, title=title)
+        if stars != rating.stars:
+            said.append('rating saved' if stars else 'rating removed')
+        if note != rating.note:
+            said.append('note saved' if note else 'note removed')
+        if stars or note:
+            rating.stars, rating.note = stars, note
+            rating.save()
+        else:
+            rating.delete()
+    if not said:
+        return _redirect_back(request, 'Nothing changed, so nothing was saved.', True, 'search')
+    return _redirect_back(request, ' and '.join(said).capitalize() + '.', True, 'search')
 
 
 def history(request):

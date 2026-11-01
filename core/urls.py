@@ -39,6 +39,7 @@ urlpatterns = [
     path('to-watch/add/', views.to_watch_add, name='to_watch_add'),
     path('to-watch/remove/', views.to_watch_remove, name='to_watch_remove'),
     path('to-watch/undo/', views.to_watch_undo, name='to_watch_undo'),
+    path('rating/save/', views.rating_save, name='rating_save'),
     path('watched/add/', views.watched_add, name='watched_add'),
     path('watched/episode/add/', views.episode_watched_add, name='episode_watched_add'),
     path('watched/season/add/', views.season_watched_add, name='season_watched_add'),
