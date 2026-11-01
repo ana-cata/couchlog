@@ -36,6 +36,10 @@ class Title(models.Model):
     # before banners were kept, until `refresh_calendar` runs.
     backdrop_url = models.CharField(max_length=300, blank=True)
     overview = models.TextField(blank=True)
+    # In minutes, for the time spent watching. A movie's own runtime, or for a series its typical episode runtime (the
+    # average of its episodes' runtimes), used for an episode that has none of its own. Empty when TMDB has none, and
+    # for a title saved before runtimes were kept, until `refresh_calendar` (or a series page refresh) runs.
+    runtime = models.PositiveIntegerField(null=True, blank=True)
     # Series only: when its episodes were last asked from TMDB. Empty until the first time.
     episodes_refreshed_at = models.DateTimeField(null=True, blank=True)
     # Series only: TMDB's own word for where the series stands ("Returning Series", "Ended",

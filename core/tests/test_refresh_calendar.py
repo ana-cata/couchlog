@@ -59,11 +59,12 @@ def release(kind, moment):
     return {'type': kind, 'release_date': moment, 'certification': '', 'note': ''}
 
 
-def mock_movie(respx_mock, tmdb_id, backdrop_path=None, **countries):
-    """TMDB's answer for a movie, with its release dates from {country code: [release entries]} and its banner."""
+def mock_movie(respx_mock, tmdb_id, backdrop_path=None, runtime=None, **countries):
+    """TMDB's answer for a movie, with its release dates from {country code: [release entries]}, its banner and its
+    runtime."""
     results = [{'iso_3166_1': country, 'release_dates': entries} for country, entries in countries.items()]
     respx_mock.get(MOVIE_URL.format(tmdb_id)).respond(
-        json={'id': tmdb_id, 'backdrop_path': backdrop_path, 'release_dates': {'results': results}}
+        json={'id': tmdb_id, 'backdrop_path': backdrop_path, 'runtime': runtime, 'release_dates': {'results': results}}
     )
 
 
@@ -351,8 +352,8 @@ def test_a_title_tmdb_has_no_banner_for_is_saved_with_none(user, respx_mock):
     assert film.backdrop_url == '' and series.backdrop_url == ''
 
 
-def test_a_movie_that_was_watched_is_no_longer_asked_about(user, respx_mock):
-    film = make_movie(27)
+def test_a_movie_that_was_watched_and_has_its_runtime_is_no_longer_asked_about(user, respx_mock):
+    film = make_movie(27, runtime=100)
     watch = Watch.objects.create(user=user, title=film)
     ToWatchItem.objects.create(
         user=user, title=film, removed_at=datetime.datetime(2026, 1, 1, tzinfo=datetime.UTC), removed_by_watch=watch
@@ -361,3 +362,44 @@ def test_a_movie_that_was_watched_is_no_longer_asked_about(user, respx_mock):
     out, _err, _problem = run()
 
     assert 'Refreshed 0 movies.' in out and respx_mock.calls.call_count == 0
+
+
+def test_a_movie_that_was_watched_before_runtimes_were_kept_gets_its_runtime_once(user, respx_mock):
+    film = make_movie(28)  # saved earlier: no runtime, and it is on no To Watch list
+    Watch.objects.create(user=user, title=film)
+    mock_movie(respx_mock, 28, runtime=142)
+
+    out, _err, problem = run()
+
+    film.refresh_from_db()
+    assert film.runtime == 142 and 'Refreshed 1 movie.' in out and problem is None
+    run()
+    assert respx_mock.calls.call_count == 1  # it has its runtime now, so the second run leaves it alone
+
+
+def test_a_watched_movie_with_no_runtime_on_tmdb_stays_empty(user, respx_mock):
+    film = make_movie(29)
+    Watch.objects.create(user=user, title=film)
+    mock_movie(respx_mock, 29, runtime=0)  # TMDB sometimes says 0 for a movie it knows nothing about
+
+    run()
+
+    film.refresh_from_db()
+    assert film.runtime is None
+
+
+def test_the_job_saves_a_series_typical_episode_runtime(user, respx_mock):
+    series = make_series(32)
+    ToWatchItem.objects.create(user=user, title=series)
+    episodes = [
+        {'id': 3201, 'season_number': 1, 'episode_number': 1, 'name': 'One', 'air_date': '2011-04-17', 'runtime': 40},
+        {'id': 3202, 'season_number': 1, 'episode_number': 2, 'name': 'Two', 'air_date': '2011-04-24', 'runtime': 50},
+        {'id': 3203, 'season_number': 1, 'episode_number': 3, 'name': 'Three', 'air_date': '2011-05-01'},
+    ]
+    respx_mock.get(TV_URL.format(32)).respond(json=series_answer(32))
+    respx_mock.get(TV_URL.format(32) + '/season/1').respond(json={'season_number': 1, 'episodes': episodes})
+
+    run()
+
+    series.refresh_from_db()
+    assert series.runtime == 45  # the average of the two that have one

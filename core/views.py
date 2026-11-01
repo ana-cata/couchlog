@@ -34,6 +34,7 @@ from .episodes import (
 from .forms import TimeZoneForm, WatchedForm
 from .models import DroppedSeries, Episode, Profile, Title, ToWatchItem, Watch
 from .releases import news, refresh_movie, refresh_upcoming, upcoming
+from .time_spent import describe, minutes_watched
 
 # How old our saved episodes may get before opening a series page asks TMDB again.
 EPISODES_REFRESH_AFTER = timedelta(days=1)
@@ -190,7 +191,7 @@ def _saved_title(kind, tmdb_id):
     title = Title.objects.filter(kind=kind, tmdb_id=tmdb_id).first()
     if title is None:
         details = tmdb.get_title(kind, tmdb_id)
-        saved = {key: details[key] for key in ('title', 'year', 'poster_url', 'backdrop_url', 'overview')}
+        saved = {key: details[key] for key in ('title', 'year', 'poster_url', 'backdrop_url', 'overview', 'runtime')}
         title, _ = Title.objects.get_or_create(kind=kind, tmdb_id=tmdb_id, defaults=saved)
     return title
 
@@ -834,4 +835,6 @@ def profile(request):
             return redirect('profile')
     else:
         form = TimeZoneForm(initial={'timezone': profile.timezone})
-    return render(request, 'core/profile.html', {'form': form, 'profile': profile})
+    movies, series = minutes_watched(request.user)
+    time_spent = {'movies': describe(movies), 'series': describe(series), 'total': describe(movies + series)}
+    return render(request, 'core/profile.html', {'form': form, 'profile': profile, 'time_spent': time_spent})

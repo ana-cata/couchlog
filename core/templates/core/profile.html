@@ -6,6 +6,15 @@
   <h1>Profile</h1>
   <p>Account: <strong>{{ user.get_username }}</strong></p>
 
+  {# Worked out from the watches each time, so it follows every mark and every undo. #}
+  <h2>Time spent watching</h2>
+  <dl class="time-spent">
+    <dt>Movies</dt><dd>{{ time_spent.movies }}</dd>
+    <dt>Series</dt><dd>{{ time_spent.series }}</dd>
+    <dt>Total</dt><dd><strong>{{ time_spent.total }}</strong></dd>
+  </dl>
+  <p><small>Every watch counts, rewatches too, and only what you register in Couchlog.</small></p>
+
   <form method="post">
     {% csrf_token %}
     <label>

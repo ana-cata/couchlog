@@ -464,6 +464,19 @@ header nav li {
   max-width: 20rem;
 }
 
+/* "Time spent watching" on the Profile page: the name on the left, the time on the right. */
+.time-spent {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.25rem 1.5rem;
+  max-width: 28rem;
+}
+
+.time-spent dt,
+.time-spent dd {
+  margin: 0;
+}
+
 /* A film's watches on its page: the date on the left, the button to take that watch back on the right. */
 .watch-list {
   list-style: none;

@@ -75,6 +75,8 @@ def _title_from(raw, kind):
         'poster_url': f'{IMAGE_BASE_URL}{poster_path}' if poster_path else '',
         'backdrop_url': _backdrop_url(raw),
         'overview': raw.get('overview') or '',
+        # A movie's runtime in minutes. Only a movie's own details have it: not a search result, not a series.
+        'runtime': raw.get('runtime') or None,
     }
 
 
@@ -135,14 +137,21 @@ DIGITAL_RELEASE = 4
 
 
 def get_movie_releases(tmdb_id):
-    """The earliest cinema release and the earliest streaming (digital) release of a movie in any country, and its banner.
+    """The earliest cinema release and the earliest streaming (digital) release of a movie in any country, and its
+    banner and runtime.
 
-    Returns {'cinema': moment or None, 'streaming': moment or None, 'backdrop_url': address or ''}, None when TMDB
-    lists no such release. A moment looks like 2024-04-15T00:00:00.000Z in TMDB's answer (midnight UTC), and so it
-    is here. One call gives both: the release dates are asked along with the movie itself. Nothing is saved.
+    Returns {'cinema': moment or None, 'streaming': moment or None, 'backdrop_url': address or '', 'runtime': minutes
+    or None}, None when TMDB lists no such release or has no runtime. A moment looks like 2024-04-15T00:00:00.000Z in
+    TMDB's answer (midnight UTC), and so it is here. One call gives it all: the release dates are asked along with
+    the movie itself. Nothing is saved.
     """
     data = _get(f'/movie/{tmdb_id}', {'append_to_response': 'release_dates'})
-    earliest = {'cinema': None, 'streaming': None, 'backdrop_url': _backdrop_url(data)}
+    earliest = {
+        'cinema': None,
+        'streaming': None,
+        'backdrop_url': _backdrop_url(data),
+        'runtime': data.get('runtime') or None,
+    }
     for country in (data.get('release_dates') or {}).get('results', []):
         for release in country.get('release_dates', []):
             kind = release.get('type')
