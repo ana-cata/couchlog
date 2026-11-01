@@ -180,3 +180,37 @@ class DroppedSeries(models.Model):
 
     def __str__(self):
         return f'{self.user}: {self.title} (dropped)'
+
+
+class Rating(models.Model):
+    """One account's star rating and short note for one title (a movie or a series).
+
+    Removing the stars or the note empties them instead of deleting the row, because the row also remembers what was
+    there before the last change: that is what Undo brings back. A row with no stars and an empty note means "nothing
+    saved".
+    """
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    title = models.ForeignKey(Title, on_delete=models.CASCADE)
+    # 1 to 5 whole stars. Empty means no rating, which is not the same as 1 star.
+    stars = models.PositiveSmallIntegerField(null=True, blank=True)
+    note = models.TextField(blank=True)
+    # The stars and the note as they were just before the last change, for Undo.
+    previous_stars = models.PositiveSmallIntegerField(null=True, blank=True)
+    previous_note = models.TextField(blank=True)
+    # When the last change was made. Undo works for a few seconds after it; empty again once the change was undone.
+    changed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = (
+            # One rating per account and title: saving again changes it.
+            models.UniqueConstraint(fields=['user', 'title'], name='one_rating_per_title'),
+        )
+
+    @property
+    def stars_text(self):
+        """The stars as characters, like "★★★★☆" for 4. Empty when there is no rating."""
+        return '★' * self.stars + '☆' * (5 - self.stars) if self.stars else ''
+
+    def __str__(self):
+        return f'{self.user}: {self.title} ({self.stars or "no"} stars)'

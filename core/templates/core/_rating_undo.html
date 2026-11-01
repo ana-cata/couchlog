@@ -1,0 +1,14 @@
+{# The Undo notice under the rating box, for the few seconds after a change. While it shows, it asks the #}
+{# server again just after its time runs out, so a page that stays open loses it by itself. #}
+<div id="rating-undo"{% if rating_undo %} hx-get="{% url 'rating_undo_notice' %}?kind={{ item.kind }}&amp;tmdb_id={{ item.tmdb_id }}&amp;next={{ next|urlencode }}" hx-trigger="load delay:{{ rating_undo.recheck_seconds }}s" hx-swap="outerHTML"{% endif %}>
+  {% if rating_undo %}
+    <form method="post" action="{% url 'rating_undo' %}" class="rating-undo">
+      {% csrf_token %}
+      <input type="hidden" name="kind" value="{{ item.kind }}">
+      <input type="hidden" name="tmdb_id" value="{{ item.tmdb_id }}">
+      <input type="hidden" name="next" value="{{ next }}">
+      <small>You can undo this change for {{ rating_undo.seconds }} seconds.</small>
+      <button type="submit" class="outline secondary">Undo</button>
+    </form>
+  {% endif %}
+</div>

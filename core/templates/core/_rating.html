@@ -1,0 +1,29 @@
+{# Your own stars and note for this title, on a movie's or a series' page. What is saved is shown as text; the form #}
+{# is folded away so a long series page stays short. One Save does it all: "No rating" or an empty note removes #}
+{# that part. Nothing is asked from TMDB until something is saved. #}
+<div class="rating-section">
+  {% if rating.stars %}<p class="rating-stars">Your rating: {{ rating.stars_text }} <small>{{ rating.stars }} of 5</small></p>{% endif %}
+  {% if rating.note %}<p class="rating-note">Your note: {{ rating.note|linebreaksbr }}</p>{% endif %}
+  <details>
+    <summary>{% if rating.stars or rating.note %}Change or remove your rating and note{% else %}Rate it or add a note{% endif %}</summary>
+    <form method="post" action="{% url 'rating_save' %}">
+      {% csrf_token %}
+      <input type="hidden" name="kind" value="{{ item.kind }}">
+      <input type="hidden" name="tmdb_id" value="{{ item.tmdb_id }}">
+      <input type="hidden" name="next" value="{{ next }}">
+      <fieldset class="rating-choices">
+        <legend>Stars</legend>
+        <label><input type="radio" name="stars" value=""{% if not rating.stars %} checked{% endif %}> No rating</label>
+        {% for number, text in star_choices %}
+          <label><input type="radio" name="stars" value="{{ number }}" aria-label="{{ number }} out of 5 stars"{% if rating.stars == number %} checked{% endif %}> {{ text }}</label>
+        {% endfor %}
+      </fieldset>
+      <label>
+        Note
+        <textarea name="note" rows="3" maxlength="{{ note_max }}" placeholder="A short note, up to {{ note_max }} characters">{{ rating.note }}</textarea>
+      </label>
+      <button type="submit">Save</button>
+    </form>
+  </details>
+  {% include 'core/_rating_undo.html' %}
+</div>

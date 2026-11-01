@@ -31,16 +31,17 @@ from .episodes import (
     unmark_episodes,
     up_next,
 )
-from .forms import TimeZoneForm, WatchedForm
-from .models import DroppedSeries, Episode, Profile, Title, ToWatchItem, Watch
+from .forms import NOTE_MAX_LENGTH, STAR_CHOICES, RatingForm, TimeZoneForm, WatchedForm
+from .models import DroppedSeries, Episode, Profile, Rating, Title, ToWatchItem, Watch
 from .releases import news, refresh_movie, refresh_upcoming, upcoming
 from .time_spent import describe, minutes_watched
 
 # How old our saved episodes may get before opening a series page asks TMDB again.
 EPISODES_REFRESH_AFTER = timedelta(days=1)
 
-# How long after removing a title from To Watch it can still be undone. The screen says the
-# number of seconds, which comes from here. After that, the way back is adding the title again.
+# How long after removing a title from To Watch (or after saving, changing or removing a rating and note) it can
+# still be undone. The screen says the number of seconds, which comes from here. After that, the way back is adding
+# the title again (or editing the rating again).
 UNDO_WINDOW = timedelta(seconds=10)
 
 # The section of the app each kind of title lives in. It is also the name of that section's
@@ -107,7 +108,7 @@ def title(request, kind, tmdb_id):
     except tmdb.TmdbError as problem:
         return render(request, 'core/title.html', {'error': str(problem)})
     on_list = _my_item(request, kind, tmdb_id).filter(removed_at=None).exists()
-    context = {'item': item, 'on_list': on_list, 'next': request.get_full_path()}
+    context = {'item': item, 'on_list': on_list, 'next': request.get_full_path(), **_rating_box(request, kind, tmdb_id)}
     if kind == 'movie':
         # Series are marked episode by episode, so only movies get this section. Every watch of the film is
         # listed, newest day first like History.
@@ -164,6 +165,7 @@ def _series_page(request, tmdb_id):
         # "Stop watching" is offered for a series that is in one of my tabs: started or on my To Watch list.
         'can_drop': not dropped and (on_list or bool(watches)),
         'next': request.get_full_path(),
+        **_rating_box(request, 'series', tmdb_id),
         'notice': notice,
         'seasons': seasons,
         'open_season': open_season,
@@ -312,11 +314,13 @@ def to_watch_removed(request):
     return render(request, 'core/_recently_removed.html', _recently_removed(request, kind))
 
 
-def _posted_title(request):
-    """The kind and TMDB id of the title a button was pressed for."""
-    kind = request.POST.get('kind')
+def _posted_title(request, source=None):
+    """The kind and TMDB id of the title a button was pressed for. `source` is where they were sent: the form, unless
+    it says otherwise (a page that asks with a link sends them in the address)."""
+    source = request.POST if source is None else source
+    kind = source.get('kind')
     try:
-        tmdb_id = int(request.POST.get('tmdb_id', ''))
+        tmdb_id = int(source.get('tmdb_id', ''))
     except ValueError:
         raise BadRequest from None
     if kind not in ('movie', 'series') or tmdb_id < 1:
@@ -427,6 +431,104 @@ def to_watch_undo(request):
     item.removed_at = None
     item.save(update_fields=['removed_at'])
     return _answer(request, kind, tmdb_id, True, f'Put “{item.title.title}” back on your To Watch list.')
+
+
+def _my_rating(request, kind, tmdb_id):
+    """This account's rating and note for a title, or None when nothing was ever saved for it."""
+    return Rating.objects.filter(user=request.user, title__kind=kind, title__tmdb_id=tmdb_id).first()
+
+
+def _rating_undo(rating):
+    """What the Undo notice under the rating box needs while the last change can still be undone, else None."""
+    if rating is None or rating.changed_at is None:
+        return None
+    left = (rating.changed_at + UNDO_WINDOW - timezone.now()).total_seconds()
+    if left <= 0:
+        return None
+    # The notice asks the server again just after its time runs out, so a page that stays open loses it by itself.
+    return {'seconds': _undo_seconds(), 'recheck_seconds': math.ceil(left) + 1}
+
+
+def _rating_box(request, kind, tmdb_id):
+    """What the rating box on a title's page shows: this account's saved stars and note, and the Undo notice."""
+    rating = _my_rating(request, kind, tmdb_id)
+    return {
+        'rating': rating,
+        'rating_undo': _rating_undo(rating),
+        'star_choices': STAR_CHOICES,
+        'note_max': NOTE_MAX_LENGTH,
+    }
+
+
+@require_POST
+def rating_save(request):
+    """Save, change or remove the stars and the note of a title, all in one Save.
+
+    "No rating" removes the stars and an empty note removes the note, each without touching the other. What was
+    there before is kept on the row, so `rating_undo` can bring it back. Saving what is already saved changes
+    nothing (and keeps the Undo of the earlier change). The title does not need to be watched, and if it is not
+    saved yet it is saved from TMDB first.
+    """
+    kind, tmdb_id = _posted_title(request)
+    form = RatingForm(request.POST)
+    if not form.is_valid():
+        problem = ' '.join(error for errors in form.errors.values() for error in errors)
+        return _redirect_back(request, problem, False, 'search')
+    stars, note = form.cleaned_data['stars'], form.cleaned_data['note']
+
+    rating = _my_rating(request, kind, tmdb_id)
+    if (stars, note) == ((rating.stars, rating.note) if rating else (None, '')):
+        return _redirect_back(request, 'Nothing changed, so nothing was saved.', True, 'search')
+
+    try:
+        title = _saved_title(kind, tmdb_id)
+    except tmdb.TmdbNotFound:
+        raise Http404 from None
+    except tmdb.TmdbError as problem:
+        return _redirect_back(request, str(problem), False, 'search')
+
+    said = []
+    with transaction.atomic():
+        rating, _ = Rating.objects.get_or_create(user=request.user, title=title)
+        if stars != rating.stars:
+            said.append('rating saved' if stars else 'rating removed')
+        if note != rating.note:
+            said.append('note saved' if note else 'note removed')
+        if said:
+            rating.previous_stars, rating.previous_note = rating.stars, rating.note
+            rating.stars, rating.note, rating.changed_at = stars, note, timezone.now()
+            rating.save()
+    if not said:
+        return _redirect_back(request, 'Nothing changed, so nothing was saved.', True, 'search')
+    return _redirect_back(request, ' and '.join(said).capitalize() + '.', True, 'search')
+
+
+@require_POST
+def rating_undo(request):
+    """Bring back the stars and the note as they were before the last change, for a few seconds after making it."""
+    kind, tmdb_id = _posted_title(request)
+    rating = _my_rating(request, kind, tmdb_id)
+    if rating is None or rating.changed_at is None:
+        return _redirect_back(request, 'There is nothing to undo for that title.', False, 'search')
+    if rating.changed_at < timezone.now() - UNDO_WINDOW:
+        text = 'It is too late to undo that. You can change the rating and note again.'
+        return _redirect_back(request, text, False, 'search')
+    rating.stars, rating.note = rating.previous_stars, rating.previous_note
+    rating.previous_stars, rating.previous_note, rating.changed_at = None, '', None
+    rating.save()
+    return _redirect_back(request, 'Brought back your previous rating and note.', True, 'search')
+
+
+# Only the Undo notice of the rating box, which the title's page asks for when its time runs out.
+@never_cache
+def rating_undo_notice(request):
+    kind, tmdb_id = _posted_title(request, request.GET)
+    context = {
+        'item': {'kind': kind, 'tmdb_id': tmdb_id},
+        'rating_undo': _rating_undo(_my_rating(request, kind, tmdb_id)),
+        'next': request.GET.get('next', ''),
+    }
+    return render(request, 'core/_rating_undo.html', context)
 
 
 def history(request):

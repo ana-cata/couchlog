@@ -22,6 +22,8 @@
         <p><small>{{ item.year|default:"Year unknown" }} · {{ item.kind|capfirst }}{% if item.status %} · {{ item.status }}{% endif %}</small></p>
         <p>{{ item.overview|default:"TMDB has no description for this title." }}</p>
 
+        {% include 'core/_rating.html' %}
+
         {% if item.kind == 'movie' %}
           <div class="watched-section">
             {# Every watch with its date and its own button to take it back. With one watch that button is "Mark as not watched". #}

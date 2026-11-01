@@ -7,13 +7,19 @@
 - **Add to your list:** under each tile is an "Add to To Watch" button (or "Remove from To Watch" when the title is already on your list). See [To Watch](to-watch.md).
 - **A series you dropped** shows "In your Dropped list" (a link to Series → Dropped) in place of the button, in the results and on its page. Open it to press **Bring back** (see [Series](series.md)).
 - **Open one:** click a result to open its title page: poster, title, year, and TMDB's description, with the same To Watch button under the poster. A movie's page also has the date box and the **Mark as watched** button (see [History](history.md)). A series page also lists its seasons and episodes, each with a round check button (see [Series](series.md)).
-- **Searching saves nothing.** Search results and movie pages are read from TMDB each time. Only a title you add to your To Watch list is saved, and a series is also saved the first time you open its page (with its episodes, see [Series](series.md)).
+- **Your rating and note** (movies and series). Under the description, a title's page shows your own stars (like "★★★★☆ 4 of 5") and your note, when you saved them. Below that, "Rate it or add a note" (or "Change or remove your rating and note" once something is saved) opens a small form: **Stars** (1 to 5 whole stars, or "No rating") and a **Note** box (up to 500 characters), with one **Save** button.
+  - **Change:** pick other stars or edit the note and press Save. Saving what is already saved does nothing.
+  - **Remove:** pick "No rating" to remove the stars, or empty the note box to remove the note, then Save. Each can be removed without touching the other, and "No rating" is not the same as 1 star.
+  - **Any title:** you do not have to have watched it, or have it on a list. Only your own account sees and changes your rating and note.
+  - **Undo:** right after saving, changing or removing, an "Undo" button appears under the box for 10 seconds (the same time as To Watch) and brings back the stars and note as they were just before. The notice disappears by itself after that. Undo goes one step back only; after that, editing again is the way to change it.
+  - Ratings are not shown on tiles or lists, and episodes and seasons cannot be rated (later, if wanted).
+- **Searching saves nothing.** Search results and movie pages are read from TMDB each time. Only a title you add to your To Watch list (or rate) is saved, and a series is also saved the first time you open its page (with its episodes, see [Series](series.md)).
 - **If something goes wrong** you see a message instead of a crash:
   - TMDB cannot be reached, or does not accept the key: a short message under the box.
   - Nothing matches: "No movies or series match ...".
   - A title that TMDB does not have: the normal "page not found" screen.
 - A result with no poster shows "No poster", and one with no date shows "Year unknown".
-- **Undo:** not needed, because search changes none of your data.
+- **Undo:** not needed for search itself, because search changes none of your data. Ratings and notes have their own Undo (see above).
 
 ## How it works
 
@@ -40,7 +46,17 @@
 - The year is the first four characters of TMDB's date, used as given (no time zone conversion).
 - Posters are loaded by the browser straight from TMDB's picture server (`https://image.tmdb.org/t/p/w342`), the same size in the tiles and on the title page. No key is involved, but it needs an internet connection.
 
+**Rating and note** (`core/templates/core/_rating.html`, with the notice in `_rating_undo.html`; the table is `core_rating`, see [Data model](data-model.md))
+- The form posts to `/rating/save/` (`rating_save` in `core/views.py`) with the title's kind and TMDB id, `stars` (empty, or 1 to 5) and `note`. `RatingForm` (`core/forms.py`) checks them: stars outside 1 to 5 and a note over 500 characters are refused with a message and nothing is saved (a line break counts as one character, like in the box).
+- If the title is not saved yet (a movie page is read from TMDB each time), it is saved from TMDB first, the way "Mark as watched" does (design rule 6). If TMDB does not answer, a friendly message is shown and nothing is saved. When there is nothing to change, TMDB is not asked at all.
+- One row per account and title. Removing stars or note empties them instead of deleting the row, because the row also keeps what was there before the last change (`previous_stars`, `previous_note`) and when it was made (`changed_at`).
+- `/rating/undo/` (`rating_undo`) puts the previous values back and clears `changed_at`. It only works within `UNDO_WINDOW` (10 seconds, the same setting To Watch uses) of the last change; after that it says it is too late, and nothing changes.
+- The notice shows only while that window is open (`_rating_undo` in `core/views.py` works out how much time is left). While it shows, it asks `/rating/undo/notice/` again just after the window ends (htmx, `hx-trigger="load delay:Ns"`), so a page that stays open loses the button by itself.
+- Everything is looked up by the logged-in account, so one account never sees or changes another's rating. No JavaScript is needed to save, change, remove or undo.
+
 **Known limits**
 - Only the first 20 results; there is no "more results" button.
 - Search is in English (TMDB's default).
-- The title pages show the basics, the To Watch button, and the watched section (movies) or the seasons and episodes (series). Runtimes and streaming services come with later cards.
+- The title pages show the basics, the To Watch button, your rating and note, and the watched section (movies) or the seasons and episodes (series). Streaming services come with a later card.
+- A refused save (for example a note that is too long) comes back with a message but not with the text you typed, so the form shows what was saved before.
+- Undo goes back one step, and only for 10 seconds.

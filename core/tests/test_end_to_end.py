@@ -316,7 +316,8 @@ def test_the_first_mark_asks_and_the_season_button_marks_and_un_marks_a_season_w
         json={'season_number': 2, 'episodes': season_two}
     )
     page.route('https://image.tmdb.org/**', lambda route: route.abort())
-    page.set_viewport_size({'width': 800, 'height': 600})
+    # Tall enough that the season button is on screen at the top of the page (with the rating line above the seasons).
+    page.set_viewport_size({'width': 800, 'height': 700})
 
     page.goto(live_server.url)
     page.get_by_label('Username').fill('made-up-user')
@@ -581,3 +582,58 @@ def test_a_series_on_the_to_watch_list_shows_in_the_calendar_until_it_is_removed
     page.get_by_role('button', name='Undo').click()
     page.get_by_role('link', name='Calendar', exact=True).click()
     expect(item).to_have_count(1)
+
+
+def test_rate_a_movie_change_it_undo_and_remove_it(live_server, page, respx_mock, settings, monkeypatch):
+    # A long window, so a slow machine can never run out of undo time in the middle of this test.
+    monkeypatch.setattr('core.views.UNDO_WINDOW', datetime.timedelta(minutes=5))
+    settings.TMDB_API_KEY = 'made-up-secret-key'
+    user = User.objects.create_user(username='made-up-user', password='made-up-password')
+    Profile.objects.create(user=user, timezone='Europe/Lisbon')
+    respx_mock.get('https://api.themoviedb.org/3/movie/603').respond(json=MADE_UP_MOVIE)
+    page.route('https://image.tmdb.org/**', lambda route: route.abort())
+
+    page.goto(live_server.url)
+    page.get_by_label('Username').fill('made-up-user')
+    page.get_by_label('Password').fill('made-up-password')
+    page.get_by_role('button', name='Log in').click()
+    page.goto(live_server.url + '/movie/603/')
+    page.wait_for_load_state('load')  # htmx starts when the page has loaded
+
+    # Nothing yet: the form is folded away. Open it, pick 4 stars, write a note and save.
+    expect(page.get_by_text('Your rating:')).to_have_count(0)
+    page.get_by_text('Rate it or add a note').click()
+    page.get_by_label('4 out of 5 stars').check()
+    page.get_by_label('Note').fill('Loved the ending.')
+    page.get_by_role('button', name='Save', exact=True).click()
+
+    # Both are shown on the page, with a notice and an Undo button.
+    expect(page.get_by_text('Rating saved and note saved.')).to_be_visible()
+    expect(page.get_by_text('Your rating: ★★★★☆')).to_be_visible()
+    expect(page.get_by_text('Your note: Loved the ending.')).to_be_visible()
+    expect(page.get_by_role('button', name='Undo')).to_be_visible()
+
+    # Change the stars only.
+    page.get_by_text('Change or remove your rating and note').click()
+    page.get_by_label('2 out of 5 stars').check()
+    page.get_by_role('button', name='Save', exact=True).click()
+    expect(page.get_by_text('Your rating: ★★☆☆☆')).to_be_visible()
+    expect(page.get_by_text('Your note: Loved the ending.')).to_be_visible()
+
+    # Undo brings back the 4 stars and the note.
+    page.get_by_role('button', name='Undo').click()
+    expect(page.get_by_text('Your rating: ★★★★☆')).to_be_visible()
+    expect(page.get_by_text('Brought back your previous rating and note.')).to_be_visible()
+    expect(page.get_by_role('button', name='Undo')).to_have_count(0)
+
+    # Remove both: "No rating" and an empty note. Undo brings them back, and both survive a reload.
+    page.get_by_text('Change or remove your rating and note').click()
+    page.get_by_label('No rating').check()
+    page.get_by_label('Note').fill('')
+    page.get_by_role('button', name='Save', exact=True).click()
+    expect(page.get_by_text('Your rating:')).to_have_count(0)
+    expect(page.get_by_text('Your note:')).to_have_count(0)
+    page.get_by_role('button', name='Undo').click()
+    page.reload()
+    expect(page.get_by_text('Your rating: ★★★★☆')).to_be_visible()
+    expect(page.get_by_text('Your note: Loved the ending.')).to_be_visible()

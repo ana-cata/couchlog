@@ -464,6 +464,59 @@ header nav li {
   max-width: 20rem;
 }
 
+/* Your stars and note on a title's page. */
+.rating-section {
+  margin-top: 1.5rem;
+}
+
+.rating-section form {
+  max-width: 20rem;
+}
+
+.rating-stars,
+.rating-note {
+  margin-bottom: 0.5rem;
+}
+
+.rating-stars {
+  font-size: 1.25rem;
+}
+
+.rating-note {
+  overflow-wrap: anywhere;
+}
+
+/* "No rating" and the five star choices in a row (they wrap on a narrow screen). */
+.rating-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+}
+
+.rating-choices legend {
+  width: 100%;
+}
+
+.rating-choices label {
+  margin: 0;
+}
+
+/* The Undo notice after a change: the sentence on the left, the button on the right. */
+.rating-undo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.rating-undo button {
+  width: auto;
+  margin: 0;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.8rem;
+}
+
 /* "Time spent watching" on the Profile page: the name on the left, the time on the right. */
 .time-spent {
   display: grid;
