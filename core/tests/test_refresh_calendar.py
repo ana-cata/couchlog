@@ -15,8 +15,18 @@ MOVIE_URL = 'https://api.themoviedb.org/3/movie/{}'
 # Made-up TMDB answers. The tests never call the real TMDB.
 
 
-def series_answer(tmdb_id, status='Returning Series'):
-    return {'id': tmdb_id, 'name': f'Made-up Series {tmdb_id}', 'status': status, 'seasons': [{'season_number': 1}]}
+DRAMA = {'id': 18, 'name': 'Drama'}
+THRILLER = {'id': 53, 'name': 'Thriller'}
+
+
+def series_answer(tmdb_id, status='Returning Series', genres=()):
+    return {
+        'id': tmdb_id,
+        'name': f'Made-up Series {tmdb_id}',
+        'status': status,
+        'seasons': [{'season_number': 1}],
+        'genres': list(genres),
+    }
 
 
 def season_answer(*episodes):
@@ -44,8 +54,8 @@ def make_series(tmdb_id, **fields):
     return Title.objects.create(kind='series', tmdb_id=tmdb_id, title=f'Made-up Series {tmdb_id}', **fields)
 
 
-def mock_series(respx_mock, tmdb_id, status='Returning Series', episodes=((1101, 1, 'Pilot', '2011-04-17'),)):
-    respx_mock.get(TV_URL.format(tmdb_id)).respond(json=series_answer(tmdb_id, status))
+def mock_series(respx_mock, tmdb_id, status='Returning Series', episodes=((1101, 1, 'Pilot', '2011-04-17'),), genres=()):
+    respx_mock.get(TV_URL.format(tmdb_id)).respond(json=series_answer(tmdb_id, status, genres))
     respx_mock.get(TV_URL.format(tmdb_id) + '/season/1').respond(json=season_answer(*episodes))
 
 
@@ -59,12 +69,18 @@ def release(kind, moment):
     return {'type': kind, 'release_date': moment, 'certification': '', 'note': ''}
 
 
-def mock_movie(respx_mock, tmdb_id, backdrop_path=None, runtime=None, **countries):
-    """TMDB's answer for a movie, with its release dates from {country code: [release entries]}, its banner and its
-    runtime."""
+def mock_movie(respx_mock, tmdb_id, backdrop_path=None, runtime=None, genres=(), **countries):
+    """TMDB's answer for a movie, with its release dates from {country code: [release entries]}, its banner, its
+    runtime and its genres."""
     results = [{'iso_3166_1': country, 'release_dates': entries} for country, entries in countries.items()]
     respx_mock.get(MOVIE_URL.format(tmdb_id)).respond(
-        json={'id': tmdb_id, 'backdrop_path': backdrop_path, 'runtime': runtime, 'release_dates': {'results': results}}
+        json={
+            'id': tmdb_id,
+            'backdrop_path': backdrop_path,
+            'runtime': runtime,
+            'genres': list(genres),
+            'release_dates': {'results': results},
+        }
     )
 
 
@@ -352,8 +368,8 @@ def test_a_title_tmdb_has_no_banner_for_is_saved_with_none(user, respx_mock):
     assert film.backdrop_url == '' and series.backdrop_url == ''
 
 
-def test_a_movie_that_was_watched_and_has_its_runtime_is_no_longer_asked_about(user, respx_mock):
-    film = make_movie(27, runtime=100)
+def test_a_movie_that_was_watched_and_has_its_runtime_and_genres_is_no_longer_asked_about(user, respx_mock):
+    film = make_movie(27, runtime=100, genres=[DRAMA])
     watch = Watch.objects.create(user=user, title=film)
     ToWatchItem.objects.create(
         user=user, title=film, removed_at=datetime.datetime(2026, 1, 1, tzinfo=datetime.UTC), removed_by_watch=watch
@@ -367,7 +383,7 @@ def test_a_movie_that_was_watched_and_has_its_runtime_is_no_longer_asked_about(u
 def test_a_movie_that_was_watched_before_runtimes_were_kept_gets_its_runtime_once(user, respx_mock):
     film = make_movie(28)  # saved earlier: no runtime, and it is on no To Watch list
     Watch.objects.create(user=user, title=film)
-    mock_movie(respx_mock, 28, runtime=142)
+    mock_movie(respx_mock, 28, runtime=142, genres=[DRAMA])
 
     out, _err, problem = run()
 
@@ -375,6 +391,47 @@ def test_a_movie_that_was_watched_before_runtimes_were_kept_gets_its_runtime_onc
     assert film.runtime == 142 and 'Refreshed 1 movie.' in out and problem is None
     run()
     assert respx_mock.calls.call_count == 1  # it has its runtime now, so the second run leaves it alone
+
+
+def test_a_movie_that_was_watched_before_genres_were_kept_gets_its_genres_once(user, respx_mock):
+    film = make_movie(33, runtime=100)  # saved earlier: it has its runtime but no genres, and is on no To Watch list
+    Watch.objects.create(user=user, title=film)
+    mock_movie(respx_mock, 33, runtime=100, genres=[DRAMA, THRILLER])
+
+    out, _err, problem = run()
+
+    film.refresh_from_db()
+    assert film.genres == [DRAMA, THRILLER] and 'Refreshed 1 movie.' in out and problem is None
+    run()
+    assert respx_mock.calls.call_count == 1  # it has its genres now, so the second run leaves it alone
+
+
+def test_the_job_saves_the_genres_of_a_movie_and_a_series_on_a_to_watch_list(user, respx_mock):
+    film = make_movie(34)
+    series = make_series(35)
+    ToWatchItem.objects.create(user=user, title=film)
+    ToWatchItem.objects.create(user=user, title=series)
+    mock_movie(respx_mock, 34, genres=[DRAMA, THRILLER])
+    mock_series(respx_mock, 35, genres=[THRILLER])
+
+    run()
+
+    film.refresh_from_db(), series.refresh_from_db()
+    assert film.genres == [DRAMA, THRILLER] and series.genres == [THRILLER]
+
+
+def test_a_title_tmdb_has_no_genres_for_is_saved_with_none(user, respx_mock):
+    film = make_movie(36, genres=[DRAMA])
+    series = make_series(37, genres=[DRAMA])
+    ToWatchItem.objects.create(user=user, title=film)
+    ToWatchItem.objects.create(user=user, title=series)
+    mock_movie(respx_mock, 36)  # no genres any more
+    mock_series(respx_mock, 37)
+
+    run()
+
+    film.refresh_from_db(), series.refresh_from_db()
+    assert film.genres == [] and series.genres == []
 
 
 def test_a_watched_movie_with_no_runtime_on_tmdb_stays_empty(user, respx_mock):

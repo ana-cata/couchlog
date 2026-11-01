@@ -21,7 +21,8 @@ def typical_runtime(episodes):
 
 
 def refresh_episodes(series):
-    """Ask TMDB for the series' status, IMDb id, banner and episodes, and save them, with its typical episode runtime.
+    """Ask TMDB for the series' status, IMDb id, banner, genres and episodes, and save them, with its typical episode
+    runtime.
 
     Episodes are matched with TMDB's own id: a renumbered or renamed episode is updated in place
     (so its watches stay with it), a new one is added, and none is ever deleted. TMDB is asked first,
@@ -38,9 +39,10 @@ def refresh_episodes(series):
         series.status = details['status']
         series.imdb_id = details['imdb_id']
         series.backdrop_url = details['backdrop_url']
+        series.genres = details['genres']
         series.runtime = typical_runtime(details['episodes'])
         series.episodes_refreshed_at = timezone.now()
-        series.save(update_fields=['status', 'imdb_id', 'backdrop_url', 'runtime', 'episodes_refreshed_at'])
+        series.save(update_fields=['status', 'imdb_id', 'backdrop_url', 'genres', 'runtime', 'episodes_refreshed_at'])
 
 
 def episodes_up_to(episode):

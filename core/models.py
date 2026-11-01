@@ -40,6 +40,9 @@ class Title(models.Model):
     # average of its episodes' runtimes), used for an episode that has none of its own. Empty when TMDB has none, and
     # for a title saved before runtimes were kept, until `refresh_calendar` (or a series page refresh) runs.
     runtime = models.PositiveIntegerField(null=True, blank=True)
+    # TMDB's genres for the title, in TMDB's order, as a list like [{"id": 18, "name": "Drama"}]. Empty when TMDB has
+    # none, and for a title saved before genres were kept, until `refresh_calendar` (or a series page refresh) runs.
+    genres = models.JSONField(default=list, blank=True)
     # Series only: when its episodes were last asked from TMDB. Empty until the first time.
     episodes_refreshed_at = models.DateTimeField(null=True, blank=True)
     # Series only: TMDB's own word for where the series stands ("Returning Series", "Ended",

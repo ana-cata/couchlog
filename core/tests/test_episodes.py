@@ -245,7 +245,7 @@ def test_a_series_whose_status_tmdb_does_not_give_has_none_saved_and_none_shown(
     html = page(logged_in_client)
 
     assert Title.objects.get().status == ''
-    assert '2011 · Series<' in html
+    assert '2011 · Series · ~' in html  # the episode length comes right after the kind: no status in between
 
 
 def test_a_refresh_brings_in_a_new_episode(logged_in_client, tmdb_series, clock):

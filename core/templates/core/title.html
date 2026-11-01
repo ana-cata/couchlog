@@ -22,7 +22,8 @@
       </div>
       <div class="title-details">
         <h1>{{ item.title }}</h1>
-        <p><small>{{ item.year|default:"Year unknown" }} · {{ item.kind|capfirst }}{% if item.status %} · {{ item.status }}{% endif %}</small></p>
+        {# Year, kind, status, length and genres: the parts TMDB has (core/title_line.py). #}
+        <p><small>{{ line }}</small></p>
         <p>{{ item.overview|default:"TMDB has no description for this title." }}</p>
 
         {% include 'core/_rating.html' %}

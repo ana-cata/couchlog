@@ -35,6 +35,7 @@ from .forms import NOTE_MAX_LENGTH, STAR_CHOICES, RatingForm, TimeZoneForm, Watc
 from .models import DroppedSeries, Episode, Profile, Rating, Title, ToWatchItem, Watch
 from .releases import news, refresh_movie, refresh_upcoming, upcoming
 from .time_spent import describe, minutes_watched
+from .title_line import title_line
 
 # How old our saved episodes may get before opening a series page asks TMDB again.
 EPISODES_REFRESH_AFTER = timedelta(days=1)
@@ -107,7 +108,13 @@ def title(request, kind, tmdb_id):
     except tmdb.TmdbError as problem:
         return render(request, 'core/title.html', {'error': str(problem)})
     on_list = _my_item(request, kind, tmdb_id).filter(removed_at=None).exists()
-    context = {'item': item, 'on_list': on_list, 'next': request.get_full_path(), **_rating_box(request, kind, tmdb_id)}
+    context = {
+        'item': item,
+        'line': title_line(kind, item['year'], '', item['runtime'], item['genres']),
+        'on_list': on_list,
+        'next': request.get_full_path(),
+        **_rating_box(request, kind, tmdb_id),
+    }
     if kind == 'movie':
         # Series are marked episode by episode, so only movies get this section. Every watch of the film is
         # listed, newest day first like History.
@@ -159,6 +166,7 @@ def _series_page(request, tmdb_id):
     asked = series.episodes.filter(id=request.session.pop('ask_earlier', 0)).first()
     context = {
         'item': series,
+        'line': title_line('series', series.year, series.status, series.runtime, series.genres),
         'on_list': on_list,
         'dropped': dropped,
         # "Stop watching" is offered for a series that is in one of my tabs: started or on my To Watch list.
@@ -192,7 +200,8 @@ def _saved_title(kind, tmdb_id):
     title = Title.objects.filter(kind=kind, tmdb_id=tmdb_id).first()
     if title is None:
         details = tmdb.get_title(kind, tmdb_id)
-        saved = {key: details[key] for key in ('title', 'year', 'poster_url', 'backdrop_url', 'overview', 'runtime')}
+        keys = ('title', 'year', 'poster_url', 'backdrop_url', 'overview', 'runtime', 'genres')
+        saved = {key: details[key] for key in keys}
         title, _ = Title.objects.get_or_create(kind=kind, tmdb_id=tmdb_id, defaults=saved)
     return title
 
