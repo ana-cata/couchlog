@@ -325,10 +325,13 @@ form[role="search"]:has(input:not(:placeholder-shown)) ~ #results .suggestions {
   filter: brightness(1.15);
 }
 
-/* The title's own page: the button under the poster is only as wide as its words. */
+/* The title's own page: the button under the poster is only as wide as its words, on one line (the poster is only
+   185 px wide, and "Remove from To Watch" is the longest). */
 .title-poster .to-watch-action button {
   width: auto;
-  padding: 0.25rem 0.75rem;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.75rem;
+  white-space: nowrap;
 }
 
 /* Words that screen readers read but nobody sees. */
@@ -699,6 +702,40 @@ form[role="search"]:has(input:not(:placeholder-shown)) ~ #results .suggestions {
 
 .watched-section form {
   max-width: 20rem;
+}
+
+/* The date box with the small button at its right, and "Date unknown" under them. The box and the button are the same
+   small height, so they sit level. */
+.watched-section form.watched-form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 0.5rem 0.75rem;
+  max-width: 24rem;
+}
+
+.watched-form label {
+  margin: 0;
+}
+
+.watched-form label:has(input[type="checkbox"]) {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+
+.watched-form button {
+  grid-column: 2;
+  grid-row: 1;
+  width: auto;
+}
+
+.watched-form :is(input[type="date"], button) {
+  /* Pico gives inputs a fixed height; without this the box stays taller than the button next to it. */
+  height: auto;
+  margin: 0;
+  padding-block: 0.4rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
 }
 
 /* Your stars and note on a title's page. */

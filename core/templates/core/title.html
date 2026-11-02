@@ -60,7 +60,7 @@
               </ul>
             {% endif %}
             {# The same date box marks the film the first time and adds another watch after that. #}
-            <form method="post" action="{% url 'watched_add' %}" hx-boost="true" hx-push-url="false">
+            <form method="post" action="{% url 'watched_add' %}" class="watched-form" hx-boost="true" hx-push-url="false">
               {% csrf_token %}
               <input type="hidden" name="kind" value="{{ item.kind }}">
               <input type="hidden" name="tmdb_id" value="{{ item.tmdb_id }}">
