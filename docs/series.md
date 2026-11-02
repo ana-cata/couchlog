@@ -86,7 +86,7 @@ Series has four tabs, in this order: **Watching, To Watch, Finished, Dropped**. 
 - **Stop watching** is a button on the series page, above the seasons. It is there for a series that is in one of your tabs: one you have marked an episode of, or one on your To Watch list. A series you never touched does not show it.
 - Pressing it moves the series to **Series → Dropped**, and the page says so. The series is then **in no other tab**, **not on Home** (Up Next) and **not on the [Calendar](calendar.md)**, even if it was also on your To Watch list.
 - **Nothing else changes:** your watches, your progress and your To Watch entry stay exactly as they were, so your history is kept.
-- **A dropped series' page** says "You stopped watching this series." and has a **Bring back** button. The episodes are still there. Marking an episode on it does **not** bring the series back: Dropped only changes with these two buttons.
+- **A dropped series' page** says "You stopped watching this series." and has a **Bring back** button, and the **Remove from all lists** button in the corner (see below). The episodes are still there. Marking an episode on it does **not** bring the series back: Dropped only changes with these two buttons.
 - **Bring back** is the undo, at any time, with no time limit. The series goes back to the tab its watches and TMDB's status give it (To Watch, Watching or Finished), and to Up Next and the Calendar, as if it had never been dropped.
 - **In [Search](search.md)** a dropped series shows "In your Dropped list" (a link to the tab) instead of the To Watch button, so there is no way to add it twice. Open it to bring it back.
 - **Your own list:** each account has its own Dropped tab, and one account can never drop or bring back another's.
@@ -95,7 +95,13 @@ Series has four tabs, in this order: **Watching, To Watch, Finished, Dropped**. 
 
 For a series you want gone completely: off every list, with everything you saved about it.
 
-- **Where:** a small **Remove from all lists** button in the **upper right corner** of the series page, level with the title. It is there for a series you started (it is under Watching or Finished) and for a dropped series. A series that is only on your To Watch list does not show it: it keeps its normal **Remove from To Watch** button, which works as it always did.
+- **Where:** a small **Remove from all lists** button in the **upper right corner** of the series page, level with the title. It is there **only for a dropped series**. A series under Watching or Finished does not show it (press **Stop watching** first), and neither does one that is only on your To Watch list: that one keeps its normal **Remove from To Watch** button, which works as it always did.
+- **The ways a series can go**, with the buttons that do it:
+  1. To Watch → Watching (mark an episode) → Finished (everything aired is watched).
+  2. To Watch → Watching → Dropped (**Stop watching**).
+  3. To Watch → off the list (**Remove from To Watch**).
+  4. To Watch → Watching → Dropped → off every list (**Remove from all lists**). A finished series gets there the same way: Stop watching first.
+- **Bring back** from Dropped puts the series back under Watching, Finished or To Watch, and the corner button goes away again.
 - **A series you started has no To Watch button.** It is under Watching or Finished, so adding it to or removing it from To Watch means nothing: the button used to flip while the series stayed in its tab. The same goes for its tile in [Search](search.md). A dropped series still says "In your Dropped list".
 - **It asks first.** The browser opens a question: "Remove “Made-up Series” from all your lists? Its 12 watches will be deleted, with your rating and note. You can undo for 10 seconds." **Cancel** changes nothing; **OK** removes.
 - **What goes:** your **watches** of every episode (rewatches too, so the time spent on [Profile](profile.md) goes down), your **To Watch entry**, the **dropped** state, and your **rating and note**. The series itself (the saved TMDB details and episodes) is shared with other accounts and stays. Nothing of another account is touched.
@@ -166,7 +172,7 @@ For a series you want gone completely: off every list, with everything you saved
 - Undo needs the copy to be at most `UNDO_WINDOW` (10 seconds) old and the series to have none of those rows now; otherwise it says why and puts nothing back. An expired copy is deleted when someone presses Undo on it too.
 - The confirmation is the browser's own `confirm()` question, asked by an `onsubmit` on a plain form (not htmx: the page then changes with a normal redirect). The question's words (`data-confirm`) come from the page: the number of watches (`watch_total`) and whether a rating is saved.
 - "Recently removed" on Series → To Watch (`_recently_removed`) lists these copies with the To Watch entries removed by hand, newest first, each with its own Undo (`item.everything` tells them apart). The block's recheck deletes expired copies, so a page left open empties by itself and the history is gone.
-- The button is shown when `can_remove_all` (the page has a watch of yours, or the series is dropped). The To Watch button is left out when `started` (`_series_page`, and `result['started']` in the search view, from `started_series`), and the block for a started series draws nothing (`_to_watch_button.html`).
+- The button is shown when `can_remove_all`, which is true only when the series is dropped. The page is the only gate: `series_remove_all` itself still accepts any series that has rows of yours, so a hand-made request for a series under Watching would work. The To Watch button is left out when `started` (`_series_page`, and `result['started']` in the search view, from `started_series`), and the block for a started series draws nothing (`_to_watch_button.html`).
 
 **Refreshing never loses a watch.** Episodes are matched with TMDB's own id and updated in place (number, name, date, runtime), new ones are added, and none is ever deleted. So if TMDB renumbers an episode, its watch stays on it. The test `test_a_renumbered_episode_keeps_its_watch_and_nothing_is_deleted` checks this.
 
