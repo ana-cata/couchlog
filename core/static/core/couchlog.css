@@ -87,9 +87,20 @@ article {
   --pico-color: var(--couch-pink);
 }
 
-/* Pico leaves the header links bare; every link is underlined (the logo is a picture, so it is not). */
-header nav a:not(.logo) {
-  text-decoration: underline;
+/* The bar across the top: full width, a thin line under it, the logo on the left and the menu on the right. It stays
+   at the top while the page scrolls, so it has the page's navy behind it. */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  padding-block: 0;
+  background: var(--couch-navy);
+  border-bottom: 1px solid var(--couch-line);
+}
+
+/* A jump to an episode (or a season) must not end up hidden behind the bar. */
+html {
+  scroll-padding-top: 7rem;
 }
 
 /* The logo in the header, link to Home. It is bigger than the TMDB logo on the About page (100 px wide). */
@@ -103,39 +114,66 @@ header nav a.logo img {
   height: auto;
 }
 
-/* On a narrow screen the header links drop to a second line instead of running off the edge. */
+/* On a narrow screen the menu drops to a second line instead of running off the edge. */
 header nav {
   flex-wrap: wrap;
 }
 
 header nav li {
   white-space: nowrap;
+  /* Pico gives each item 1rem above and below, which makes the bar tall. */
+  padding-block: 0.25rem;
 }
 
-/* The tabs under the Movies and Series headings: the one you are on is underlined. */
+/* The names in the menu and in the tabs under Movies and Series: off-white, no underline (where they sit already says
+   they are links). Under the mouse, or when tabbed to, hot pink. The page you are on is hot pink and bold: the bold is
+   there because hot pink and off-white look almost equally bright. */
+header nav a:not(.logo),
+nav.tabs a {
+  /* Not var(--pico-color): inside a link Pico sets that to the link colour (hot pink). */
+  color: var(--couch-white);
+  text-decoration: none;
+}
+
+/* On a phone the six names must fit in one row, so they sit closer together. */
+@media (max-width: 575px) {
+  /* The row takes the full width, with the names spread over it (and a second line on a very narrow screen). The
+     small negative margin keeps the first and last name level with the page's own edges. */
+  header nav ul:last-child {
+    flex-wrap: wrap;
+    justify-content: space-between;
+    width: calc(100% + 0.6rem);
+    margin-inline: -0.3rem;
+  }
+
+  header nav li {
+    padding-inline: 0;
+  }
+
+  /* Pico pulls each link outwards with a negative margin to make up for its padding, so both are set here. */
+  header nav a:not(.logo) {
+    margin-inline: 0;
+    padding-inline: 0.3rem;
+    font-size: 0.95rem;
+  }
+}
+
+header nav a:not(.logo):is(:hover, :focus-visible),
+nav.tabs a:is(:hover, :focus-visible),
+header nav a[aria-current="page"],
+nav.tabs a[aria-current="page"] {
+  color: var(--couch-pink);
+}
+
+header nav a[aria-current="page"],
+nav.tabs a[aria-current="page"] {
+  font-weight: 700;
+}
+
+/* The tabs under the Movies and Series headings, with a thin line under the row. */
 .tabs {
   margin-bottom: 1.5rem;
   border-bottom: 1px solid var(--pico-muted-border-color);
-}
-
-/* Every tab has the line (invisible unless current), so the current one does not sit lower than the rest. */
-.tabs a {
-  border-bottom: 2px solid transparent;
-  border-radius: 0;
-}
-
-.tabs a[aria-current="page"] {
-  border-bottom-color: var(--pico-primary);
-}
-
-/* Pico leaves tab links bare. The tabs you can press are underlined like every link; the one you are on is not a
-   link to press, so it keeps only its bar. */
-nav.tabs li a {
-  text-decoration: underline;
-}
-
-nav.tabs li a[aria-current="page"] {
-  text-decoration: none;
 }
 
 /* Search results: tiles with the poster on top and the name below. */

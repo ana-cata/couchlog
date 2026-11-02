@@ -83,6 +83,42 @@ def test_the_header_shows_the_logo_and_links_to_home(client):
     assert finders.find('core/logo-couchlog.svg')
 
 
+def menu_marked(html):
+    """The names in the header's menu that are marked as the page you are on (hot pink and bold, see couchlog.css)."""
+    header = html[html.index('<header'):html.index('</header>')]
+    return re.findall(r'<a [^>]*aria-current="page"[^>]*>([^<]+)</a>', header)
+
+
+@pytest.mark.parametrize(
+    ('url', 'marked'),
+    [
+        ('/search/', ['Search']),
+        ('/movies/', ['Movies']),
+        ('/movies/history/', ['Movies']),
+        ('/series/', ['Series']),
+        ('/series/watching/', ['Series']),
+        ('/series/finished/', ['Series']),
+        ('/series/dropped/', ['Series']),
+        ('/calendar/', ['Calendar']),
+        ('/profile/', ['Profile']),
+        ('/about/', ['About']),
+        # Home is the logo, not a name in the menu, and a title's own page is no menu item.
+        ('/', []),
+        ('/movie/603/', []),
+    ],
+)
+def test_the_menu_marks_the_page_you_are_on(client, respx_mock, url, marked):
+    respx_mock.get('https://api.themoviedb.org/3/movie/603').respond(json=MADE_UP_MOVIE)
+
+    assert menu_marked(client.get(url).content.decode()) == marked
+
+
+def test_the_about_page_is_marked_when_logged_out_too():
+    html = Client().get('/about/').content.decode()
+
+    assert menu_marked(html) == ['About']
+
+
 def test_the_tab_icon_link_points_to_a_file_that_exists(client):
     html = client.get('/').content.decode()
 
