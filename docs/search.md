@@ -3,6 +3,7 @@
 ## What it does
 
 - **Search page** (`/search/`, linked as "Search" in the header). Type a title and matching movies and series appear below the box as you type, a moment after you stop typing. Pressing Enter also works.
+- **Suggestions.** While the box is empty, the page shows **Suggested movies** and **Suggested series** below it: up to 10 of each, as normal tiles (they open the title page and have the To Watch button). They are picked from what you watch and save (see below). They appear a moment after the page, they vanish as soon as you type a letter, and clearing the box brings them back. Searching for something shows the results as before.
 - Results are shown as **tiles** in a grid: the poster on top, the name below, then the year and whether it is a movie or a series. The whole tile is a link, and when the mouse is over a tile (or you tab to it) its title and year are underlined so the choice is easy to see. The grid fits the screen (about two tiles across on a phone, more on a wide screen), and every tile is the same size: a long name is cut with "..." (hover to see it all). People (actors, directors) that TMDB also finds are left out.
 - **Add to your list:** under each tile is an "Add to To Watch" button (or "Remove from To Watch" when the title is already on your list). See [To Watch](to-watch.md).
 - **A series you dropped** shows "In your Dropped list" (a link to Series → Dropped) in place of the button, in the results and on its page. Open it to press **Bring back** (see [Series](series.md)).
@@ -19,9 +20,16 @@
   - **Any title:** you do not have to have watched it, or have it on a list. Only your own account sees and changes your rating and note.
   - **Undo:** there is no Undo button and no time limit. The edit icon is always there, so a rating or note can be changed or put back at any time by editing it again (a removed note has to be typed again).
   - Ratings are not shown on tiles or lists, and episodes and seasons cannot be rated (later, if wanted).
-- **Searching saves nothing.** Search results and movie pages are read from TMDB each time. Only a title you add to your To Watch list (or rate) is saved, and a series is also saved the first time you open its page (with its episodes, see [Series](series.md)).
+- **How the suggestions are picked**, for movies and for series separately:
+  1. Your **3 most common genres** among the titles you have watched (a movie watched, or a series with at least one episode watched) or have on your To Watch list. Each title counts once for each of its genres, however often you watched it. On a tie the lower TMDB genre number goes first.
+  2. The **most popular** titles of that kind in any of those genres, from TMDB.
+  3. **Left out:** anything you have watched, anything on your To Watch list, and any series you dropped. A title you took off To Watch by hand can be suggested again.
+  4. If fewer than 10 are left, or you have no genres yet (a new account, or few series registered), the rest comes from **TMDB's trending list** of the week. A title is never suggested twice, and fewer than 10 is possible.
+  - Movies and series are counted apart because TMDB numbers their genres differently (Action, Sci-Fi and Fantasy are not the same number for both). Someone who has only watched movies gets trending series.
+  - Your rating is not used, and neither are actors.
+- **Searching saves nothing**, and neither do the suggestions. Search results, suggestions and movie pages are read from TMDB each time. Only a title you add to your To Watch list (or rate) is saved, and a series is also saved the first time you open its page (with its episodes, see [Series](series.md)).
 - **If something goes wrong** you see a message instead of a crash:
-  - TMDB cannot be reached, or does not accept the key: a short message under the box.
+  - TMDB cannot be reached, or does not accept the key: a short message under the box. For the suggestions, the message takes the place of the movies (or the series) that could not be loaded, and the other block still shows.
   - Nothing matches: "No movies or series match ...".
   - A title that TMDB does not have: the normal "page not found" screen.
 - A result with no poster shows "No poster", and one with no date shows "Year unknown".
@@ -34,6 +42,7 @@
 | Address | What | Needs login |
 |---|---|---|
 | `/search/?q=text` | Search box and results. Whole page, or only the results list when htmx asks | Yes |
+| `/search/suggestions/` | The suggested movies and series, as a piece of page for htmx to load (not meant to be opened on its own) | Yes |
 | `/movie/<TMDB id>/` | Title page of a movie | Yes |
 | `/series/<TMDB id>/` | Title page of a series | Yes |
 
@@ -43,10 +52,18 @@
 - The `/search/` view (`core/views.py`) answers a normal request with the whole page (`search.html`) and an htmx request with only the list (`_search_results.html`). The answer is marked `Vary: HX-Request` so the browser never shows the list-only version as a page.
 - Each tile (`_tile.html`, with the link part in `_tile_link.html`) is a link to the title page with the To Watch button under it (`_to_watch_button.html`, which is outside the link so a click on the button never opens the page). The view checks your To Watch list to know which button to show.
 - Without JavaScript, Enter sends the form and the whole page loads with the results.
-- An empty or blank search shows no results and does not call TMDB.
+- An empty or blank search shows no results and does not call TMDB. It shows a "Loading suggestions…" line instead (`_search_results.html`), which asks `/search/suggestions/` as soon as it is on the screen (`hx-trigger="load"`). So the page and the search box never wait for TMDB, and clearing the box does the same again.
+
+**Suggestions** (`suggest` and `top_genres` in `core/suggestions.py`, the view `search_suggestions` in `core/views.py`, `_suggestions.html`)
+- `suggest(user, kind)` returns up to 10 titles shaped like search results. `top_genres` counts the genres saved on the account's titles of that kind (the `genres` column, see [Data model](data-model.md)) and keeps the 3 most common. A title saved before genres were kept has none and counts for nothing until `refresh_calendar` fills them in.
+- The view asks for movies and then series, each on its own, and each in a `try`: a TMDB problem in one only shows its message in that block. The answer is marked `never_cache`, so the list is picked again each time (a title just added is then left out).
+- Each tile is the same `_tile.html` as a search result, with the To Watch button swapped in place by htmx. Its form comes back to `/search/` when htmx is not there; without JavaScript the suggestions are never loaded.
+- Hiding: a rule in `couchlog.css` hides `.suggestions` as soon as the box has text (`:has(input:not(:placeholder-shown))`), without waiting for the 0.4 s delay or TMDB. The results then replace the block in the page, and clearing the box loads it again. A suggestions answer that arrives after the results are already shown never reaches the screen, because the line it was meant to replace is gone (tested with a held-back answer).
+- Tests: `core/tests/test_suggestions.py` (genres counted per title, per kind, per account; what is left out; the trending fill-up; a TMDB failure; hide, show and add/remove in a real browser).
 
 **TMDB calls** (`core/tmdb.py`, server side only; the key never reaches the browser)
 - `GET /search/multi?query=...` for search. Only `movie` and `tv` results are kept (`tv` is called "series" in Couchlog). Only the first page (up to 20 results) is shown.
+- `GET /discover/movie` and `GET /discover/tv` for the suggestions: `with_genres` is the genre numbers joined by `|` (any of them; a comma would mean all of them) and `sort_by=popularity.desc`. `GET /trending/movie/week` and `GET /trending/tv/week` fill up what is missing. Only the first page (20 titles) of each is used. Up to four calls per load of the suggestions, one after the other (a list that is full from the genres does not ask for trending).
 - `GET /movie/<id>` for a movie page, and `GET /tv/<id>` the first time a series is saved. A series page's episodes are described in [Series](series.md). The same answers carry the length and the genres, so the line under the title needs no extra call.
 - TMDB's 404 becomes a "not found"; other problems become a message that is fine to show to the user.
 - The year is the first four characters of TMDB's date, used as given (no time zone conversion).
@@ -75,6 +92,8 @@
 
 **Known limits**
 - Only the first 20 results; there is no "more results" button.
+- Suggestions use only the first page of each TMDB list. An account that has already watched or saved most of what is popular in its genres gets fewer than 10 (trending fills what it can). They are asked from TMDB at every load, and nothing is kept between loads.
+- The suggestions need JavaScript (htmx). A title you already rated but did not watch or save can still be suggested.
 - Search is in English (TMDB's default).
 - The title pages show the basics, the To Watch button, your rating and note, and the watched section (movies) or the seasons and episodes (series). Streaming services come with a later card.
 - A refused save (for example a note that is too long) comes back with a message but not with the text you typed, so the form shows what was saved before.

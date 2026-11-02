@@ -22,6 +22,7 @@ register_converter(KindConverter, 'kind')
 urlpatterns = [
     path('', views.home, name='home'),
     path('search/', views.search, name='search'),
+    path('search/suggestions/', views.search_suggestions, name='search_suggestions'),
     path('movies/', views.movies, name='movies'),
     path('movies/history/', views.history, name='history'),
     path('series/', views.series, name='series'),

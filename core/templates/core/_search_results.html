@@ -8,4 +8,9 @@
       {% include 'core/_tile.html' with tile=result on_list=result.on_list dropped=result.dropped live=True %}
     {% endfor %}
   </ul>
+{% elif not query %}
+  {# Nothing typed: suggestions. They load after the page, so the box never waits for TMDB. #}
+  <div class="suggestions" hx-get="{% url 'search_suggestions' %}" hx-trigger="load" hx-swap="outerHTML">
+    <p aria-busy="true">Loading suggestions…</p>
+  </div>
 {% endif %}

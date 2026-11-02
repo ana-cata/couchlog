@@ -34,6 +34,7 @@ from .episodes import (
 from .forms import NOTE_MAX_LENGTH, STAR_CHOICES, RatingForm, TimeZoneForm, WatchedForm
 from .models import DroppedSeries, Episode, Profile, Rating, Title, ToWatchItem, Watch
 from .releases import news, refresh_movie, refresh_upcoming, upcoming
+from .suggestions import suggest
 from .time_spent import describe, minutes_watched
 from .title_line import title_line
 
@@ -96,6 +97,23 @@ def search(request):
     template = 'core/_search_results.html' if live_update else 'core/search.html'
     context = {'query': query, 'results': results, 'error': error, 'next': request.get_full_path()}
     return render(request, template, context)
+
+
+# Not cached, so the list is picked again each time (a title just added to To Watch is then left out).
+@never_cache
+def search_suggestions(request):
+    """The suggested movies and series under an empty search box (htmx loads this after the page, so a slow TMDB never
+    holds up the box). Movies and series are asked separately: if TMDB fails for one, the other still shows."""
+    blocks = []
+    for kind, heading in (('movie', 'Suggested movies'), ('series', 'Suggested series')):
+        block = {'heading': heading, 'tiles': [], 'error': ''}
+        try:
+            block['tiles'] = suggest(request.user, kind)
+        except tmdb.TmdbError as problem:
+            block['error'] = str(problem)
+        blocks.append(block)
+    # `next` is where a button without htmx would come back to. The tiles are only ever on this page with htmx.
+    return render(request, 'core/_suggestions.html', {'blocks': blocks, 'next': reverse('search')})
 
 
 def title(request, kind, tmdb_id):

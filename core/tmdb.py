@@ -98,6 +98,24 @@ def search(query):
     ]
 
 
+def discover(kind, genre_ids):
+    """The most popular movies or series (`kind` is 'movie' or 'series') in any of the given genres, first page only.
+
+    `genre_ids` are TMDB's own genre numbers, which are not the same for movies and series. Nothing is saved.
+    """
+    path = '/discover/movie' if kind == 'movie' else '/discover/tv'
+    # A pipe between genre numbers means "any of them" (a comma would mean "all of them").
+    query = {'with_genres': '|'.join(str(genre_id) for genre_id in genre_ids), 'sort_by': 'popularity.desc'}
+    return [_title_from(raw, kind) for raw in _get(path, query).get('results', [])]
+
+
+def trending(kind):
+    """The movies or series (`kind` is 'movie' or 'series') that are trending on TMDB this week, first page only.
+    Nothing is saved."""
+    path = '/trending/movie/week' if kind == 'movie' else '/trending/tv/week'
+    return [_title_from(raw, kind) for raw in _get(path).get('results', [])]
+
+
 def _day(text):
     """A TMDB date such as 2011-04-17 as a date, or None when TMDB has none (or it makes no sense)."""
     try:
