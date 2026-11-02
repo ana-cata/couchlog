@@ -788,8 +788,9 @@ form[role="search"]:has(input:not(:placeholder-shown)) ~ #results .suggestions {
   line-height: 1.5;
 }
 
-/* Your stars and note on a title's page. The stars, the note and the edit pencil run on in one line, so the pencil
-   sits right after the last words (the form, when it opens, goes under them). */
+/* Your stars and note on a title's page, in one thin box (the same line as the other boxes). The stars are light pink,
+   with the score small beside them; the note is under them. The pencil runs on in the same line as the last words,
+   so it sits right after them (the form, when it opens, goes under them, inside the box). */
 .rating-section {
   margin-top: 1.5rem;
 }
@@ -798,13 +799,34 @@ form[role="search"]:has(input:not(:placeholder-shown)) ~ #results .suggestions {
   max-width: 20rem;
 }
 
-.rating-stars,
-.rating-note {
+.rating-card {
+  /* The words only screen readers read are placed against the box. */
+  position: relative;
+  padding: 0.8rem 1rem;
+  border: 1px solid var(--couch-line);
+  border-radius: var(--pico-border-radius);
   overflow-wrap: anywhere;
 }
 
 .rating-stars {
-  font-size: 1.25rem;
+  color: var(--couch-light-pink);
+  font-size: 1.3rem;
+  letter-spacing: 0.06em;
+}
+
+.rating-score {
+  margin-inline-start: 0.6rem;
+  color: var(--pico-muted-color);
+  font-size: 0.85rem;
+}
+
+.rating-note {
+  margin-top: 0.45rem;
+}
+
+/* With stars above it, the note is a little way down. With no stars it is the first thing in the box. */
+.rating-card > .rating-note:first-child {
+  margin-top: 0;
 }
 
 .rating-section details {
@@ -837,14 +859,20 @@ form[role="search"]:has(input:not(:placeholder-shown)) ~ #results .suggestions {
   display: none;
 }
 
-/* The edit icon (a pencil) that opens the form once something is saved, right after the saved text. */
+/* The edit icon (a pencil) that opens the form once something is saved, right after the saved text. It is small and
+   softened, and hot pink under the mouse. Its padding makes it easy to press, and the negative margins give that
+   room back so it does not make its line taller. */
 .rating-section summary.rating-edit {
   display: inline-flex;
   vertical-align: middle;
   width: fit-content;
-  margin-inline-start: 0.25rem;
-  padding: 0.25rem;
-  color: var(--pico-color);
+  margin: -0.4rem -0.2rem -0.4rem 0.1rem;
+  padding: 0.4rem;
+  color: var(--pico-muted-color);
+}
+
+.rating-section summary.rating-edit:is(:hover, :focus-visible) {
+  color: var(--couch-pink);
 }
 
 /* "Rate it or add a note", with nothing saved yet: a small quiet button with a star. */

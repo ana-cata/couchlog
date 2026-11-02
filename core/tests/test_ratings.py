@@ -361,6 +361,51 @@ def test_saving_the_same_values_again_changes_nothing(logged_in_client, movie_ro
     assert list(Rating.objects.values()) == before
 
 
+# --- the saved rating and note are one box ----------------------------------------------------
+
+
+def test_a_saved_rating_and_note_are_one_box_with_the_pencil_after_the_note(logged_in_client, movie_route):
+    save(logged_in_client, 4, 'Loved the ending.')
+
+    page = logged_in_client.get(MOVIE_PAGE).content.decode()
+    card = page[page.index('class="rating-card"') : page.index('</details>')]
+
+    # The stars are a picture; the score says the same in words, and the words for screen readers are there.
+    assert re.search(r'class="rating-stars" aria-hidden="true">★★★★☆<', card)
+    assert 'class="rating-score">4 of 5<' in card
+    assert '<span class="visually-hidden">Your rating: </span>' in card
+    assert '<span class="visually-hidden">Your note: </span>' in card
+    # In this order: the stars and score, the note, then the pencil that opens the form.
+    assert card.index('4 of 5') < card.index('Loved the ending.') < card.index('rating-edit') < card.index('<form')
+
+
+def test_with_stars_only_the_pencil_follows_the_score_and_there_is_no_note(logged_in_client, movie_route):
+    save(logged_in_client, 5, '')
+
+    page = logged_in_client.get(MOVIE_PAGE).content.decode()
+    card = page[page.index('class="rating-card"') : page.index('</details>')]
+
+    assert card.index('5 of 5') < card.index('rating-edit')
+    assert 'rating-note' not in page and 'Your note:' not in page
+
+
+def test_with_a_note_only_there_are_no_stars_in_the_box(logged_in_client, movie_route):
+    save(logged_in_client, '', 'Just a note.')
+
+    page = logged_in_client.get(MOVIE_PAGE).content.decode()
+    card = page[page.index('class="rating-card"') : page.index('</details>')]
+
+    assert 'rating-stars' not in page and 'rating-score' not in page and 'Your rating:' not in page
+    assert card.index('Just a note.') < card.index('rating-edit')
+
+
+def test_with_nothing_saved_there_is_no_box_only_the_rate_button(logged_in_client, movie_route):
+    page = logged_in_client.get(MOVIE_PAGE).content.decode()
+
+    assert 'rating-card' not in page
+    assert 'class="outline secondary rating-open"' in page and 'Rate it or add a note' in page
+
+
 # --- no Undo button: the edit icon is always there ---------------------------------------------
 
 

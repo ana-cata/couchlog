@@ -154,19 +154,59 @@ def test_the_edit_pencil_sits_right_after_the_saved_note(opened, series, me):
     page = opened
     page.reload()
 
-    note, pencil = box(page.locator('.rating-note')), box(page.locator('summary.rating-edit'))
+    note, pencil = box(page.locator('.rating-note-text')), box(page.locator('summary.rating-edit'))
 
     assert pencil['x'] >= note['x'] + note['width'] - 2  # to the right of the note, not under it
     assert note['y'] - 4 <= pencil['y'] + pencil['height'] / 2 <= note['y'] + note['height'] + 4  # on the same line
 
 
+def test_the_rating_and_the_note_are_in_one_box_with_the_stars_above_the_note(opened, series, me):
+    Rating.objects.create(user=me, title=series, stars=4, note='Loved the fights.')
+    page = opened
+    page.reload()
+
+    card = box(page.locator('.rating-card'))
+    stars, score = box(page.locator('.rating-stars')), box(page.locator('.rating-score'))
+    note, pencil = box(page.locator('.rating-note-text')), box(page.locator('summary.rating-edit'))
+
+    for part in (stars, score, note, pencil):
+        assert card['x'] <= part['x'] and part['x'] + part['width'] <= card['x'] + card['width']  # all inside the box
+        assert card['y'] <= part['y'] and part['y'] + part['height'] <= card['y'] + card['height']
+    assert score['x'] > stars['x'] + stars['width'] - 2  # "4 of 5" beside the stars
+    assert note['y'] > stars['y'] + stars['height'] - 2  # the note under them
+    # Only the stars and the score show: the words for screen readers are there, but they take no room.
+    hidden = page.locator('.rating-section .visually-hidden')
+    expect(hidden).to_have_count(2)
+    for words in hidden.all():
+        assert box(words)['width'] <= 1 and box(words)['height'] <= 1
+
+
+def test_with_stars_only_the_pencil_follows_the_score(opened, series, me):
+    Rating.objects.create(user=me, title=series, stars=5, note='')
+    page = opened
+    page.reload()
+
+    score, pencil = box(page.locator('.rating-score')), box(page.locator('summary.rating-edit'))
+
+    expect(page.locator('.rating-note')).to_have_count(0)
+    assert pencil['x'] >= score['x'] + score['width'] - 2
+    assert score['y'] - 4 <= pencil['y'] + pencil['height'] / 2 <= score['y'] + score['height'] + 4
+
+
+def test_nothing_saved_means_no_box_only_the_rate_button(opened):
+    page = opened
+
+    expect(page.locator('.rating-card')).to_have_count(0)
+    expect(page.locator('summary.rating-open')).to_be_visible()
+
+
 def test_the_pencil_follows_the_last_line_of_a_long_note_on_a_narrow_screen(opened, series, me):
-    Rating.objects.create(user=me, title=series, stars=None, note='A long note that wraps over several lines. ' * 6)
+    Rating.objects.create(user=me, title=series, stars=None, note='A long note that wraps over several lines. ' * 6 + 'The end.')
     page = opened
     page.set_viewport_size({'width': 360, 'height': 800})
     page.reload()
 
-    note, pencil = box(page.locator('.rating-note')), box(page.locator('summary.rating-edit'))
+    note, pencil = box(page.locator('.rating-note-text')), box(page.locator('summary.rating-edit'))
     middle = pencil['y'] + pencil['height'] / 2
 
     assert note['height'] > 80  # the note wraps over several lines
