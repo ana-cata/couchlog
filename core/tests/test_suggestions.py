@@ -684,21 +684,22 @@ def test_taking_a_suggestion_off_to_watch_and_undoing_it_puts_everything_back(li
     assert on_my_list(user) == [1]
     added_at = ToWatchItem.objects.get(user=user, title__tmdb_id=1).added_at
 
-    # The title is on To Watch, where Remove and its Undo are. Removing it takes it off the list...
+    # The title is on To Watch, and is taken off from its own page. Removing it takes it off the list...
     page.goto(live_server.url + '/movies/')
     expect(page.locator('.tile')).to_contain_text('Made-up Movie 1')
+    page.locator('.tile').click()
     page.get_by_role('button', name='Remove from To Watch').click()
-    expect(page.get_by_role('button', name='Undo')).to_be_visible()
+    expect(page.get_by_role('button', name='Add to To Watch')).to_be_visible()
     assert on_my_list(user) == []
     # ...so it can be suggested again...
     open_search(page, live_server)
     expect(page.locator('.suggestions .tile')).to_have_count(2)
     assert names(page) == movie_names(1, 2)
 
-    # ...and Undo puts it back on the list exactly as it was (it lasts 10 seconds).
+    # ...and Undo, which the list offers for 10 seconds, puts it back on the list exactly as it was.
     page.goto(live_server.url + '/movies/')
     page.get_by_role('button', name='Undo').click()
-    expect(page.get_by_role('button', name='Remove from To Watch')).to_be_visible()
+    expect(page.locator('.tile')).to_contain_text('Made-up Movie 1')
     assert on_my_list(user) == [1]
     assert ToWatchItem.objects.get(user=user, title__tmdb_id=1).added_at == added_at
     open_search(page, live_server)

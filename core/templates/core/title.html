@@ -18,21 +18,47 @@
         {% else %}
           <span class="poster no-poster">No poster</span>
         {% endif %}
-        {# A series I started (under Watching or Finished) has no To Watch button. A dropped one still says it is dropped. #}
-        {% if dropped or not started %}{% include 'core/_to_watch_button.html' with tile=item live=True %}{% endif %}
+        {% if item.kind == 'series' %}
+          {# The whole series' bar, small, under the poster. The answer to a button replaces it by its id. #}
+          {% include 'core/_series_bar.html' with watched=progress.watched total=progress.total %}
+        {% endif %}
+        {# The small buttons under the poster, one under the other: every way to put the title on a list or take it off. #}
+        <div class="poster-actions">
+          {# A series I started (under Watching or Finished) has no To Watch button. A dropped one still says it is dropped. #}
+          {% if dropped or not started %}{% include 'core/_to_watch_button.html' with tile=item live=True %}{% endif %}
+          {% if item.kind == 'series' %}
+            {% if dropped %}
+              <form method="post" action="{% url 'series_bring_back' %}" hx-boost="true" hx-push-url="false">
+                {% csrf_token %}
+                <input type="hidden" name="kind" value="series">
+                <input type="hidden" name="tmdb_id" value="{{ item.tmdb_id }}">
+                <input type="hidden" name="next" value="{{ next }}">
+                <button type="submit" class="outline secondary">Bring back</button>
+              </form>
+            {% elif can_drop %}
+              <form method="post" action="{% url 'series_drop' %}" hx-boost="true" hx-push-url="false">
+                {% csrf_token %}
+                <input type="hidden" name="kind" value="series">
+                <input type="hidden" name="tmdb_id" value="{{ item.tmdb_id }}">
+                <input type="hidden" name="next" value="{{ next }}">
+                <button type="submit" class="outline secondary">Stop watching</button>
+              </form>
+            {% endif %}
+            {% if can_remove_all %}
+              {# Not hx-boost: a plain form, so the browser's question comes first and the page then goes to Series → To Watch. #}
+              <form method="post" action="{% url 'series_remove_all' %}"
+                    data-confirm="Remove “{{ item.title }}” from all your lists?{% if watch_total %} Its {{ watch_total }} watch{{ watch_total|pluralize:'es' }} will be deleted{% if rating %}, with your rating and note{% endif %}.{% elif rating %} Your rating and note will be deleted.{% endif %} You can undo for {{ undo_seconds }} seconds."
+                    onsubmit="return confirm(this.dataset.confirm)">
+                {% csrf_token %}
+                <input type="hidden" name="kind" value="series">
+                <input type="hidden" name="tmdb_id" value="{{ item.tmdb_id }}">
+                <button type="submit" class="outline secondary">Remove from all lists</button>
+              </form>
+            {% endif %}
+          {% endif %}
+        </div>
       </div>
       <div class="title-details">
-        {% if can_remove_all %}
-          {# Not hx-boost: a plain form, so the browser's question comes first and the page then goes to Series → To Watch. #}
-          <form method="post" action="{% url 'series_remove_all' %}" class="remove-all"
-                data-confirm="Remove “{{ item.title }}” from all your lists?{% if watch_total %} Its {{ watch_total }} watch{{ watch_total|pluralize:'es' }} will be deleted{% if rating %}, with your rating and note{% endif %}.{% elif rating %} Your rating and note will be deleted.{% endif %} You can undo for {{ undo_seconds }} seconds."
-                onsubmit="return confirm(this.dataset.confirm)">
-            {% csrf_token %}
-            <input type="hidden" name="kind" value="series">
-            <input type="hidden" name="tmdb_id" value="{{ item.tmdb_id }}">
-            <button type="submit" class="outline secondary">Remove from all lists</button>
-          </form>
-        {% endif %}
         <h1>{{ item.title }}</h1>
         {# Year, kind, status, length and genres: the parts TMDB has (core/title_line.py). #}
         <p><small>{{ line }}</small></p>
@@ -60,7 +86,7 @@
               </ul>
             {% endif %}
             {# The same date box marks the film the first time and adds another watch after that. #}
-            <form method="post" action="{% url 'watched_add' %}" hx-boost="true" hx-push-url="false">
+            <form method="post" action="{% url 'watched_add' %}" class="watched-form" hx-boost="true" hx-push-url="false">
               {% csrf_token %}
               <input type="hidden" name="kind" value="{{ item.kind }}">
               <input type="hidden" name="tmdb_id" value="{{ item.tmdb_id }}">
@@ -80,37 +106,14 @@
           {% if dropped %}
             <div class="watched-section">
               <p><strong>You stopped watching this series.</strong> It is under Series → Dropped, and your history is kept.</p>
-              <form method="post" action="{% url 'series_bring_back' %}" hx-boost="true" hx-push-url="false">
-                {% csrf_token %}
-                <input type="hidden" name="kind" value="series">
-                <input type="hidden" name="tmdb_id" value="{{ item.tmdb_id }}">
-                <input type="hidden" name="next" value="{{ next }}">
-                <button type="submit" class="outline secondary">Bring back</button>
-              </form>
-            </div>
-          {% elif can_drop %}
-            <div class="watched-section">
-              <form method="post" action="{% url 'series_drop' %}" hx-boost="true" hx-push-url="false">
-                {% csrf_token %}
-                <input type="hidden" name="kind" value="series">
-                <input type="hidden" name="tmdb_id" value="{{ item.tmdb_id }}">
-                <input type="hidden" name="next" value="{{ next }}">
-                <button type="submit" class="outline secondary">Stop watching</button>
-              </form>
             </div>
           {% endif %}
           <div class="seasons">
             {% if notice %}<p role="alert">{{ notice }}</p>{% endif %}
-            {# The series' bar and each season's bar (not the Specials): the answer to a button replaces them by id. #}
-            <div class="series-progress">
-              {% include 'core/_progress.html' with dom_id='progress-series' watched=progress.watched aired=progress.aired %}
-            </div>
             {% for season in seasons %}
               <details id="season-{{ season.number }}"{% if season.number == open_season %} open{% endif %}>
-                <summary>
-                  {{ season.name }} <small>· {{ season.episodes|length }} episode{{ season.episodes|length|pluralize }}</small>
-                  {% include 'core/_progress.html' with dom_id=season.progress_id watched=season.watched_count aired=season.aired_count %}
-                </summary>
+                {# The name, the count ("3 of 10 episodes") and a thin bar: the answer to a button replaces them by id. #}
+                <summary>{% include 'core/_season_line.html' %}</summary>
                 <div class="season-buttons">
                   {% include 'core/_season_action.html' %}
                   {% include 'core/_season_rewatch.html' %}

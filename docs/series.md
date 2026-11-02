@@ -2,8 +2,8 @@
 
 ## What it does
 
-- **The series page** (`/series/<TMDB id>/`, open it from a search result or from Series → To Watch) shows the poster, title, year and description, the To Watch button (not for a series you started: see "Remove from all lists" below), and the **seasons and episodes**.
-- **Seasons** are folded away: click a season to open or close it. The first season is open when you arrive. **Specials** (TMDB's season 0) are listed last.
+- **The series page** (`/series/<TMDB id>/`, open it from a search result or from Series → To Watch) shows the poster with, **under it**, a small progress bar and the small buttons (To Watch, Stop watching, Bring back, Remove from all lists: only the ones that fit this series), then the title, year, description, your rating and note, and the **seasons and episodes**. The To Watch button is not there for a series you started (see "Remove from all lists" below), and "Stop watching" is only there for a series you started.
+- **Seasons** are folded away: click a season (its arrow is at the right) to open or close it. The first season is open when you arrive. **Specials** (TMDB's season 0) are listed last. Each season's first line says its name and how many of its episodes you watched, like **Season 2 · 3 of 10 episodes**, with a thin bar under it (see "Progress bars").
 - **The page never moves.** Pressing a circle changes only that episode's row, in place: no reload, no jump, and the scroll position and open seasons stay as they are, even deep in a long season.
 - **Each episode** shows its number, name and air date, and, if it has aired, a **round check button** on the right:
   - **Gray** = not watched. Press it to mark the episode as watched.
@@ -55,12 +55,12 @@ A rewatch is one more watch with its own date (the day you pressed the button, i
 
 ## Progress bars
 
-- **The series bar** sits above the seasons, and **each season has its own bar** in its heading, so you see it even when the season is folded. Each says "4 of 9 aired episodes watched" and fills as you watch.
-- **What counts:** episodes that have **aired** (on or before today in your time zone). Specials (season 0), episodes that have not aired and episodes with no air date are left out, so a series that is completely caught up shows a full bar. The Specials have no bar. A season or series with nothing aired yet has no bar.
+- **The series bar** is small and sits **under the poster**, with "8 of 15 episodes" under it. **Each season has its own count and bar** in its first line, so you see it even when the season is folded: "Season 2 · 3 of 10 episodes". Both fill as you watch.
+- **What counts:** **every episode we know the season will have, aired or not** (so a season of 10 with 2 still to air reads "3 of 10", and its bar is not full until all 10 are watched). Specials (season 0) are left out of the counts and have no bar: their line says only "· 5 episodes". A series with only specials has no series bar. This is the series page only: [Home](home.md), the Series tabs and the season buttons still look at the episodes that **have aired** (on or before today in your time zone), so a series you are caught up on is still finished or out of Up Next when its aired episodes are watched.
 - **They move by themselves:** marking or un-marking an episode, marking a whole season, or answering the question changes the bars in place, with no reload, together with the rows and the season button.
 - **An episode counts once** however many times it was watched (design rule 2).
 - **Nothing is stored:** the bars are worked out from your watches each time, so un-marking an episode (the "−", or the season button pressed again) takes the bar back, with no undo of their own.
-- The series bar is also on each card of [Home](home.md), where the next episode to watch is.
+- Each card of [Home](home.md) has its own bar ("4 of 9 aired episodes watched"), which counts only the episodes that have aired, so it can differ from the series page's count.
 
 ## The Series tabs
 
@@ -83,10 +83,10 @@ Series has four tabs, in this order: **Watching, To Watch, Finished, Dropped**. 
 
 ## Dropped series
 
-- **Stop watching** is a button on the series page, above the seasons. It is there for a series that is in one of your tabs: one you have marked an episode of, or one on your To Watch list. A series you never touched does not show it.
+- **Stop watching** is a small button on the series page, **under the poster** (under the bar). It is there **only for a series you started** (you marked an episode of it). A series that is only on your To Watch list has nothing to stop, so its page shows "Remove from To Watch" and no "Stop watching"; a series you never touched shows neither.
 - Pressing it moves the series to **Series → Dropped**, and the page says so. The series is then **in no other tab**, **not on Home** (Up Next) and **not on the [Calendar](calendar.md)**, even if it was also on your To Watch list.
 - **Nothing else changes:** your watches, your progress and your To Watch entry stay exactly as they were, so your history is kept.
-- **A dropped series' page** says "You stopped watching this series." and has a **Bring back** button, and the **Remove from all lists** button in the corner (see below). The episodes are still there. Marking an episode on it does **not** bring the series back: Dropped only changes with these two buttons.
+- **A dropped series' page** says "You stopped watching this series." and has a **Bring back** button and a **Remove from all lists** button, both under the poster (see below). The episodes are still there. Marking an episode on it does **not** bring the series back: Dropped only changes with these two buttons.
 - **Bring back** is the undo, at any time, with no time limit. The series goes back to the tab its watches and TMDB's status give it (To Watch, Watching or Finished), and to Up Next and the Calendar, as if it had never been dropped.
 - **In [Search](search.md)** a dropped series shows "In your Dropped list" (a link to the tab) instead of the To Watch button, so there is no way to add it twice. Open it to bring it back.
 - **Your own list:** each account has its own Dropped tab, and one account can never drop or bring back another's.
@@ -95,7 +95,7 @@ Series has four tabs, in this order: **Watching, To Watch, Finished, Dropped**. 
 
 For a series you want gone completely: off every list, with everything you saved about it.
 
-- **Where:** a small **Remove from all lists** button in the **upper right corner** of the series page, level with the title. It is there **only for a dropped series**. A series under Watching or Finished does not show it (press **Stop watching** first), and neither does one that is only on your To Watch list: that one keeps its normal **Remove from To Watch** button, which works as it always did.
+- **Where:** a small **Remove from all lists** button **under the poster**, below "Bring back". It is there **only for a dropped series**. A series under Watching or Finished does not show it (press **Stop watching** first), and neither does one that is only on your To Watch list: that one keeps its normal **Remove from To Watch** button, which works as it always did.
 - **The ways a series can go**, with the buttons that do it:
   1. To Watch → Watching (mark an episode) → Finished (everything aired is watched).
   2. To Watch → Watching → Dropped (**Stop watching**).
@@ -158,13 +158,13 @@ For a series you want gone completely: off every list, with everything you saved
 2. If its episodes were never saved, or were saved more than a day ago (`EPISODES_REFRESH_AFTER`), they are refreshed (`refresh_episodes` in `core/episodes.py`, the same code the `refresh_calendar` command uses): TMDB is asked for the status and the list of seasons (`GET /tv/<id>`), then for each season (`GET /tv/<id>/season/<n>`), so a long series takes a few seconds the first time. Only after all of that answered are the rows saved, in one database step, so a failure saves nothing.
 3. The page is built from our own table. A season that TMDB lists but cannot find (404) is skipped and the others are kept.
 
-**The progress bars** (`_progress.html`, `progress_by_series` in `core/episodes.py`, `_season_info` in `core/views.py`)
-- The series bar comes from `progress_by_series` (one database count for the series). Each season's bar is counted from that season's episodes already loaded for the page (`watched_count` and `aired_count` in `_season_info`; 0 and 0 for the Specials). Both use the same rule, and the test `test_the_bars_follow_what_is_watched_and_the_series_bar_is_the_seasons_added_up` checks they agree.
-- The bar is the browser's own `<progress>` element, in a `<span id="progress-series">` or `<span id="progress-season-<number>">`. The answers to the round button, the season button and the question (`_episode_answer.html`, `_bulk_result.html`) end with the new bars marked `hx-swap-oob="true"`, which htmx puts in place of the ones with the same id, like the season buttons.
+**The progress bars** (`_series_bar.html`, `_season_line.html`, `_series_progress` and `_season_info` in `core/views.py`)
+- The series bar comes from `_series_progress`: two database counts (the regular episodes of the series, and the ones with a watch of yours, each episode once). Each season's count is worked out from that season's episodes already loaded for the page (`watched_count` and `total_count` in `_season_info`; the Specials have none). Both count every episode, aired or not, so the seasons' counts add up to the series' count; the test `test_the_bars_follow_what_is_watched_and_the_series_bar_is_the_seasons_added_up` checks that. Home's cards and the tabs keep using `progress_by_series` in `core/episodes.py`, which counts only aired episodes (`_progress.html`, used by Home only).
+- The series bar is the browser's own `<progress>` element in a `<div id="progress-series">` (empty when there is nothing to count). A season's first line is a `<span id="progress-season-<number>">` with the name, the count and the thin `<progress>`, inside the season's `<summary>` (a flex row, so Pico's arrow sits level with the name). The answers to the round button, the season button and the question (`_episode_answer.html`, `_bulk_result.html`) end with the new bars marked `hx-swap-oob="true"`, which htmx puts in place of the ones with the same id, like the season buttons.
 
 **Dropped** (`series_drop`, `series_bring_back` in `core/views.py`; `dropped_series` and `dropped_tab` in `core/episodes.py`)
 - `dropped_series(user)` gives the ids of the account's dropped series. `series_tabs` leaves them out of Watching and Finished (so Up Next, which follows Watching, leaves them out too), the Series → To Watch screen excludes them, and the Calendar (`upcoming` in `core/releases.py`) leaves them out of both the Watching and the To Watch series. `dropped_tab(user)` is the Dropped tab's list.
-- The series page asks `core_droppedseries` whether the series is dropped, and shows "Stop watching" only when it is not dropped and is on your list or has a watch of yours (`can_drop` in `_series_page`). Both buttons are normal forms: the server saves, then goes back to `next` with a message ("… is under Series → Dropped now. Bring it back any time." / "Brought … back. It is in its own tab again."). Dropping a series that is already dropped, or bringing back one that is not, changes nothing and says so.
+- The series page asks `core_droppedseries` whether the series is dropped, and shows "Stop watching" (under the poster) only when it is not dropped and has a watch of yours (`can_drop` in `_series_page`; being on the list is not enough). The `series_drop` address itself still accepts any saved series: the page is the only gate. Both buttons are normal forms: the server saves, then goes back to `next` with a message ("… is under Series → Dropped now. Bring it back any time." / "Brought … back. It is in its own tab again."). Dropping a series that is already dropped, or bringing back one that is not, changes nothing and says so.
 - Search and the To Watch button block (`_to_watch_button.html`): the search view marks each series result you dropped (`result['dropped']`, by TMDB id and kind), and the block shows "In your Dropped list" in place of the button. TMDB is not involved; it is one question to our own table.
 
 **Remove from all lists** (`series_remove_all`, `series_remove_all_undo` in `core/views.py`; `title.html`, `_recently_removed.html`)

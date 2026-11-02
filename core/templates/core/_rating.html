@@ -1,36 +1,30 @@
-{# Your own stars and note for this title, on a movie's or a series' page. What is saved is shown as text; the form #}
-{# is folded away so a long series page stays short. It opens from the pencil (or, with nothing saved yet, from #}
-{# "Rate it or add a note"). One Save does it all: "No rating" or an empty note removes that part. Nothing is #}
-{# asked from TMDB until something is saved. #}
+{# Your own stars and note for this title, on a movie's or a series' page. What is saved is shown in one thin box: the #}
+{# stars (light pink) with the score, and the note under them. The form is folded away so a long series page stays #}
+{# short (`_rating_edit.html`). It opens from the pencil, which sits right after the last words of the box: after the #}
+{# note, or after the score when there is no note. With nothing saved yet there is no box, only a small "Rate it or add #}
+{# a note" button (no arrow, so it looks like a button and not like a list that unfolds). One Save does it all: "No #}
+{# rating" or an empty note removes that part. Nothing is asked from TMDB until something is saved. #}
+{# The words "Your rating:" and "Your note:" are not shown, but screen readers read them, and the stars are only a #}
+{# picture for them: the score says the same in words. The pencil follows the last line of text (couchlog.css). #}
 <div class="rating-section">
-  {% if rating.stars %}<p class="rating-stars">Your rating: {{ rating.stars_text }} <small>{{ rating.stars }} of 5</small></p>{% endif %}
-  {% if rating.note %}<p class="rating-note">Your note: {{ rating.note|linebreaksbr }}</p>{% endif %}
-  <details>
-    {% if rating.stars or rating.note %}
-      <summary class="rating-edit" aria-label="Change or remove your rating and note" title="Change or remove your rating and note">
-        {# The edit icon: a pencil over a square. It takes the colour of the text around it. #}
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"/></svg>
-      </summary>
-    {% else %}
-      <summary>Rate it or add a note</summary>
-    {% endif %}
-    <form method="post" action="{% url 'rating_save' %}" hx-boost="true" hx-push-url="false">
-      {% csrf_token %}
-      <input type="hidden" name="kind" value="{{ item.kind }}">
-      <input type="hidden" name="tmdb_id" value="{{ item.tmdb_id }}">
-      <input type="hidden" name="next" value="{{ next }}">
-      <fieldset class="rating-choices">
-        <legend>Stars</legend>
-        <label><input type="radio" name="stars" value=""{% if not rating.stars %} checked{% endif %}> No rating</label>
-        {% for number, text in star_choices %}
-          <label><input type="radio" name="stars" value="{{ number }}" aria-label="{{ number }} out of 5 stars"{% if rating.stars == number %} checked{% endif %}> {{ text }}</label>
-        {% endfor %}
-      </fieldset>
-      <label>
-        Note
-        <textarea name="note" rows="3" maxlength="{{ note_max }}" placeholder="A short note, up to {{ note_max }} characters">{{ rating.note }}</textarea>
-      </label>
-      <button type="submit">Save</button>
-    </form>
-  </details>
+  {% if rating.stars or rating.note %}
+    <div class="rating-card">
+      {% if rating.stars %}
+        <div class="rating-line">
+          <span class="visually-hidden">Your rating: </span>
+          <span class="rating-stars" aria-hidden="true">{{ rating.stars_text }}</span>
+          <span class="rating-score">{{ rating.stars }} of 5</span>
+          {% if not rating.note %}{% include 'core/_rating_edit.html' %}{% endif %}
+        </div>
+      {% endif %}
+      {% if rating.note %}
+        <div class="rating-note">
+          <span class="visually-hidden">Your note: </span><span class="rating-note-text">{{ rating.note|linebreaksbr }}</span>
+          {% include 'core/_rating_edit.html' %}
+        </div>
+      {% endif %}
+    </div>
+  {% else %}
+    {% include 'core/_rating_edit.html' %}
+  {% endif %}
 </div>

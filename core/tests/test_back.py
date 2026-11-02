@@ -167,6 +167,10 @@ def test_one_press_of_back_is_enough_after_stopping_watching_and_bringing_a_seri
     page.get_by_role('link', name='To Watch', exact=True).click()
     open_tile(page)
     expect(page.get_by_text('Made-up pilot')).to_be_visible()
+    # "Stop watching" is for a series I started: mark its episode, and the page offers it when it is opened again.
+    page.get_by_role('button', name='Mark episode 1 as watched').click()
+    expect(page.get_by_role('button', name='Watch episode 1 again')).to_be_visible()
+    page.reload()
     entries = page.evaluate('history.length')
 
     page.get_by_role('button', name='Stop watching').click()

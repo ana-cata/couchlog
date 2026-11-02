@@ -13,22 +13,26 @@
   <script src="{% static 'core/suggestions.js' %}" defer></script>
 </head>
 <body>
-  <header class="container">
-    <nav>
+  {# The bar across the top. The page you are on is marked with aria-current (hot pink and bold, see couchlog.css). #}
+  {# A movie's or series' own page is no menu item, so none is marked there. #}
+  <header class="site-header">
+    <nav class="container">
       <ul>
         <li><a href="{% url 'home' %}" class="logo"><img src="{% static 'core/logo-couchlog.svg' %}" alt="Couchlog"></a></li>
       </ul>
+      {% with page=request.resolver_match.url_name %}
       <ul>
         {% if user.is_authenticated %}
-          <li><a href="{% url 'search' %}">Search</a></li>
-          <li><a href="{% url 'movies' %}">Movies</a></li>
-          <li><a href="{% url 'series_watching' %}">Series</a></li>
-          <li><a href="{% url 'calendar' %}">Calendar</a></li>
-          <li><a href="{% url 'profile' %}">Profile</a></li>
+          <li><a href="{% url 'search' %}"{% if page == 'search' %} aria-current="page"{% endif %}>Search</a></li>
+          <li><a href="{% url 'movies' %}"{% if page == 'movies' or page == 'history' %} aria-current="page"{% endif %}>Movies</a></li>
+          <li><a href="{% url 'series_watching' %}"{% if page == 'series' or page == 'series_watching' or page == 'series_finished' or page == 'series_dropped' %} aria-current="page"{% endif %}>Series</a></li>
+          <li><a href="{% url 'calendar' %}"{% if page == 'calendar' %} aria-current="page"{% endif %}>Calendar</a></li>
+          <li><a href="{% url 'profile' %}"{% if page == 'profile' %} aria-current="page"{% endif %}>Profile</a></li>
         {% endif %}
         {# Open to everyone, so the TMDB credit is also reachable from the login page. #}
-        <li><a href="{% url 'about' %}">About</a></li>
+        <li><a href="{% url 'about' %}"{% if page == 'about' %} aria-current="page"{% endif %}>About</a></li>
       </ul>
+      {% endwith %}
     </nav>
   </header>
   <main class="container">

@@ -16,7 +16,7 @@
 
 **Up Next**
 - **Up Next** is one card for each series in **Series → Watching** that has an episode left to watch.
-- **A card** shows the poster, the series name (a link to its page), the **next episode** (for example `S2E4 · Name`) with its air date, a **progress bar** with "4 of 9 aired episodes watched", and a round check button on the right.
+- **A card** shows the poster, the series name (a link to its page), the **next episode** (for example `S2E4 · Name`) with its air date, a **progress bar** with "4 of 9 aired episodes watched" (it counts only the episodes that have aired; the series page counts every episode, see [Series](series.md)), and a round check button on the right.
 - **The next episode** is the first episode you have not watched that has already aired, in the order the series page lists them (season, then episode number). So if you marked only S3E4 ("No, only this one"), Up Next shows S1E1 until you mark it. It never shows a special (season 0), an episode that has not aired, or an episode with no air date.
 - **Check it off** with the round button. The episode is marked as watched (on the day you pressed the button, in your time zone, like on the series page) and the card turns into the next episode, with the bar moved. The page does not reload or move.
 - **Nothing left to watch:** when you check off the last episode that has aired, the card goes. The series stays in Watching; it comes back on Home by itself when a new episode airs (or `refresh_calendar` brings one in).

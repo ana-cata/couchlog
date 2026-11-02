@@ -329,7 +329,7 @@ def test_history_shows_a_film_watched_again_once_with_the_date_of_its_latest_wat
 
     assert tiles(html) == ['/movie/603/']  # one tile, not three
     assert 'Watched 1 Jun 2026' in html and 'Watched 1 May 2026' not in html and 'Date unknown' not in html
-    assert html.count('Remove this watch') == 1  # it takes back the watch the tile shows, and says so
+    assert '<button' not in html  # no button on a tile: the film's page lists every watch, each with its own
 
 
 def test_history_keeps_its_order_by_the_latest_watch_of_each_film(logged_in_client):
@@ -351,7 +351,8 @@ def test_taking_back_the_watch_a_history_tile_shows_shows_the_next_one(logged_in
 
     html = page(logged_in_client, '/movies/history/')
     assert tiles(html) == ['/movie/603/'] and 'Watched 1 May 2026' in html
-    assert 'Mark as not watched' in html  # one watch left: the button is the plain one again
+    assert '<button' not in html
+    assert 'Mark as not watched' in page(logged_in_client, '/movie/603/')  # one watch left: the plain button again
 
 
 def test_taking_the_watches_back_one_by_one_puts_everything_back_as_it_was(logged_in_client, movie_route):
@@ -544,16 +545,18 @@ def test_undo_is_still_possible_days_later(logged_in_client, movie_route, clock)
     assert to_watch_snapshot() == before
 
 
-def test_undo_from_the_history_screen_works(logged_in_client, movie_route):
+def test_the_history_screen_has_no_buttons_and_the_undo_is_on_the_film_page(logged_in_client, movie_route):
     add_to_watch(logged_in_client)
     mark(logged_in_client)
     watch_id = Watch.objects.get().id
-    assert f'name="watch_id" value="{watch_id}"' in page(logged_in_client, '/movies/history/')
+    history = page(logged_in_client, '/movies/history/')
+    assert '<button' not in history and 'action="/watched/remove/"' not in history  # nothing to press on History
+    assert f'name="watch_id" value="{watch_id}"' in page(logged_in_client, '/movie/603/')  # the undo is on the page
 
-    response = unmark(logged_in_client, watch_id, next='/movies/history/')
+    response = unmark(logged_in_client, watch_id, next='/movie/603/')
 
-    assert response['Location'] == '/movies/history/'
-    assert 'Nothing in your history yet' in after(logged_in_client, response)
+    assert response['Location'] == '/movie/603/'
+    assert 'Nothing in your history yet' in page(logged_in_client, '/movies/history/')
 
 
 def test_a_movie_can_be_marked_again_after_an_undo(logged_in_client, movie_route):

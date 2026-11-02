@@ -22,7 +22,6 @@ from .episodes import (
     dropped_series,
     dropped_tab,
     mark_episodes,
-    progress_by_series,
     refresh_episodes,
     rewatch_episodes,
     series_tabs,
@@ -200,8 +199,9 @@ def _series_page(request, tmdb_id):
         'line': title_line('series', series.year, series.status, series.runtime, series.genres),
         'on_list': on_list,
         'dropped': dropped,
-        # "Stop watching" is offered for a series that is in one of my tabs: started or on my To Watch list.
-        'can_drop': not dropped and (on_list or bool(watches)),
+        # "Stop watching" is only for a series I started (I marked an episode of it). One that is only on my To Watch
+        # list has nothing to stop: it leaves with "Remove from To Watch".
+        'can_drop': not dropped and bool(watches),
         # A series I started is under Watching or Finished: there it has no To Watch button. "Remove from all lists"
         # (in the corner) is only for a dropped series: Watching -> Dropped -> Remove from all lists.
         'started': bool(watches),
@@ -453,6 +453,9 @@ def _answer(request, kind, tmdb_id, on_list, text, ok=True, collect=False):
     if request.headers.get('HX-Request'):
         tile = {'kind': kind, 'tmdb_id': tmdb_id}
         context = {'tile': tile, 'on_list': on_list, 'next': request.POST.get('next', ''), 'live': True}
+        # A tile's button sends `corner`, so the answer is the small round button again, not the one with words.
+        if request.POST.get('corner'):
+            context['corner'] = True
         if collect:
             context['collect'] = True
         if not ok:
@@ -711,23 +714,28 @@ def _with_state(request, episodes):
 
 
 def _series_progress(request, series):
-    """The series' progress bar: how many of the episodes that have aired this account has watched."""
-    watched, aired = progress_by_series(request.user, [series.id], _today(request))[series.id]
-    return {'watched': watched, 'aired': aired}
+    """The series' bar on its page: how many of its episodes this account has watched, out of every episode we know
+    of, aired or not (so a season of 10 with 2 still to come reads "3 of 10"). Specials (season 0) are left out, like
+    in the seasons' bars, so the seasons' counts add up to this one. Home and the tabs count only episodes that have
+    aired (`progress_by_series` in core/episodes.py) and are not touched."""
+    regular = series.episodes.filter(season_number__gt=0)
+    watched = Watch.objects.filter(user=request.user, episode__in=regular).values('episode').distinct().count()
+    return {'watched': watched, 'total': regular.count()}
 
 
 def _season_info(number, episodes):
     """What a season needs on the page, from its episodes (each with its watch and `aired` already set)."""
     aired = [episode for episode in episodes if episode.aired]
-    # Specials (season 0) are left out of progress, so their bar is always empty.
-    counted = [] if number == 0 else aired
+    # The season's count is the episodes watched out of all the season has, aired or not. Specials (season 0) are
+    # left out of progress: they have no count, only their number of episodes.
+    counted = [] if number == 0 else episodes
     return {
         'number': number,
         'name': 'Specials' if number == 0 else f'Season {number}',
         'episodes': episodes,
         'progress_id': f'progress-season-{number}',
         'watched_count': sum(1 for episode in counted if episode.watch),
-        'aired_count': len(counted),
+        'total_count': len(counted),
         # A season none of whose episodes has aired has nothing to mark, so it gets no button.
         'has_aired': bool(aired),
         # Once every episode that has aired is marked, the button un-marks the season instead, and the season

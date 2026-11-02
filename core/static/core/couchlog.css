@@ -9,21 +9,25 @@
   --couch-pink: #e764bb;
   --couch-light-pink: #ffb3d9;
   --couch-line: rgb(254 247 247 / 0.2);
+  /* Off-white, softened (about 7 : 1 on navy): small extra info and the quiet buttons. */
+  --couch-soft: rgb(254 247 247 / 0.7);
 }
 
+/* The rule for the colours: pink means "you are here" or "you can press this". Everything else is off-white. */
 :root[data-theme="dark"] {
   --pico-background-color: var(--couch-navy);
   --pico-color: var(--couch-white);
-  /* Light pink for small extra info: dates, counts, labels. */
-  --pico-muted-color: var(--couch-light-pink);
+  /* Small extra info (dates, counts, labels): softened off-white, so pink stays for what you can press. */
+  --pico-muted-color: var(--couch-soft);
   --pico-muted-border-color: var(--couch-line);
 
+  /* Only the page title is hot pink. */
   --pico-h1-color: var(--couch-pink);
-  --pico-h2-color: var(--couch-pink);
-  --pico-h3-color: var(--couch-pink);
-  --pico-h4-color: var(--couch-pink);
-  --pico-h5-color: var(--couch-pink);
-  --pico-h6-color: var(--couch-pink);
+  --pico-h2-color: var(--couch-white);
+  --pico-h3-color: var(--couch-white);
+  --pico-h4-color: var(--couch-white);
+  --pico-h5-color: var(--couch-white);
+  --pico-h6-color: var(--couch-white);
 
   /* Links: hot pink and always underlined; light pink when the mouse is over them. */
   --pico-primary: var(--couch-pink);
@@ -32,22 +36,23 @@
   --pico-primary-hover-underline: var(--couch-light-pink);
   --pico-primary-focus: rgb(231 100 187 / 0.5);
 
-  /* Buttons: hot pink with navy text (white on hot pink is too faint). The quieter "outline secondary" buttons
-     get the same colours, as an outline. */
-  --pico-primary-background: var(--couch-pink);
-  --pico-primary-border: var(--couch-pink);
+  /* Main buttons (the solid ones): light pink with navy text, hot pink under the mouse. A phone has no mouse, so
+     the light pink has to look right on its own. */
+  --pico-primary-background: var(--couch-light-pink);
+  --pico-primary-border: var(--couch-light-pink);
   --pico-primary-inverse: var(--couch-navy);
-  --pico-primary-hover-background: var(--couch-light-pink);
-  --pico-primary-hover-border: var(--couch-light-pink);
-  --pico-secondary: var(--couch-pink);
-  --pico-secondary-background: var(--couch-pink);
-  --pico-secondary-border: var(--couch-pink);
-  --pico-secondary-underline: var(--couch-pink);
-  --pico-secondary-inverse: var(--couch-navy);
-  --pico-secondary-hover: var(--couch-light-pink);
-  --pico-secondary-hover-background: var(--couch-light-pink);
-  --pico-secondary-hover-border: var(--couch-light-pink);
-  --pico-secondary-hover-underline: var(--couch-light-pink);
+  --pico-primary-hover-background: var(--couch-pink);
+  --pico-primary-hover-border: var(--couch-pink);
+  /* Quiet buttons ("secondary", outlined or solid): a thin softened off-white outline, hot pink under the mouse. */
+  --pico-secondary: var(--couch-soft);
+  --pico-secondary-background: transparent;
+  --pico-secondary-border: var(--couch-soft);
+  --pico-secondary-underline: var(--couch-soft);
+  --pico-secondary-inverse: var(--couch-soft);
+  --pico-secondary-hover: var(--couch-pink);
+  --pico-secondary-hover-background: transparent;
+  --pico-secondary-hover-border: var(--couch-pink);
+  --pico-secondary-hover-underline: var(--couch-pink);
   --pico-secondary-focus: rgb(231 100 187 / 0.5);
 
   /* Boxes, the pop-up and the search box: the page's navy with a thin line. */
@@ -77,9 +82,25 @@ article {
   border: 1px solid var(--pico-card-border-color);
 }
 
-/* Pico leaves the header links bare; every link is underlined (the logo is a picture, so it is not). */
-header nav a:not(.logo) {
-  text-decoration: underline;
+/* A solid quiet button (like "Log out") has no fill, so under the mouse its words turn hot pink with its outline. */
+:is(button, [type="submit"], [type="button"], [role="button"]).secondary:not(.outline):is(:hover, :active, :focus) {
+  --pico-color: var(--couch-pink);
+}
+
+/* The bar across the top: full width, a thin line under it, the logo on the left and the menu on the right. It stays
+   at the top while the page scrolls, so it has the page's navy behind it. */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  padding-block: 0;
+  background: var(--couch-navy);
+  border-bottom: 1px solid var(--couch-line);
+}
+
+/* A jump to an episode (or a season) must not end up hidden behind the bar. */
+html {
+  scroll-padding-top: 7rem;
 }
 
 /* The logo in the header, link to Home. It is bigger than the TMDB logo on the About page (100 px wide). */
@@ -93,39 +114,66 @@ header nav a.logo img {
   height: auto;
 }
 
-/* On a narrow screen the header links drop to a second line instead of running off the edge. */
+/* On a narrow screen the menu drops to a second line instead of running off the edge. */
 header nav {
   flex-wrap: wrap;
 }
 
 header nav li {
   white-space: nowrap;
+  /* Pico gives each item 1rem above and below, which makes the bar tall. */
+  padding-block: 0.25rem;
 }
 
-/* The tabs under the Movies and Series headings: the one you are on is underlined. */
+/* The names in the menu and in the tabs under Movies and Series: off-white, no underline (where they sit already says
+   they are links). Under the mouse, or when tabbed to, hot pink. The page you are on is hot pink and bold: the bold is
+   there because hot pink and off-white look almost equally bright. */
+header nav a:not(.logo),
+nav.tabs a {
+  /* Not var(--pico-color): inside a link Pico sets that to the link colour (hot pink). */
+  color: var(--couch-white);
+  text-decoration: none;
+}
+
+/* On a phone the six names must fit in one row, so they sit closer together. */
+@media (max-width: 575px) {
+  /* The row takes the full width, with the names spread over it (and a second line on a very narrow screen). The
+     small negative margin keeps the first and last name level with the page's own edges. */
+  header nav ul:last-child {
+    flex-wrap: wrap;
+    justify-content: space-between;
+    width: calc(100% + 0.6rem);
+    margin-inline: -0.3rem;
+  }
+
+  header nav li {
+    padding-inline: 0;
+  }
+
+  /* Pico pulls each link outwards with a negative margin to make up for its padding, so both are set here. */
+  header nav a:not(.logo) {
+    margin-inline: 0;
+    padding-inline: 0.3rem;
+    font-size: 0.95rem;
+  }
+}
+
+header nav a:not(.logo):is(:hover, :focus-visible),
+nav.tabs a:is(:hover, :focus-visible),
+header nav a[aria-current="page"],
+nav.tabs a[aria-current="page"] {
+  color: var(--couch-pink);
+}
+
+header nav a[aria-current="page"],
+nav.tabs a[aria-current="page"] {
+  font-weight: 700;
+}
+
+/* The tabs under the Movies and Series headings, with a thin line under the row. */
 .tabs {
   margin-bottom: 1.5rem;
   border-bottom: 1px solid var(--pico-muted-border-color);
-}
-
-/* Every tab has the line (invisible unless current), so the current one does not sit lower than the rest. */
-.tabs a {
-  border-bottom: 2px solid transparent;
-  border-radius: 0;
-}
-
-.tabs a[aria-current="page"] {
-  border-bottom-color: var(--pico-primary);
-}
-
-/* Pico leaves tab links bare. The tabs you can press are underlined like every link; the one you are on is not a
-   link to press, so it keeps only its bar. */
-nav.tabs li a {
-  text-decoration: underline;
-}
-
-nav.tabs li a[aria-current="page"] {
-  text-decoration: none;
 }
 
 /* Search results: tiles with the poster on top and the name below. */
@@ -142,9 +190,11 @@ nav.tabs li a[aria-current="page"] {
   list-style: none;
   margin: 0;
   padding: 0;
-  /* The tile grows to fill the cell, so the button under it always sits at the bottom. */
+  /* The tile grows to fill the cell, so the button under it (History) always sits at the bottom. The round To Watch
+     button is placed against the tile's corner. */
   display: flex;
   flex-direction: column;
+  position: relative;
 }
 
 /* The suggestions under an empty search box go as soon as something is typed, without waiting for the results. */
@@ -205,12 +255,12 @@ form[role="search"]:has(input:not(:placeholder-shown)) ~ #results .suggestions {
   color: var(--pico-muted-color);
 }
 
-/* The Add / Remove button under a tile (and "Mark as not watched" in History), kept small so the grid stays tidy. */
-:is(.to-watch-action, .watch-action) form {
+/* The To Watch button on a title's own page: small, so the page stays tidy. */
+.to-watch-action form {
   margin: 0;
 }
 
-:is(.to-watch-action, .watch-action) button {
+.to-watch-action:not(.to-watch-corner) button {
   width: 100%;
   margin-top: 0.5rem;
   padding: 0.35rem 0.5rem;
@@ -231,6 +281,56 @@ form[role="search"]:has(input:not(:placeholder-shown)) ~ #results .suggestions {
   display: inline;
 }
 
+/* The To Watch button on a poster (the Search page only): a small round + in the top-right corner, and a ✓ once the
+   title is on the list. It has a navy edge so it shows on a light poster as well as a dark one. Its words are there
+   for screen readers, and for the hover hint. Light pink at rest and hot pink under the mouse, like every main button.
+   It is small on purpose: in rem it grows with the text on a wide screen, as the tiles do. */
+.to-watch-corner form {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  z-index: 1;
+}
+
+.corner-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  margin: 0;
+  padding: 0;
+  border: 1.5px solid var(--couch-navy);
+  border-radius: 50%;
+  background: var(--couch-light-pink);
+  color: var(--couch-navy);
+}
+
+.corner-button svg {
+  width: 0.8rem;
+  height: 0.8rem;
+}
+
+.corner-button:is(:hover, :focus-visible),
+.corner-button.on-list {
+  background: var(--couch-pink);
+}
+
+.corner-button.on-list:is(:hover, :focus-visible) {
+  filter: brightness(1.15);
+}
+
+/* Words that screen readers read but nobody sees. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 /* A dropped series has this note where the button would be. */
 .dropped-note {
   display: block;
@@ -238,12 +338,33 @@ form[role="search"]:has(input:not(:placeholder-shown)) ~ #results .suggestions {
   text-align: center;
 }
 
-/* Under a tile there is room for two lines of text, so "Add" and "Remove" are the same size. */
-.results :is(.to-watch-action, .watch-action) button {
+/* The seasons, under the description and the rating. */
+.seasons {
+  margin-top: 1.5rem;
+}
+
+/* A season's first line: its name and "3 of 10 episodes", a thin bar under them, and Pico's arrow at the right. The
+   arrow is a float in Pico; here the line is a row, so the arrow sits level with the name instead of under the bar. */
+.seasons summary {
   display: flex;
   align-items: center;
-  justify-content: center;
-  min-height: 3.3rem;
+  gap: 1rem;
+}
+
+.season-line {
+  flex: 1;
+  min-width: 0;
+}
+
+.season-line small {
+  color: var(--pico-muted-color);
+}
+
+.season-line progress {
+  display: block;
+  width: 100%;
+  height: 0.35rem;
+  margin: 0.5rem 0 0;
 }
 
 /* The episodes of a series: the name and air date on the left, the round check button on the right. */
@@ -384,8 +505,8 @@ form[role="search"]:has(input:not(:placeholder-shown)) ~ #results .suggestions {
   filter: brightness(1.15);
 }
 
-/* A progress bar with how many aired episodes are watched written under it: on the series page (the series and
-   each season) and on the Home cards. */
+/* A progress bar with how many aired episodes are watched written under it, on the Home cards. (The series page has
+   its own: .series-bar and .season-line.) */
 .progress {
   display: block;
 }
@@ -401,9 +522,6 @@ form[role="search"]:has(input:not(:placeholder-shown)) ~ #results .suggestions {
   color: var(--pico-muted-color);
 }
 
-.series-progress {
-  margin-bottom: 1rem;
-}
 
 /* The News section on Home: wide banners in a grid, each with the days left in its corner. */
 .news {
@@ -567,27 +685,54 @@ form[role="search"]:has(input:not(:placeholder-shown)) ~ #results .suggestions {
   gap: 1.5rem;
 }
 
-/* The poster with its To Watch button below it, next to the details. */
+/* The poster, with what is about the title itself under it: the series' bar and the small buttons. It is next to the
+   details. */
 .title-poster {
   flex: none;
   width: 185px;
 }
 
-.title-details {
-  flex: 1 1 16rem;
+/* The whole series' bar: thin, with "8 of 15 episodes" under it. */
+.series-bar progress {
+  display: block;
+  width: 100%;
+  height: 0.35rem;
+  margin: 0.75rem 0 0.25rem;
 }
 
-/* "Remove from all lists": small, in the upper right corner of a series page, with the title next to it. */
-.remove-all {
-  float: right;
-  margin: 0 0 0.5rem 1rem;
+.series-bar small {
+  display: block;
+  color: var(--pico-muted-color);
 }
 
-.remove-all button {
+/* The small buttons under the poster, one under the other: To Watch, Stop watching, Bring back, Remove from all
+   lists. Each is only as wide as its words, on one line (the poster is only 185 px wide and "Remove from all lists"
+   is the longest). */
+.poster-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.poster-actions > :first-child {
+  margin-top: 0.75rem;
+}
+
+.poster-actions form {
+  margin: 0;
+}
+
+.title-poster button {
   width: auto;
   margin: 0;
-  padding: 0.25rem 0.75rem;
-  font-size: 0.8rem;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.title-details {
+  flex: 1 1 16rem;
 }
 
 /* The "Mark as watched" form (or the date it was watched) on a movie page. */
@@ -599,7 +744,43 @@ form[role="search"]:has(input:not(:placeholder-shown)) ~ #results .suggestions {
   max-width: 20rem;
 }
 
-/* Your stars and note on a title's page. */
+/* The date box with the small button at its right, and "Date unknown" under them. The box and the button are the same
+   small height, so they sit level. */
+.watched-section form.watched-form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 0.5rem 0.75rem;
+  max-width: 24rem;
+}
+
+.watched-form label {
+  margin: 0;
+}
+
+.watched-form label:has(input[type="checkbox"]) {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+
+.watched-form button {
+  grid-column: 2;
+  grid-row: 1;
+  width: auto;
+}
+
+.watched-form :is(input[type="date"], button) {
+  /* Pico gives inputs a fixed height; without this the box stays taller than the button next to it. */
+  height: auto;
+  margin: 0;
+  padding-block: 0.4rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+/* Your stars and note on a title's page, in one thin box (the same line as the other boxes). The stars are light pink,
+   with the score small beside them; the note is under them. The pencil runs on in the same line as the last words,
+   so it sits right after them (the form, when it opens, goes under them, inside the box). */
 .rating-section {
   margin-top: 1.5rem;
 }
@@ -608,17 +789,44 @@ form[role="search"]:has(input:not(:placeholder-shown)) ~ #results .suggestions {
   max-width: 20rem;
 }
 
-.rating-stars,
-.rating-note {
-  margin-bottom: 0.5rem;
+.rating-card {
+  /* The words only screen readers read are placed against the box. */
+  position: relative;
+  padding: 0.8rem 1rem;
+  border: 1px solid var(--couch-line);
+  border-radius: var(--pico-border-radius);
+  overflow-wrap: anywhere;
 }
 
 .rating-stars {
-  font-size: 1.25rem;
+  color: var(--couch-light-pink);
+  font-size: 1.3rem;
+  letter-spacing: 0.06em;
+}
+
+.rating-score {
+  margin-inline-start: 0.6rem;
+  color: var(--pico-muted-color);
+  font-size: 0.85rem;
 }
 
 .rating-note {
-  overflow-wrap: anywhere;
+  margin-top: 0.45rem;
+}
+
+/* With stars above it, the note is a little way down. With no stars it is the first thing in the box. */
+.rating-card > .rating-note:first-child {
+  margin-top: 0;
+}
+
+.rating-section details {
+  display: inline;
+}
+
+/* The form opens under the saved text, with a little room. */
+.rating-section details form {
+  display: block;
+  margin-top: 0.75rem;
 }
 
 /* "No rating" and the five star choices in a row (they wrap on a narrow screen). */
@@ -636,16 +844,37 @@ form[role="search"]:has(input:not(:placeholder-shown)) ~ #results .suggestions {
   margin: 0;
 }
 
-/* The edit icon (a pencil) that opens the form once something is saved. It is only the icon, with no arrow. */
-.rating-section summary.rating-edit {
-  display: inline-flex;
-  width: fit-content;
-  padding: 0.25rem;
-  color: var(--pico-color);
+/* Neither the pencil nor the "Rate it" button has Pico's arrow: the pencil is an icon, and the button looks like one. */
+.rating-section summary::after {
+  display: none;
 }
 
-.rating-section summary.rating-edit::after {
-  display: none;
+/* The edit icon (a pencil) that opens the form once something is saved, right after the saved text. It is small and
+   softened, and hot pink under the mouse. Its padding makes it easy to press, and the negative margins give that
+   room back so it does not make its line taller. */
+.rating-section summary.rating-edit {
+  display: inline-flex;
+  vertical-align: middle;
+  width: fit-content;
+  margin: -0.4rem -0.2rem -0.4rem 0.1rem;
+  padding: 0.4rem;
+  color: var(--pico-muted-color);
+}
+
+.rating-section summary.rating-edit:is(:hover, :focus-visible) {
+  color: var(--couch-pink);
+}
+
+/* "Rate it or add a note", with nothing saved yet: a small quiet button with a star. */
+.rating-section summary.rating-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: auto;
+  margin: 0;
+  padding: 0.3rem 0.8rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
 }
 
 /* "Time spent watching" on the Profile page: the name on the left, the time on the right. */

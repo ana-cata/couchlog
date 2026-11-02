@@ -485,7 +485,7 @@ def test_with_htmx_the_minus_that_breaks_a_season_takes_its_rewatch_button_away(
 def screens(client):
     """Home, the Series tabs and the Calendar, without the random tokens, and the progress sentences of the series page."""
     pages = [without_tokens(page(client, url)) for url in ('/', '/series/', '/series/watching/', '/series/finished/', '/calendar/')]
-    sentences = re.findall(r'\d+ of \d+ aired episodes? watched', page(client))
+    sentences = re.findall(r'\d+ of \d+ episodes?', page(client))
     return pages, sentences
 
 

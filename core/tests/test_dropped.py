@@ -334,7 +334,19 @@ def test_the_buttons_only_accept_a_button_press(me, url):
 # --- the series page --------------------------------------------------------------------------
 
 
-def test_the_series_page_offers_stop_watching_for_a_series_on_the_list(me):
+def test_the_series_page_does_not_offer_stop_watching_for_a_series_only_on_the_list(me):
+    html = page(me, ADDRESS)
+
+    # Nothing is marked, so there is nothing to stop. It leaves the list with its Remove button.
+    assert 'Stop watching' not in html
+    assert 'action="/series/drop/"' not in html
+    assert 'Bring back' not in html
+    assert 'Remove from To Watch' in html
+
+
+def test_the_series_page_offers_stop_watching_for_a_started_series_that_is_on_the_list_too(me):
+    mark(me, me.first)
+
     html = page(me, ADDRESS)
 
     assert 'Stop watching' in html
@@ -404,7 +416,7 @@ def test_search_shows_a_dropped_series_as_dropped_without_an_add_button(me, resp
     html = page(me, '/search/?q=made-up')
 
     assert html.count('In your Dropped list') == 1
-    assert html.count('Add to To Watch') == 2  # the other series and the film
+    assert html.count('>Add to To Watch<') == 2  # the other series and the film (one button each)
     assert re.search(r'class="tile" href="/series/1/"', html)  # the dropped one still opens its page
 
 
@@ -416,7 +428,7 @@ def test_search_for_another_account_shows_the_normal_button(me, respx_mock):
     html = page(other, '/search/?q=made-up')
 
     assert 'In your Dropped list' not in html
-    assert html.count('Add to To Watch') == 1
+    assert html.count('>Add to To Watch<') == 1  # one button
 
 
 def test_search_brings_the_button_back_after_bringing_the_series_back(me, respx_mock):
