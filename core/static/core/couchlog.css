@@ -1,5 +1,98 @@
 /* Couchlog's own few styles. Pico CSS does the rest. */
 
+/* The look of the app (see Identity/identity.md): four colours only, always dark. The page tag has data-theme="dark",
+   and Pico's own dark colours are replaced here. There is no second navy: cards, boxes and tables sit on the page's
+   navy and are told apart by a thin off-white line. */
+:root {
+  --couch-navy: #0a192f;
+  --couch-white: #fef7f7;
+  --couch-pink: #e764bb;
+  --couch-light-pink: #ffb3d9;
+  --couch-line: rgb(254 247 247 / 0.2);
+}
+
+:root[data-theme="dark"] {
+  --pico-background-color: var(--couch-navy);
+  --pico-color: var(--couch-white);
+  /* Light pink for small extra info: dates, counts, labels. */
+  --pico-muted-color: var(--couch-light-pink);
+  --pico-muted-border-color: var(--couch-line);
+
+  --pico-h1-color: var(--couch-pink);
+  --pico-h2-color: var(--couch-pink);
+  --pico-h3-color: var(--couch-pink);
+  --pico-h4-color: var(--couch-pink);
+  --pico-h5-color: var(--couch-pink);
+  --pico-h6-color: var(--couch-pink);
+
+  /* Links: hot pink and always underlined; light pink when the mouse is over them. */
+  --pico-primary: var(--couch-pink);
+  --pico-primary-underline: var(--couch-pink);
+  --pico-primary-hover: var(--couch-light-pink);
+  --pico-primary-hover-underline: var(--couch-light-pink);
+  --pico-primary-focus: rgb(231 100 187 / 0.5);
+
+  /* Buttons: hot pink with navy text (white on hot pink is too faint). The quieter "outline secondary" buttons
+     get the same colours, as an outline. */
+  --pico-primary-background: var(--couch-pink);
+  --pico-primary-border: var(--couch-pink);
+  --pico-primary-inverse: var(--couch-navy);
+  --pico-primary-hover-background: var(--couch-light-pink);
+  --pico-primary-hover-border: var(--couch-light-pink);
+  --pico-secondary: var(--couch-pink);
+  --pico-secondary-background: var(--couch-pink);
+  --pico-secondary-border: var(--couch-pink);
+  --pico-secondary-underline: var(--couch-pink);
+  --pico-secondary-inverse: var(--couch-navy);
+  --pico-secondary-hover: var(--couch-light-pink);
+  --pico-secondary-hover-background: var(--couch-light-pink);
+  --pico-secondary-hover-border: var(--couch-light-pink);
+  --pico-secondary-hover-underline: var(--couch-light-pink);
+  --pico-secondary-focus: rgb(231 100 187 / 0.5);
+
+  /* Boxes, the pop-up and the search box: the page's navy with a thin line. */
+  --pico-card-background-color: var(--couch-navy);
+  --pico-card-sectioning-background-color: var(--couch-navy);
+  --pico-card-border-color: var(--couch-line);
+  --pico-card-box-shadow: none;
+  --pico-form-element-background-color: var(--couch-navy);
+  --pico-form-element-selected-background-color: var(--couch-line);
+  /* A stronger line than the dividers (40%), so a box you type in, a radio button or a checkbox is easy to find. */
+  --pico-form-element-border-color: rgb(254 247 247 / 0.4);
+  --pico-form-element-color: var(--couch-white);
+  --pico-form-element-active-background-color: var(--couch-navy);
+  --pico-form-element-active-border-color: var(--couch-pink);
+  --pico-form-element-focus-color: var(--couch-pink);
+  --pico-table-border-color: var(--couch-line);
+  --pico-modal-overlay-background-color: rgb(10 25 47 / 0.85);
+
+  /* The episode the page just jumped to, and the progress bars. */
+  --pico-mark-background-color: rgb(255 179 217 / 0.2);
+  --pico-mark-color: var(--couch-white);
+  --pico-progress-color: var(--couch-light-pink);
+  --pico-progress-background-color: var(--couch-line);
+}
+
+article {
+  border: 1px solid var(--pico-card-border-color);
+}
+
+/* Pico leaves the header links bare; every link is underlined (the logo is a picture, so it is not). */
+header nav a:not(.logo) {
+  text-decoration: underline;
+}
+
+/* The logo in the header, link to Home. It is bigger than the TMDB logo on the About page (100 px wide). */
+header nav a.logo {
+  text-decoration: none;
+}
+
+header nav a.logo img {
+  display: block;
+  width: 7rem;
+  height: auto;
+}
+
 /* On a narrow screen the header links drop to a second line instead of running off the edge. */
 header nav {
   flex-wrap: wrap;
@@ -23,6 +116,16 @@ header nav li {
 
 .tabs a[aria-current="page"] {
   border-bottom-color: var(--pico-primary);
+}
+
+/* Pico leaves tab links bare. The tabs you can press are underlined like every link; the one you are on is not a
+   link to press, so it keeps only its bar. */
+nav.tabs li a {
+  text-decoration: underline;
+}
+
+nav.tabs li a[aria-current="page"] {
+  text-decoration: none;
 }
 
 /* Search results: tiles with the poster on top and the name below. */
@@ -347,15 +450,15 @@ form[role="search"]:has(input:not(:placeholder-shown)) ~ #results .suggestions {
   color: var(--pico-muted-color);
 }
 
-/* Dark with white text whatever the picture and the theme, so it can always be read. */
+/* Navy with off-white text whatever the picture, so it can always be read. */
 .news-days {
   position: absolute;
   left: 0.5rem;
   bottom: 0.5rem;
   padding: 0.1rem 0.7rem;
   border-radius: 1rem;
-  background: rgb(0 0 0 / 0.75);
-  color: #fff;
+  background: rgb(10 25 47 / 0.85);
+  color: var(--couch-white);
   font-size: 0.9rem;
   font-weight: 600;
 }
@@ -565,6 +668,10 @@ form[role="search"]:has(input:not(:placeholder-shown)) ~ #results .suggestions {
   padding: 0;
 }
 
+.watch-list li > span {
+  color: var(--pico-muted-color);
+}
+
 .watch-list li {
   display: flex;
   align-items: center;
@@ -588,4 +695,5 @@ form[role="search"]:has(input:not(:placeholder-shown)) ~ #results .suggestions {
 /* The date under a tile in History. */
 .watched-on {
   margin: 0.25rem 0 0;
+  color: var(--pico-muted-color);
 }

@@ -54,9 +54,14 @@ Rules for every logo:
 - The only colours outside the palette are the grey and the green of the round check button (see below).
 
 ## What this means for the app today
-- The header now shows the text "Couchlog". It becomes the main logo (hot pink), linking to the home page.
-- The browser tab gets the couch icon.
+Built in card #48.
+- The header shows the main logo (hot pink), linking to the home page (`core/static/core/logo-couchlog.svg`, a copy of `logoCouchlog_hotpink.svg`).
+- The browser tab shows the couch icon (`core/static/core/favicon.svg`: the couch on a navy rounded square, with a thicker line so it still reads at 16 and 32 px).
+- Not done yet: the phone home screen icon (an iPhone needs a PNG, not an SVG) and the light pink wordmark.
 - The About page keeps the TMDB logo and notice, smaller than ours.
+- Quieter buttons (Add, Remove, Undo ...) are a hot pink outline; the main buttons are solid hot pink with navy text.
+- Underlined links include the header links and the tabs you can press. The names under posters stay off-white and are underlined when the mouse is over them.
+- Dividers and cards use the thin line at 20%; boxes you type in use 40%, so they are easy to find.
 - The round check button on episodes keeps its grey `#8b93a0` (not watched) and green `#2e7d32` (watched). They are not in the palette, and that is on purpose: they say "done" and "not done" clearly.
 
 ## For the card that builds it
