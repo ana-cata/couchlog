@@ -118,6 +118,35 @@ def test_back_from_the_movies_to_watch_tab_and_from_history(live_server, page, r
     expect(page.locator('.tile')).to_contain_text('Other Made-up Movie')
 
 
+@pytest.mark.parametrize(
+    'button, then_visible',
+    [('Remove from To Watch', 'Add to To Watch'), ('Mark as watched', 'Mark as not watched')],
+)
+def test_back_shows_the_list_as_it_is_now_after_a_button_on_the_title_page(
+    live_server, page, respx_mock, button, then_visible
+):
+    """The buttons change the title's page in place. Back must not show the list from before, with the film still on it.
+
+    No `page.route` here and a film with no poster: intercepting requests switches the browser's cache off, and then
+    Back would always ask the server, so this test could not fail."""
+    user = make_user()
+    ToWatchItem.objects.create(user=user, title=Title.objects.create(kind='movie', tmdb_id=603, title='Made-up Movie'))
+    respx_mock.get('https://api.themoviedb.org/3/movie/603').respond(json={**MADE_UP_MOVIE, 'poster_path': None})
+    log_in(page, live_server)
+
+    page.get_by_role('link', name='Movies', exact=True).click()
+    expect(page.locator('.tile')).to_have_count(1)
+    open_tile(page)
+    page.get_by_role('button', name=button, exact=True).click()
+    expect(page.get_by_role('button', name=then_visible, exact=True)).to_be_visible()
+
+    page.get_by_role('link', name=BACK, exact=True).click()
+
+    expect(page).to_have_url(live_server.url + '/movies/')
+    expect(page.get_by_text('No movies on your To Watch list yet.')).to_be_visible()
+    expect(page.locator('.tile')).to_have_count(0)
+
+
 def test_one_press_of_back_is_enough_after_marking_watching_again_and_rating(live_server, page, respx_mock):
     user = make_user()
     ToWatchItem.objects.create(user=user, title=Title.objects.create(kind='movie', tmdb_id=603, title='Made-up Movie'))
