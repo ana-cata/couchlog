@@ -57,6 +57,8 @@ MIDDLEWARE = [
     # Serves the CSS, logo and htmx when debug is off (runserver does it itself when debug is on).
     # Right after SecurityMiddleware, so these files need no login.
     'whitenoise.middleware.WhiteNoiseMiddleware',
+    # After WhiteNoise, so the static files keep their caching; before the rest, so every page and redirect gets it.
+    'core.middleware.NeverCacheMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',

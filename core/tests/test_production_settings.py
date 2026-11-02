@@ -100,3 +100,5 @@ def test_with_debug_off_the_static_files_are_served_without_a_login(client, sett
 
         assert response.status_code == 200, file
         assert b''.join(response.streaming_content) == (tmp_path / file).read_bytes(), file
+        # Unlike a page (core/middleware.py, NeverCacheMiddleware), a static file may be kept by the browser.
+        assert 'no-store' not in response.get('Cache-Control', ''), file
