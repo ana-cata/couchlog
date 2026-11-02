@@ -1,0 +1,23 @@
+# Couchlog as it will run on the Pi: one container, with the database in a volume.
+# Start it with: docker compose up --build
+services:
+  couchlog:
+    build: .
+    # The app is at http://localhost:3000 (on the Pi: http://<pi-address>:3000). It listens on 8000 inside.
+    ports:
+      - "3000:8000"
+    # The secrets and settings come from .env when the container starts. The file is not copied into the image.
+    env_file: .env
+    # These win over .env: debug is always off here, and the database lives in the volume.
+    environment:
+      DJANGO_DEBUG: "false"
+      DJANGO_DB_PATH: /data/db.sqlite3
+    volumes:
+      - couchlog-data:/data
+    # Starts again by itself after a crash, and when the Pi restarts.
+    restart: unless-stopped
+
+# A named volume (kept by Docker, not a folder on the PC), so rebuilding the container does not erase the database.
+# `docker compose down` keeps it. `docker compose down -v` deletes it.
+volumes:
+  couchlog-data:

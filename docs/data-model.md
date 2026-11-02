@@ -54,5 +54,5 @@ Each card that adds a table updates this list.
 | `django_migrations` | Which migrations have already run on this database. | `migrate` |
 
 **Known limits**
-- The database path is fixed. When the app moves into Docker on the Pi (milestone M6), the path will need to be configurable so the file can live in a Docker volume.
-- Safe SQLite settings against power cuts, and automatic backups, come with the Pi (milestone M6).
+- The database file is `db.sqlite3` in the project folder, unless `DJANGO_DB_PATH` says otherwise. Docker sets it to a file in a volume (see [deploying.md](deploying.md)).
+- SQLite runs in write-ahead log mode with the "normal" sync level, so a power cut loses at most the last action and does not corrupt the file. The database is then a few files next to each other (`db.sqlite3-wal` and `-shm` as well), so a backup must use SQLite's backup command, not a plain copy. Automatic backups come with the Pi (milestone M6).

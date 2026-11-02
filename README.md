@@ -28,13 +28,17 @@ You need [uv](https://docs.astral.sh/uv/) (it installs Python and the packages).
 
 On every pull request, GitHub runs the lint and the tests (`.github/workflows/checks.yml`) on a Linux machine, with no `.env` and no TMDB key. It downloads the test browser first. A pull request is merged only when both are green. Run the same two commands on the PC before pushing to catch problems early.
 
+## Run it in Docker
+
+Docker is for trying the setup the Raspberry Pi will use; everyday work stays with `runserver`. With Docker Desktop running and a `DJANGO_SECRET_KEY` in `.env`, `docker compose up --build` starts Couchlog at http://localhost:3000, with its own database in a Docker volume that survives `docker compose down`. See [docs/deploying.md](docs/deploying.md) for the steps, the settings and what is checked.
+
 ## Open it from the phone
 
 On the same Wi-Fi: add the PC's address to `DJANGO_ALLOWED_HOSTS` in `.env` (for example `localhost,127.0.0.1,192.168.1.20`), then start the app with `uv run python manage.py runserver 0.0.0.0:8000` and open `http://<PC address>:8000` on the phone.
 
 ## Where things are
 
-- `docs/` says what is built, one page per page of the app. For now: [docs/home.md](docs/home.md) (Home and Up Next), [docs/profile.md](docs/profile.md) (login and time zone), [docs/search.md](docs/search.md) (search and title pages), [docs/to-watch.md](docs/to-watch.md) (the Movies and Series sections and their To Watch lists), [docs/history.md](docs/history.md) (marking a movie as watched, and History), [docs/series.md](docs/series.md) (the series page, marking episodes and progress bars), [docs/calendar.md](docs/calendar.md) (the Calendar of upcoming releases), [docs/about.md](docs/about.md) (the TMDB credit) and [docs/data-model.md](docs/data-model.md) (the database and its tables).
+- `docs/` says what is built, one page per page of the app. For now: [docs/home.md](docs/home.md) (Home and Up Next), [docs/profile.md](docs/profile.md) (login and time zone), [docs/search.md](docs/search.md) (search and title pages), [docs/to-watch.md](docs/to-watch.md) (the Movies and Series sections and their To Watch lists), [docs/history.md](docs/history.md) (marking a movie as watched, and History), [docs/series.md](docs/series.md) (the series page, marking episodes and progress bars), [docs/calendar.md](docs/calendar.md) (the Calendar of upcoming releases), [docs/about.md](docs/about.md) (the TMDB credit), [docs/deploying.md](docs/deploying.md) (running in Docker) and [docs/data-model.md](docs/data-model.md) (the database and its tables).
 - `config/` holds the Django settings and the main list of addresses.
 - `core/` is the first app: the Home page, login, Profile, search, title, Movies, Series, History, Calendar and About pages (`views.py`, `middleware.py`, `templates/core/`), the `Profile`, `Title`, `Episode`, `ToWatchItem` and `Watch` tables (`models.py`), the series logic (`episodes.py`), the calendar logic (`releases.py`), the TMDB code (`tmdb.py`) and the `tmdb_check` and `refresh_calendar` commands.
 - `core/static/core/` holds Pico CSS 2.1.1 (the styling), htmx 2.0.11 (small page updates without reloading), Couchlog's own few styles (`couchlog.css`) and the TMDB logo. They are saved in the project, so the app works without internet except for TMDB and its poster pictures.

@@ -1,0 +1,30 @@
+# What stays out of the Docker image. Most important: the secrets and the database.
+# (A pattern with **/ also matches inside folders.)
+.env
+.env.*
+**/*.sqlite3
+**/*.sqlite3-*
+**/*.db
+**/*.db-*
+
+# Rebuilt inside the image
+.venv
+staticfiles
+**/__pycache__
+**/*.py[cod]
+.pytest_cache
+.ruff_cache
+
+# Not needed to run the app
+.git
+.github
+.claude
+.vscode
+.gitignore
+.dockerignore
+Dockerfile
+docker-compose.yml
+core/tests
+docs
+Identity
+*.md
