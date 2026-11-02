@@ -262,7 +262,7 @@ def test_search_shows_no_to_watch_button_for_a_started_series(me, respx_mock):
     html = page(me, '/search/?q=made-up')
 
     assert 'Remove from To Watch' not in html
-    assert html.count('Add to To Watch') == 2  # the other series and the film
+    assert html.count('>Add to To Watch<') == 2  # the other series and the film (one button each)
     assert re.search(r'class="tile" href="/series/1/"', html)  # the series still opens its page
 
 

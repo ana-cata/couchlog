@@ -1,5 +1,6 @@
-{# One title as a tile: poster, name, year, and the To Watch button. `tile` is a search result or a saved title. #}
+{# One title as a tile: poster, name, year, and the To Watch button in the poster's corner. `tile` is a search result or #}
+{# a saved title. #}
 <li>
   {% include 'core/_tile_link.html' %}
-  {% include 'core/_to_watch_button.html' %}
+  {% include 'core/_to_watch_button.html' with corner=True %}
 </li>

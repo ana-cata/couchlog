@@ -453,6 +453,9 @@ def _answer(request, kind, tmdb_id, on_list, text, ok=True, collect=False):
     if request.headers.get('HX-Request'):
         tile = {'kind': kind, 'tmdb_id': tmdb_id}
         context = {'tile': tile, 'on_list': on_list, 'next': request.POST.get('next', ''), 'live': True}
+        # A tile's button sends `corner`, so the answer is the small round button again, not the one with words.
+        if request.POST.get('corner'):
+            context['corner'] = True
         if collect:
             context['collect'] = True
         if not ok:

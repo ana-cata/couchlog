@@ -404,7 +404,7 @@ def test_search_shows_a_dropped_series_as_dropped_without_an_add_button(me, resp
     html = page(me, '/search/?q=made-up')
 
     assert html.count('In your Dropped list') == 1
-    assert html.count('Add to To Watch') == 2  # the other series and the film
+    assert html.count('>Add to To Watch<') == 2  # the other series and the film (one button each)
     assert re.search(r'class="tile" href="/series/1/"', html)  # the dropped one still opens its page
 
 
@@ -416,7 +416,7 @@ def test_search_for_another_account_shows_the_normal_button(me, respx_mock):
     html = page(other, '/search/?q=made-up')
 
     assert 'In your Dropped list' not in html
-    assert html.count('Add to To Watch') == 1
+    assert html.count('>Add to To Watch<') == 1  # one button
 
 
 def test_search_brings_the_button_back_after_bringing_the_series_back(me, respx_mock):
