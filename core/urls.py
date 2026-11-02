@@ -38,6 +38,7 @@ urlpatterns = [
     # The buttons serve both sections, so they keep their addresses.
     path('to-watch/removed/', views.to_watch_removed, name='to_watch_removed'),
     path('to-watch/add/', views.to_watch_add, name='to_watch_add'),
+    path('to-watch/collect/', views.to_watch_collect, name='to_watch_collect'),
     path('to-watch/remove/', views.to_watch_remove, name='to_watch_remove'),
     path('to-watch/undo/', views.to_watch_undo, name='to_watch_undo'),
     path('rating/save/', views.rating_save, name='rating_save'),

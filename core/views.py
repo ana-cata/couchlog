@@ -7,7 +7,7 @@ from django.contrib.auth.decorators import login_not_required
 from django.core.exceptions import BadRequest
 from django.db import transaction
 from django.db.models import F, Q
-from django.http import Http404
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -359,16 +359,19 @@ def _my_item(request, kind, tmdb_id):
     )
 
 
-def _answer(request, kind, tmdb_id, on_list, text, ok=True):
+def _answer(request, kind, tmdb_id, on_list, text, ok=True, collect=False):
     """Reply to a button press.
 
     The search page uses htmx, which swaps in just the button in its new state. Without
     htmx the reply is a redirect back to the page the button was on, with a message (unless
-    `text` is empty: then there is nothing to say).
+    `text` is empty: then there is nothing to say). With `collect`, the button also asks the
+    server to collect the title's dates as soon as it is on the page (`to_watch_collect`).
     """
     if request.headers.get('HX-Request'):
         tile = {'kind': kind, 'tmdb_id': tmdb_id}
         context = {'tile': tile, 'on_list': on_list, 'next': request.POST.get('next', ''), 'live': True}
+        if collect:
+            context['collect'] = True
         if not ok:
             context['error'] = text
         return render(request, 'core/_to_watch_button.html', context)
@@ -424,8 +427,30 @@ def to_watch_add(request):
         item.save(update_fields=['removed_at', 'added_at', 'removed_by_watch'])
     elif not created:
         return _answer(request, kind, tmdb_id, True, f'“{title.title}” is already on your To Watch list.')
-    _collect_dates(title)
-    return _answer(request, kind, tmdb_id, True, f'Added “{title.title}” to your To Watch list.')
+
+    # A movie's dates are one quick call, so they are collected now. A series needs a call per season, which can take
+    # seconds: with htmx the series is on the list at once and the button asks for the rest right after
+    # (`to_watch_collect`). Without htmx nothing could ask, so the series is collected now, as before.
+    later = title.kind == 'series' and bool(request.headers.get('HX-Request'))
+    if not later:
+        _collect_dates(title)
+    return _answer(request, kind, tmdb_id, True, f'Added “{title.title}” to your To Watch list.', collect=later)
+
+
+@require_POST
+def to_watch_collect(request):
+    """Collect the dates of a title that was just put on this account's list: what the button asks for right after a
+    series is added. Nothing is shown (204: htmx changes nothing).
+
+    A title that is not on the account's list (it was removed in the meantime, or never added) is left alone, so this
+    cannot be used to ask TMDB about any title. If TMDB or TVmaze does not answer, `_collect_dates` leaves the title
+    on the list and the next `refresh_calendar` run catches up.
+    """
+    kind, tmdb_id = _posted_title(request)
+    item = _my_item(request, kind, tmdb_id).filter(removed_at=None).first()
+    if item is not None:
+        _collect_dates(item.title)
+    return HttpResponse(status=204)
 
 
 @require_POST

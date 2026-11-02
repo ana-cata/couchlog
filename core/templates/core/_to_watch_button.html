@@ -6,14 +6,27 @@
     <small class="dropped-note"><a href="{% url 'series_dropped' %}">In your Dropped list</a></small>
   {% else %}
   {% if on_list %}{% url 'to_watch_remove' as action %}{% else %}{% url 'to_watch_add' as action %}{% endif %}
+  {# With `live`, htmx disables the button and adds the class htmx-request to the form while the server works: the #}
+  {# stylesheet then shows the busy words ("Adding…") in place of the usual ones. #}
   <form method="post" action="{{ action }}"
-        {% if live %}hx-post="{{ action }}" hx-target="closest .to-watch-action" hx-swap="outerHTML"{% endif %}>
+        {% if live %}hx-post="{{ action }}" hx-target="closest .to-watch-action" hx-swap="outerHTML" hx-disabled-elt="find button"{% endif %}>
     {% csrf_token %}
     <input type="hidden" name="kind" value="{{ tile.kind }}">
     <input type="hidden" name="tmdb_id" value="{{ tile.tmdb_id }}">
     <input type="hidden" name="next" value="{{ next }}">
-    <button type="submit" class="outline secondary">{% if on_list %}Remove from To Watch{% else %}Add to To Watch{% endif %}</button>
+    <button type="submit" class="outline secondary">
+      {% if on_list %}<span class="idle">Remove from To Watch</span><span class="busy">Removing…</span>
+      {% else %}<span class="idle">Add to To Watch</span><span class="busy">Adding…</span>{% endif %}
+    </button>
   </form>
   {% if error %}<small role="alert">{{ error }}</small>{% endif %}
+  {% if collect %}
+    {# A series was just added: ask the server to collect its episodes and dates now that the button has changed. #}
+    <form hidden hx-post="{% url 'to_watch_collect' %}" hx-trigger="load" hx-swap="none">
+      {% csrf_token %}
+      <input type="hidden" name="kind" value="{{ tile.kind }}">
+      <input type="hidden" name="tmdb_id" value="{{ tile.tmdb_id }}">
+    </form>
+  {% endif %}
   {% endif %}
 </div>
