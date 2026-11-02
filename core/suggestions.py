@@ -1,7 +1,8 @@
 """The movies and series suggested on the Search page while the search box is empty.
 
 They are picked from what an account has watched or saved: its most-watched genres, asked from TMDB, with TMDB's
-trending list filling up what is missing. Nothing is saved, and nothing here changes any data.
+trending list filling up what is missing. What is left over from those lists is kept as spares, to replace a suggestion
+once it is added. Nothing is saved, and nothing here changes any data.
 """
 
 from django.db.models import Q
@@ -45,25 +46,26 @@ def _left_out(user, kind):
 
 
 def suggest(user, kind):
-    """Up to 10 titles of this kind for this account, shaped like search results. Raises `tmdb.TmdbError`.
+    """The titles of this kind for this account, shaped like search results, as `(shown, spares)`.
+    Raises `tmdb.TmdbError`.
 
-    First the popular titles in the account's top genres, then (when fewer than 10 are left, or it has no genres yet)
-    this week's trending titles. A title is suggested once, and never when it is left out (see `_left_out`).
+    `shown` is up to 10 titles: first the popular titles in the account's top genres, then (when fewer than 10 are
+    left, or it has no genres yet) this week's trending titles. `spares` is whatever else those same lists held, in the
+    same order: the page keeps them out of sight to replace a suggestion once it is added. No extra TMDB call is made
+    for them. A title is suggested once, and never when it is left out (see `_left_out`).
     """
     taken = _left_out(user, kind)
-    picked = []
+    found = []
 
     def take(candidates):
         for candidate in candidates:
-            if len(picked) == HOW_MANY:
-                return
             if candidate['tmdb_id'] not in taken:
-                picked.append(candidate)
+                found.append(candidate)
                 taken.add(candidate['tmdb_id'])
 
     genre_ids = top_genres(user, kind)
     if genre_ids:
         take(tmdb.discover(kind, genre_ids))
-    if len(picked) < HOW_MANY:
+    if len(found) < HOW_MANY:
         take(tmdb.trending(kind))
-    return picked
+    return found[:HOW_MANY], found[HOW_MANY:]
