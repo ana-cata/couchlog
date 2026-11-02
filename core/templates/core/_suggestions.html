@@ -10,6 +10,15 @@
         {% for tile in block.tiles %}
           {% include 'core/_tile.html' with live=True %}
         {% endfor %}
+        {# The spares are not shown (a template is never drawn, and its pictures are not loaded). When a title is #}
+        {# added, suggestions.js puts the next spare in the place of its tile. #}
+        {% if block.spares %}
+          <template>
+            {% for tile in block.spares %}
+              {% include 'core/_tile.html' with live=True %}
+            {% endfor %}
+          </template>
+        {% endif %}
       </ul>
     {% endif %}
   {% endfor %}

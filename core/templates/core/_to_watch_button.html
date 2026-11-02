@@ -1,7 +1,8 @@
 {# The button under a tile: adds the title to the To Watch list, or removes it. #}
 {# With `live` (the search page) htmx swaps just this block; without it the page reloads. #}
 {# A series I dropped has no button: it says so instead, and "Bring back" is on its page. #}
-<div class="to-watch-action">
+{# `data-on-list` tells suggestions.js that the title is now on the list, so a suggested tile can be replaced. #}
+<div class="to-watch-action"{% if on_list and not dropped %} data-on-list{% endif %}>
   {% if dropped %}
     <small class="dropped-note"><a href="{% url 'series_dropped' %}">In your Dropped list</a></small>
   {% elif started %}
