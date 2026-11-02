@@ -212,9 +212,16 @@ def test_mark_a_movie_as_watched_see_it_in_history_then_undo(live_server, page, 
     expect(page.locator('.tile')).to_have_count(0)
     expect(page.get_by_role('heading', name='Recently removed')).to_have_count(0)
 
-    # Undo from History: it leaves History and is back on To Watch.
+    # History has no buttons: the way back is on the movie's own page, which lists the watch with its button.
     page.get_by_role('link', name='History', exact=True).click()
+    expect(page.locator('.results button')).to_have_count(0)
+    page.locator('.tile').click()
     page.get_by_role('button', name='Mark as not watched').click()
+    expect(page.get_by_role('button', name='Mark as watched')).to_be_visible()
+
+    # Then it has left History and is back on To Watch.
+    page.get_by_role('link', name='Movies', exact=True).click()
+    page.get_by_role('link', name='History', exact=True).click()
     expect(page.get_by_text('Nothing in your history yet')).to_be_visible()
     page.get_by_role('link', name='To Watch', exact=True).click()
     expect(page.locator('.tile')).to_contain_text('Made-up Movie')

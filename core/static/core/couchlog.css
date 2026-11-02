@@ -255,26 +255,16 @@ form[role="search"]:has(input:not(:placeholder-shown)) ~ #results .suggestions {
   color: var(--pico-muted-color);
 }
 
-/* The button under a tile in History ("Mark as not watched"), and the To Watch button on a title's own page: small, so
-   the page stays tidy. */
-:is(.to-watch-action, .watch-action) form {
+/* The To Watch button on a title's own page: small, so the page stays tidy. */
+.to-watch-action form {
   margin: 0;
 }
 
-:is(.watch-action, .to-watch-action:not(.to-watch-corner)) button {
+.to-watch-action:not(.to-watch-corner) button {
   width: 100%;
   margin-top: 0.5rem;
   padding: 0.35rem 0.5rem;
   font-size: 0.8rem;
-}
-
-/* Under a tile in History there is room for two lines of text, so "Mark as not watched" and "Remove this watch" are
-   the same size. */
-.results .watch-action button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 3.3rem;
 }
 
 /* While the server works on an Add / Remove press ("Adding…"), the button says so and is disabled (htmx puts the class
