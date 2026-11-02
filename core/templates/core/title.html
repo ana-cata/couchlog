@@ -18,9 +18,21 @@
         {% else %}
           <span class="poster no-poster">No poster</span>
         {% endif %}
-        {% include 'core/_to_watch_button.html' with tile=item live=True %}
+        {# A series I started (under Watching or Finished) has no To Watch button. A dropped one still says it is dropped. #}
+        {% if dropped or not started %}{% include 'core/_to_watch_button.html' with tile=item live=True %}{% endif %}
       </div>
       <div class="title-details">
+        {% if can_remove_all %}
+          {# Not hx-boost: a plain form, so the browser's question comes first and the page then goes to Series → To Watch. #}
+          <form method="post" action="{% url 'series_remove_all' %}" class="remove-all"
+                data-confirm="Remove “{{ item.title }}” from all your lists?{% if watch_total %} Its {{ watch_total }} watch{{ watch_total|pluralize:'es' }} will be deleted{% if rating %}, with your rating and note{% endif %}.{% elif rating %} Your rating and note will be deleted.{% endif %} You can undo for {{ undo_seconds }} seconds."
+                onsubmit="return confirm(this.dataset.confirm)">
+            {% csrf_token %}
+            <input type="hidden" name="kind" value="series">
+            <input type="hidden" name="tmdb_id" value="{{ item.tmdb_id }}">
+            <button type="submit" class="outline secondary">Remove from all lists</button>
+          </form>
+        {% endif %}
         <h1>{{ item.title }}</h1>
         {# Year, kind, status, length and genres: the parts TMDB has (core/title_line.py). #}
         <p><small>{{ line }}</small></p>

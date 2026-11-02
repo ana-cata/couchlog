@@ -8,7 +8,15 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 from playwright.sync_api import expect
 
-from core.models import Episode, Profile, Title, ToWatchItem, Watch
+from core.models import (
+    DroppedSeries,
+    Episode,
+    Profile,
+    Rating,
+    Title,
+    ToWatchItem,
+    Watch,
+)
 
 # The browser's driver runs inside an event loop, and Django refuses database calls from
 # there unless told it is fine. It is fine in a test.
@@ -647,3 +655,108 @@ def test_rate_a_movie_change_it_and_remove_it(live_server, page, respx_mock, set
     page.get_by_role('button', name='Save', exact=True).click()
     expect(page.get_by_text('Your rating: ★★★★☆')).to_be_visible()
     expect(page.get_by_text('Your note: Loved the ending.')).to_be_visible()
+
+
+def test_remove_a_series_from_all_lists_with_a_question_first_then_undo(live_server, page, monkeypatch):
+    # A long window, so a slow machine can never run out of undo time in the middle of this test.
+    monkeypatch.setattr('core.views.UNDO_WINDOW', datetime.timedelta(minutes=5))
+    user = User.objects.create_user(username='made-up-user', password='made-up-password')
+    Profile.objects.create(user=user, timezone='Europe/Lisbon')
+    series = Title.objects.create(
+        kind='series', tmdb_id=1399, title='Made-up Series', year='2011', status='Returning Series',
+        episodes_refreshed_at=timezone.now(),
+    )
+    first, second = (
+        Episode.objects.create(
+            title=series, tmdb_id=6000 + number, season_number=1, episode_number=number, air_date=datetime.date(2011, 4, 17)
+        )
+        for number in (1, 2)
+    )
+    ToWatchItem.objects.create(user=user, title=series)
+    for episode in (first, second):
+        Watch.objects.create(user=user, title=series, episode=episode, watched_on=datetime.date(2026, 10, 1))
+    Rating.objects.create(user=user, title=series, stars=4, note='Made-up note')
+
+    # The browser's questions ("Are you sure?") are answered by this test: each one is written down and then
+    # answered with whatever `answer` says.
+    asked, answer = [], {'accept': False}
+
+    def on_dialog(dialog):
+        asked.append(dialog.message)
+        dialog.accept() if answer['accept'] else dialog.dismiss()
+
+    page.on('dialog', on_dialog)
+
+    page.goto(live_server.url)
+    page.get_by_label('Username').fill('made-up-user')
+    page.get_by_label('Password').fill('made-up-password')
+    page.get_by_role('button', name='Log in').click()
+
+    # It is under Watching. Its page has no To Watch button, and the small button is in the upper right corner.
+    page.get_by_role('link', name='Series', exact=True).click()
+    expect(page.locator('.tile')).to_contain_text('Made-up Series')
+    page.locator('.tile').click()
+    expect(page.get_by_role('heading', name='Made-up Series')).to_be_visible()
+    expect(page.get_by_role('button', name='Remove from To Watch')).to_have_count(0)
+    corner = page.get_by_role('button', name='Remove from all lists')
+    expect(corner).to_be_visible()
+    corner_box, heading_box = corner.bounding_box(), page.get_by_role('heading', name='Made-up Series').bounding_box()
+    assert corner_box['x'] > heading_box['x']  # to the right of the title
+    assert corner_box['y'] < heading_box['y'] + heading_box['height']  # at the top, level with it
+
+    # Cancel: the question is asked and nothing changes.
+    corner.click()
+    expect(page.get_by_role('heading', name='Made-up Series')).to_be_visible()
+    assert len(asked) == 1
+    assert 'Remove “Made-up Series” from all your lists?' in asked[0]
+    assert 'Its 2 watches will be deleted, with your rating and note.' in asked[0]
+    assert 'You can undo for 300 seconds.' in asked[0]  # this test's long window
+    assert (Watch.objects.count(), ToWatchItem.objects.count(), Rating.objects.count()) == (2, 1, 1)
+    page.reload()
+    expect(page.get_by_role('button', name='Remove from all lists')).to_be_visible()
+
+    # OK: it goes to Series → To Watch, where the series is offered back for a moment, and is on no list.
+    answer['accept'] = True
+    page.get_by_role('button', name='Remove from all lists').click()
+    expect(page.get_by_text('Removed “Made-up Series” from all your lists, with its history.')).to_be_visible()
+    expect(page.get_by_role('heading', name='Recently removed')).to_be_visible()
+    expect(page.get_by_role('button', name='Undo')).to_be_visible()
+    assert (Watch.objects.count(), ToWatchItem.objects.count(), Rating.objects.count()) == (0, 0, 0)
+    page.get_by_role('link', name='Watching', exact=True).click()
+    expect(page.get_by_text('No series in Watching yet')).to_be_visible()
+
+    # Undo: everything is back, down to the ticks on its episodes and the stars.
+    page.get_by_role('link', name='To Watch', exact=True).click()
+    page.get_by_role('button', name='Undo').click()
+    expect(page.get_by_text('Put “Made-up Series” back on all your lists, with its history.')).to_be_visible()
+    assert (Watch.objects.count(), ToWatchItem.objects.count(), Rating.objects.count()) == (2, 1, 1)
+    page.get_by_role('link', name='Watching', exact=True).click()
+    page.locator('.tile').click()
+    expect(page.get_by_role('button', name='Mark episode 1 as not watched')).to_be_visible()
+    expect(page.get_by_role('button', name='Mark episode 2 as not watched')).to_be_visible()
+    expect(page.get_by_text('Your rating: ★★★★☆')).to_be_visible()
+
+
+def test_a_dropped_series_can_also_be_removed_from_all_lists(live_server, page):
+    user = User.objects.create_user(username='made-up-user', password='made-up-password')
+    Profile.objects.create(user=user, timezone='Europe/Lisbon')
+    series = Title.objects.create(
+        kind='series', tmdb_id=1399, title='Made-up Series', year='2011', status='Ended',
+        episodes_refreshed_at=timezone.now(),
+    )
+    DroppedSeries.objects.create(user=user, title=series)
+    page.on('dialog', lambda dialog: dialog.accept())
+
+    page.goto(live_server.url)
+    page.get_by_label('Username').fill('made-up-user')
+    page.get_by_label('Password').fill('made-up-password')
+    page.get_by_role('button', name='Log in').click()
+    page.get_by_role('link', name='Series', exact=True).click()
+    page.get_by_role('link', name='Dropped', exact=True).click()
+    page.locator('.tile').click()
+    expect(page.get_by_text('You stopped watching this series.')).to_be_visible()
+    page.get_by_role('button', name='Remove from all lists').click()
+
+    expect(page.get_by_text('Removed “Made-up Series” from all your lists, with its history.')).to_be_visible()
+    page.get_by_role('link', name='Dropped', exact=True).click()
+    expect(page.get_by_text('No dropped series')).to_be_visible()
