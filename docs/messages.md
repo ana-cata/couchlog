@@ -49,6 +49,6 @@ Couchlog never leaves you with an empty page or a button that does nothing: an e
 - **Tests:** `core/tests/test_messages.py`, in a real browser with the answers faked: "Searching…" while a search is held back and gone after; a To Watch button with no answer (the line shows, nothing is saved, the next search that works takes it away); a search with no answer; and a server error (the old results stay). The empty-list and TMDB messages are tested with each page.
 
 **Known limits**
-- The line covers what htmx sends. A form that reloads the whole page (only without JavaScript) or opening a page from the menu gets the browser's own "no connection" page instead.
+- The line covers what htmx sends, which changes the page you are on. Anything that loads a whole new page gets the browser's own "no connection" page instead, because there is no Couchlog page to put the line on: a link in the menu, reloading, pressing Enter in the search box, or any form without JavaScript.
 - A request that is very slow but does answer shows no line. Only Search shows "Searching…"; the other buttons change as soon as their answer arrives (usually well under a second).
 - While the line is showing, the bar is taller, so a jump to an episode can end slightly under it.
