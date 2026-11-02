@@ -9,21 +9,25 @@
   --couch-pink: #e764bb;
   --couch-light-pink: #ffb3d9;
   --couch-line: rgb(254 247 247 / 0.2);
+  /* Off-white, softened (about 7 : 1 on navy): small extra info and the quiet buttons. */
+  --couch-soft: rgb(254 247 247 / 0.7);
 }
 
+/* The rule for the colours: pink means "you are here" or "you can press this". Everything else is off-white. */
 :root[data-theme="dark"] {
   --pico-background-color: var(--couch-navy);
   --pico-color: var(--couch-white);
-  /* Light pink for small extra info: dates, counts, labels. */
-  --pico-muted-color: var(--couch-light-pink);
+  /* Small extra info (dates, counts, labels): softened off-white, so pink stays for what you can press. */
+  --pico-muted-color: var(--couch-soft);
   --pico-muted-border-color: var(--couch-line);
 
+  /* Only the page title is hot pink. */
   --pico-h1-color: var(--couch-pink);
-  --pico-h2-color: var(--couch-pink);
-  --pico-h3-color: var(--couch-pink);
-  --pico-h4-color: var(--couch-pink);
-  --pico-h5-color: var(--couch-pink);
-  --pico-h6-color: var(--couch-pink);
+  --pico-h2-color: var(--couch-white);
+  --pico-h3-color: var(--couch-white);
+  --pico-h4-color: var(--couch-white);
+  --pico-h5-color: var(--couch-white);
+  --pico-h6-color: var(--couch-white);
 
   /* Links: hot pink and always underlined; light pink when the mouse is over them. */
   --pico-primary: var(--couch-pink);
@@ -32,22 +36,23 @@
   --pico-primary-hover-underline: var(--couch-light-pink);
   --pico-primary-focus: rgb(231 100 187 / 0.5);
 
-  /* Buttons: hot pink with navy text (white on hot pink is too faint). The quieter "outline secondary" buttons
-     get the same colours, as an outline. */
-  --pico-primary-background: var(--couch-pink);
-  --pico-primary-border: var(--couch-pink);
+  /* Main buttons (the solid ones): light pink with navy text, hot pink under the mouse. A phone has no mouse, so
+     the light pink has to look right on its own. */
+  --pico-primary-background: var(--couch-light-pink);
+  --pico-primary-border: var(--couch-light-pink);
   --pico-primary-inverse: var(--couch-navy);
-  --pico-primary-hover-background: var(--couch-light-pink);
-  --pico-primary-hover-border: var(--couch-light-pink);
-  --pico-secondary: var(--couch-pink);
-  --pico-secondary-background: var(--couch-pink);
-  --pico-secondary-border: var(--couch-pink);
-  --pico-secondary-underline: var(--couch-pink);
-  --pico-secondary-inverse: var(--couch-navy);
-  --pico-secondary-hover: var(--couch-light-pink);
-  --pico-secondary-hover-background: var(--couch-light-pink);
-  --pico-secondary-hover-border: var(--couch-light-pink);
-  --pico-secondary-hover-underline: var(--couch-light-pink);
+  --pico-primary-hover-background: var(--couch-pink);
+  --pico-primary-hover-border: var(--couch-pink);
+  /* Quiet buttons ("secondary", outlined or solid): a thin softened off-white outline, hot pink under the mouse. */
+  --pico-secondary: var(--couch-soft);
+  --pico-secondary-background: transparent;
+  --pico-secondary-border: var(--couch-soft);
+  --pico-secondary-underline: var(--couch-soft);
+  --pico-secondary-inverse: var(--couch-soft);
+  --pico-secondary-hover: var(--couch-pink);
+  --pico-secondary-hover-background: transparent;
+  --pico-secondary-hover-border: var(--couch-pink);
+  --pico-secondary-hover-underline: var(--couch-pink);
   --pico-secondary-focus: rgb(231 100 187 / 0.5);
 
   /* Boxes, the pop-up and the search box: the page's navy with a thin line. */
@@ -75,6 +80,11 @@
 
 article {
   border: 1px solid var(--pico-card-border-color);
+}
+
+/* A solid quiet button (like "Log out") has no fill, so under the mouse its words turn hot pink with its outline. */
+:is(button, [type="submit"], [type="button"], [role="button"]).secondary:not(.outline):is(:hover, :active, :focus) {
+  --pico-color: var(--couch-pink);
 }
 
 /* Pico leaves the header links bare; every link is underlined (the logo is a picture, so it is not). */
