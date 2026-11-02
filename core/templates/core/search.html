@@ -10,8 +10,11 @@
     <input type="search" name="q" value="{{ query }}" placeholder="Search movies and series"
            aria-label="Search movies and series" autocomplete="off" autofocus
            hx-get="{% url 'search' %}" hx-trigger="input changed delay:400ms, search"
-           hx-target="#results" hx-replace-url="true" hx-sync="this:replace">
+           hx-target="#results" hx-replace-url="true" hx-sync="this:replace" hx-indicator="#searching">
   </form>
+
+  {# Only shown while htmx waits for the results (see couchlog.css), so a slow TMDB does not look like nothing happened. #}
+  <p id="searching" aria-busy="true">Searching…</p>
 
   <div id="results" aria-live="polite">
     {% include 'core/_search_results.html' %}

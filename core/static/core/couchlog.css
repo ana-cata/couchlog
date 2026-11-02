@@ -202,6 +202,25 @@ form[role="search"]:has(input:not(:placeholder-shown)) ~ #results .suggestions {
   display: none;
 }
 
+/* "Searching…" under the box: only while htmx waits for the results (htmx gives it the class htmx-request then). */
+#searching {
+  display: none;
+}
+
+#searching.htmx-request {
+  display: block;
+}
+
+/* The line under the header bar that says Couchlog did not answer (problems.js): off-white in a thin box, not pink,
+   because it is not something to press. */
+#problem {
+  margin-block: 0 0.5rem;
+  padding: 0.25rem 0.75rem;
+  border: 1px solid var(--couch-soft);
+  border-radius: var(--pico-border-radius);
+  font-size: 0.9rem;
+}
+
 .tile {
   display: block;
   flex: 1;
