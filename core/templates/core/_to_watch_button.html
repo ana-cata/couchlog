@@ -4,6 +4,8 @@
 <div class="to-watch-action">
   {% if dropped %}
     <small class="dropped-note"><a href="{% url 'series_dropped' %}">In your Dropped list</a></small>
+  {% elif started %}
+    {# A series I started is under Watching or Finished: no button here. "Remove from all lists" is on its page. #}
   {% else %}
   {% if on_list %}{% url 'to_watch_remove' as action %}{% else %}{% url 'to_watch_add' as action %}{% endif %}
   {# With `live`, htmx disables the button and adds the class htmx-request to the form while the server works: the #}

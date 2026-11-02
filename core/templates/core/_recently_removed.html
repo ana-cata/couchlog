@@ -7,8 +7,8 @@
     <ul class="removed">
       {% for item in removed %}
         <li>
-          <span>{{ item.title.title }} <small>{{ item.title.year|default:"Year unknown" }} · {{ item.title.kind|capfirst }}</small></span>
-          <form method="post" action="{% url 'to_watch_undo' %}">
+          <span>{{ item.title.title }} <small>{{ item.title.year|default:"Year unknown" }} · {{ item.title.kind|capfirst }}{% if item.everything %} · from all lists, with its history{% endif %}</small></span>
+          <form method="post" action="{% if item.everything %}{% url 'series_remove_all_undo' %}{% else %}{% url 'to_watch_undo' %}{% endif %}">
             {% csrf_token %}
             <input type="hidden" name="kind" value="{{ item.title.kind }}">
             <input type="hidden" name="tmdb_id" value="{{ item.title.tmdb_id }}">

@@ -4,6 +4,7 @@ from zoneinfo import ZoneInfo
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_not_required
+from django.core import serializers
 from django.core.exceptions import BadRequest
 from django.db import transaction
 from django.db.models import F, Q
@@ -32,7 +33,16 @@ from .episodes import (
     up_next,
 )
 from .forms import NOTE_MAX_LENGTH, STAR_CHOICES, RatingForm, TimeZoneForm, WatchedForm
-from .models import DroppedSeries, Episode, Profile, Rating, Title, ToWatchItem, Watch
+from .models import (
+    DroppedSeries,
+    Episode,
+    Profile,
+    Rating,
+    RemovedSeries,
+    Title,
+    ToWatchItem,
+    Watch,
+)
 from .releases import news, refresh_movie, refresh_upcoming, upcoming
 from .suggestions import suggest
 from .time_spent import describe, minutes_watched
@@ -88,9 +98,12 @@ def search(request):
     }
     # A series I dropped says so instead of offering the To Watch button.
     dropped = set(DroppedSeries.objects.filter(user=request.user).values_list('title__tmdb_id', flat=True))
+    # A series I started is under Watching or Finished: no To Watch button for it either.
+    started = set(started_series(request.user).values_list('title__tmdb_id', flat=True))
     for result in results:
         result['on_list'] = (result['kind'], result['tmdb_id']) in on_list
         result['dropped'] = result['kind'] == 'series' and result['tmdb_id'] in dropped
+        result['started'] = result['kind'] == 'series' and result['tmdb_id'] in started
 
     # htmx also asks for the whole page when it restores a page from its history.
     live_update = request.headers.get('HX-Request') and not request.headers.get('HX-History-Restore-Request')
@@ -189,6 +202,12 @@ def _series_page(request, tmdb_id):
         'dropped': dropped,
         # "Stop watching" is offered for a series that is in one of my tabs: started or on my To Watch list.
         'can_drop': not dropped and (on_list or bool(watches)),
+        # A series I started is under Watching or Finished: there it has no To Watch button, and "Remove from all
+        # lists" (in the corner, also for a dropped series) is the way to take it off my lists.
+        'started': bool(watches),
+        'can_remove_all': dropped or bool(watches),
+        'watch_total': sum(count for _, count in watches.values()),
+        'undo_seconds': _undo_seconds(),
         'next': request.get_full_path(),
         **_rating_box(request, 'series', tmdb_id),
         'notice': notice,
@@ -231,7 +250,8 @@ def _undo_seconds():
 def _recently_removed(request, kind):
     """What the "Recently removed" block of one section shows: only titles of that kind still inside the undo window.
 
-    A title that left because it was marked as watched is not here: its undo is "Mark as not watched".
+    A title that left because it was marked as watched is not here: its undo is "Mark as not watched". A series
+    taken off all lists is here too, with the undo that puts its history back.
     """
     removed = list(
         ToWatchItem.objects.filter(
@@ -243,6 +263,10 @@ def _recently_removed(request, kind):
         .select_related('title')
         .order_by('-removed_at')
     )
+    if kind == 'series':
+        _forget_expired_removals(request.user)
+        removed += RemovedSeries.objects.filter(user=request.user).select_related('title')
+        removed.sort(key=lambda item: item.removed_at, reverse=True)
     context = {
         'removed': removed,
         'kind': kind,
@@ -329,6 +353,65 @@ def series_bring_back(request):
     if not deleted:
         return _redirect_back(request, f'“{series.title}” is not in your Dropped list.', False, 'series')
     return _redirect_back(request, f'Brought “{series.title}” back. It is in its own tab again.', True, 'series')
+
+
+# What "Remove from all lists" deletes, in the order Undo writes it back (a To Watch entry points at a watch).
+REMOVED_WITH_A_SERIES = (Watch, ToWatchItem, DroppedSeries, Rating)
+
+
+def _series_rows(user, series):
+    """Every row this account has for the series that "Remove from all lists" deletes, as one list."""
+    return [row for model in REMOVED_WITH_A_SERIES for row in model.objects.filter(user=user, title=series)]
+
+
+def _forget_expired_removals(user):
+    """Delete the copies whose Undo window is over: from then on the history is gone for good."""
+    RemovedSeries.objects.filter(user=user, removed_at__lt=timezone.now() - UNDO_WINDOW).delete()
+
+
+@require_POST
+def series_remove_all(request):
+    """Take a series off every list (To Watch, Watching, Finished, Dropped) and delete its history, rating and note.
+
+    The deleted rows are kept in a copy for the Undo (10 seconds). The button asks for confirmation in the browser.
+    """
+    series = _posted_series(request)
+    _forget_expired_removals(request.user)
+    rows = _series_rows(request.user, series)
+    if not rows:
+        return _redirect_back(request, f'“{series.title}” is not on any of your lists.', False, 'series')
+    with transaction.atomic():
+        RemovedSeries.objects.update_or_create(
+            user=request.user,
+            title=series,
+            defaults={'rows': serializers.serialize('json', rows), 'removed_at': timezone.now()},
+        )
+        for model in reversed(REMOVED_WITH_A_SERIES):
+            model.objects.filter(user=request.user, title=series).delete()
+    text = f'Removed “{series.title}” from all your lists, with its history.'
+    return _redirect_back(request, text, True, 'series')
+
+
+@require_POST
+def series_remove_all_undo(request):
+    """Put back what "Remove from all lists" deleted, if it was a moment ago and the series is still untouched."""
+    series = _posted_series(request)
+    copy = RemovedSeries.objects.filter(user=request.user, title=series).first()
+    if copy is None:
+        return _redirect_back(request, 'There is nothing to undo for that series.', False, 'series')
+    if copy.removed_at < timezone.now() - UNDO_WINDOW:
+        copy.delete()
+        text = f'It is too late to undo removing “{series.title}”. You can add it again from Search.'
+        return _redirect_back(request, text, False, 'series')
+    if _series_rows(request.user, series):
+        # Putting the old rows back on top of new ones would overwrite what happened since.
+        text = f'“{series.title}” was changed since it was removed, so it was not put back.'
+        return _redirect_back(request, text, False, 'series')
+    with transaction.atomic():
+        for row in serializers.deserialize('json', copy.rows):
+            row.save()
+        copy.delete()
+    return _redirect_back(request, f'Put “{series.title}” back on all your lists, with its history.', True, 'series')
 
 
 # Only the "Recently removed" block of one section, which its To Watch screen asks for when time runs out.

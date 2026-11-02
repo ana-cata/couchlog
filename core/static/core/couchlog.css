@@ -474,6 +474,19 @@ form[role="search"]:has(input:not(:placeholder-shown)) ~ #results .suggestions {
   flex: 1 1 16rem;
 }
 
+/* "Remove from all lists": small, in the upper right corner of a series page, with the title next to it. */
+.remove-all {
+  float: right;
+  margin: 0 0 0.5rem 1rem;
+}
+
+.remove-all button {
+  width: auto;
+  margin: 0;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.8rem;
+}
+
 /* The "Mark as watched" form (or the date it was watched) on a movie page. */
 .watched-section {
   margin-top: 1.5rem;

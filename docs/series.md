@@ -2,7 +2,7 @@
 
 ## What it does
 
-- **The series page** (`/series/<TMDB id>/`, open it from a search result or from Series → To Watch) shows the poster, title, year and description, the To Watch button, and the **seasons and episodes**.
+- **The series page** (`/series/<TMDB id>/`, open it from a search result or from Series → To Watch) shows the poster, title, year and description, the To Watch button (not for a series you started: see "Remove from all lists" below), and the **seasons and episodes**.
 - **Seasons** are folded away: click a season to open or close it. The first season is open when you arrive. **Specials** (TMDB's season 0) are listed last.
 - **The page never moves.** Pressing a circle changes only that episode's row, in place: no reload, no jump, and the scroll position and open seasons stay as they are, even deep in a long season.
 - **Each episode** shows its number, name and air date, and, if it has aired, a **round check button** on the right:
@@ -91,6 +91,19 @@ Series has four tabs, in this order: **Watching, To Watch, Finished, Dropped**. 
 - **In [Search](search.md)** a dropped series shows "In your Dropped list" (a link to the tab) instead of the To Watch button, so there is no way to add it twice. Open it to bring it back.
 - **Your own list:** each account has its own Dropped tab, and one account can never drop or bring back another's.
 
+## Remove from all lists
+
+For a series you want gone completely: off every list, with everything you saved about it.
+
+- **Where:** a small **Remove from all lists** button in the **upper right corner** of the series page, level with the title. It is there for a series you started (it is under Watching or Finished) and for a dropped series. A series that is only on your To Watch list does not show it: it keeps its normal **Remove from To Watch** button, which works as it always did.
+- **A series you started has no To Watch button.** It is under Watching or Finished, so adding it to or removing it from To Watch means nothing: the button used to flip while the series stayed in its tab. The same goes for its tile in [Search](search.md). A dropped series still says "In your Dropped list".
+- **It asks first.** The browser opens a question: "Remove “Made-up Series” from all your lists? Its 12 watches will be deleted, with your rating and note. You can undo for 10 seconds." **Cancel** changes nothing; **OK** removes.
+- **What goes:** your **watches** of every episode (rewatches too, so the time spent on [Profile](profile.md) goes down), your **To Watch entry**, the **dropped** state, and your **rating and note**. The series itself (the saved TMDB details and episodes) is shared with other accounts and stays. Nothing of another account is touched.
+- **Where you land:** Series → To Watch, with the message "Removed “…” from all your lists, with its history." and the series under **Recently removed** with an **Undo** button.
+- **Undo lasts 10 seconds**, like the one for To Watch. It puts back **everything exactly as it was**: every watch with its own day, the To Watch entry as it was, the dropped state, the rating and the note. After 10 seconds the Undo goes away and the history is gone for good; the way back is marking the episodes again.
+- **Undo is refused** (and says so) when the series was changed since, for example you added it to To Watch again from Search before pressing Undo. Putting the old rows back on top of new ones would overwrite what you just did, so nothing is put back.
+- **Your own copy:** each account has its own, and one account can never undo another's removal.
+
 ## Keeping series up to date: `refresh_calendar`
 
 `uv run python manage.py refresh_calendar` asks TMDB again for every series that is on someone's To Watch list or has a watched episode, and saves its **new episodes, new air dates, status** (ended or still running) **and typical episode runtime**. It also asks TVmaze for each series' upcoming episodes, and collects the cinema and streaming dates of the films on a To Watch list; both are described on the [Calendar](calendar.md) page. It also asks about a film you have **watched** when that film has no runtime saved yet (a film saved before runtimes were kept), so its minutes count in the time spent; once it has one, the film is left alone. (It was called `refresh_series` before the calendar card.)
@@ -111,6 +124,8 @@ Series has four tabs, in this order: **Watching, To Watch, Finished, Dropped**. 
 | `/series/dropped/` | Series → Dropped | Yes |
 | `/series/drop/` | Stop watching (button, POST only). Sends `kind` (only `series`; a film is refused with a 400), `tmdb_id` and `next`. The series must already be saved (opening its page does that): otherwise "page not found" | Yes |
 | `/series/bring-back/` | Bring back (button, POST only). Sends `kind`, `tmdb_id` and `next` | Yes |
+| `/series/remove-all/` | Remove from all lists (button, POST only). Sends `kind` (only `series`; a film is refused with a 400) and `tmdb_id`. It always goes back to `/series/`. The series must already be saved | Yes |
+| `/series/remove-all/undo/` | Undo it (button, POST only), within 10 seconds. Sends `kind`, `tmdb_id` and `next` | Yes |
 | `/series/<TMDB id>/` | The series page. `?season=2` opens that season instead of the first | Yes |
 | `/watched/episode/add/` | Mark one episode as watched, or watch it again when it already is (round button, POST only). Sends `episode_id` (our own id for the episode) and `next`, and `only_this` when it is the pop-up's "No, only this one" (the check buttons on [Home](home.md) also send `up_next`). An episode that skips unmarked episodes answers with the pop-up question instead of marking | Yes |
 | `/watched/remove/` | Take back one watch, the undo (the "−" button, POST only). Sends `watch_id` (the episode's latest watch), `episode_id` and `next`. The same address as the movie undo | Yes |
@@ -129,6 +144,7 @@ Series has four tabs, in this order: **Watching, To Watch, Finished, Dropped**. 
 - `core_title` gets `episodes_refreshed_at` (when the series' episodes were last asked from TMDB) and `status` (TMDB's own word, as of that refresh; empty until then), and `runtime`: the series' typical episode runtime, the average of the runtimes of its regular-season episodes that have one, saved by each refresh (`typical_runtime` in `core/episodes.py`) for the time spent on [Profile](profile.md).
 - `core_watch` gets `episode`: filled in for an episode watch (its `title` is the series), empty for a movie watch. An episode watch is its own row, like a movie watch (design rule 1).
 - `core_droppedseries` (migration `0009_dropped_series`): one row per account and dropped series: `user`, `title` and `dropped_at`. Unique on `user` + `title`, so dropping twice never makes a second row. **Dropping adds this row and nothing else; bringing back deletes it.** That is why it is a true undo.
+- `core_removedseries` (migration `0015_removed_series`): the copy kept for the 10-second Undo of "Remove from all lists": `user`, `title`, `removed_at` and `rows` (the deleted rows written out as text). Unique on `user` + `title`. It exists only while the Undo is possible: the Undo deletes it, and once the 10 seconds are over the next removal, the next visit to Series → To Watch or the block's own recheck deletes it.
 - No table change was needed for marking many episodes: each one is an ordinary watch row, exactly like a single mark.
 
 **Opening a series** (`_series_page` in `core/views.py`)
@@ -144,6 +160,13 @@ Series has four tabs, in this order: **Watching, To Watch, Finished, Dropped**. 
 - `dropped_series(user)` gives the ids of the account's dropped series. `series_tabs` leaves them out of Watching and Finished (so Up Next, which follows Watching, leaves them out too), the Series → To Watch screen excludes them, and the Calendar (`upcoming` in `core/releases.py`) leaves them out of both the Watching and the To Watch series. `dropped_tab(user)` is the Dropped tab's list.
 - The series page asks `core_droppedseries` whether the series is dropped, and shows "Stop watching" only when it is not dropped and is on your list or has a watch of yours (`can_drop` in `_series_page`). Both buttons are normal forms: the server saves, then goes back to `next` with a message ("… is under Series → Dropped now. Bring it back any time." / "Brought … back. It is in its own tab again."). Dropping a series that is already dropped, or bringing back one that is not, changes nothing and says so.
 - Search and the To Watch button block (`_to_watch_button.html`): the search view marks each series result you dropped (`result['dropped']`, by TMDB id and kind), and the block shows "In your Dropped list" in place of the button. TMDB is not involved; it is one question to our own table.
+
+**Remove from all lists** (`series_remove_all`, `series_remove_all_undo` in `core/views.py`; `title.html`, `_recently_removed.html`)
+- Removing collects the account's rows for the series (`_series_rows`: its watches, To Watch entry, dropped entry and rating), writes them with Django's serializer into one `core_removedseries` row (replacing an earlier copy of the same series), then deletes them, all in one database step. The serializer keeps each row's id and every date, so Undo writes back **the same rows**, watches first because a To Watch entry can point at the watch that took it off the list (`removed_by_watch`). A series with no rows at all answers "is not on any of your lists" and saves no copy.
+- Undo needs the copy to be at most `UNDO_WINDOW` (10 seconds) old and the series to have none of those rows now; otherwise it says why and puts nothing back. An expired copy is deleted when someone presses Undo on it too.
+- The confirmation is the browser's own `confirm()` question, asked by an `onsubmit` on a plain form (not htmx: the page then changes with a normal redirect). The question's words (`data-confirm`) come from the page: the number of watches (`watch_total`) and whether a rating is saved.
+- "Recently removed" on Series → To Watch (`_recently_removed`) lists these copies with the To Watch entries removed by hand, newest first, each with its own Undo (`item.everything` tells them apart). The block's recheck deletes expired copies, so a page left open empties by itself and the history is gone.
+- The button is shown when `can_remove_all` (the page has a watch of yours, or the series is dropped). The To Watch button is left out when `started` (`_series_page`, and `result['started']` in the search view, from `started_series`), and the block for a started series draws nothing (`_to_watch_button.html`).
 
 **Refreshing never loses a watch.** Episodes are matched with TMDB's own id and updated in place (number, name, date, runtime), new ones are added, and none is ever deleted. So if TMDB renumbers an episode, its watch stays on it. The test `test_a_renumbered_episode_keeps_its_watch_and_nothing_is_deleted` checks this.
 
@@ -189,4 +212,6 @@ Series has four tabs, in this order: **Watching, To Watch, Finished, Dropped**. 
 - How the tabs are worked out (`series_tabs` in `core/episodes.py`) looks at every series you have started each time a tab opens; that is fine for dozens of series.
 - The series' own details (poster, description) are saved once and not refreshed.
 - A very long series is slow to open the first time (one TMDB call per season).
+- "Remove from all lists" cannot be undone after 10 seconds: that is the point of it. The copy of the history is kept in the database until the window is over and something deletes it (the next removal, a visit to Series → To Watch, or the block's own recheck), so it can sit there a little longer if you never come back.
+- There is no confirmation on the server: the question is the browser's. Without JavaScript the button removes straight away.
 - A double click on an episode's circle adds two watches (the second counts as a rewatch); the "−" takes them back one at a time. A season button, "Watch Season N again" or a "Yes" pressed twice at once does the same: an extra watch or season rewatch that the "−" buttons take back.

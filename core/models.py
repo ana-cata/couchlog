@@ -185,6 +185,32 @@ class DroppedSeries(models.Model):
         return f'{self.user}: {self.title} (dropped)'
 
 
+class RemovedSeries(models.Model):
+    """What one account had for a series when it pressed "Remove from all lists", kept only for the Undo.
+
+    Removing deletes the watches, the To Watch entry, the dropped state, the rating and the note. This row holds
+    them, written out by Django's serializer with their ids, so Undo writes back exactly the same rows. It is
+    deleted by the Undo, and once the Undo window is over the next visit to Series → To Watch deletes it too.
+    """
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    title = models.ForeignKey(Title, on_delete=models.CASCADE)
+    removed_at = models.DateTimeField(default=timezone.now)
+    rows = models.TextField()
+
+    # "Recently removed" lists this next to the To Watch entries removed by hand, and tells them apart by this.
+    everything = True
+
+    class Meta:
+        constraints = (
+            # Removing the same series again replaces the copy: only the last removal can be undone.
+            models.UniqueConstraint(fields=['user', 'title'], name='one_removed_copy_per_series'),
+        )
+
+    def __str__(self):
+        return f'{self.user}: {self.title} (removed from all lists)'
+
+
 class Rating(models.Model):
     """One account's star rating and short note for one title (a movie or a series).
 
