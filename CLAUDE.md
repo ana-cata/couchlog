@@ -4,6 +4,7 @@ A personal web app to track the movies and series I watch: a To Watch list, a hi
 
 ## Read first
 - [plan.md](plan.md) is the source of truth: what we build, decisions, design rules, how we work, and the status log. Read the sections you need, not the whole file every time.
+- [Identity/identity.md](Identity/identity.md) is how the app looks: the logo, the four colours and where each one goes. A card that changes how a page looks follows it.
 - [docs/](docs/) says what is actually built, one page per page of the app. If docs and plan disagree about what exists, the docs and the code win. (The folder appears with the first card that needs it.)
 - The GitHub issues and project board hold the cards. Each card is one feature, and its "Done when" is the test.
 

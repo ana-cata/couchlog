@@ -1,9 +1,11 @@
 {% load static %}<!doctype html>
-<html lang="en">
+{# Always dark: without data-theme, Pico follows the computer's light or dark setting. #}
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Couchlog{% endblock %}</title>
+  <link rel="icon" href="{% static 'core/favicon.svg' %}" type="image/svg+xml">
   <link rel="stylesheet" href="{% static 'core/pico.min.css' %}">
   <link rel="stylesheet" href="{% static 'core/couchlog.css' %}">
   <script src="{% static 'core/htmx.min.js' %}" defer></script>
@@ -14,7 +16,7 @@
   <header class="container">
     <nav>
       <ul>
-        <li><strong><a href="{% url 'home' %}" class="contrast">Couchlog</a></strong></li>
+        <li><a href="{% url 'home' %}" class="logo"><img src="{% static 'core/logo-couchlog.svg' %}" alt="Couchlog"></a></li>
       </ul>
       <ul>
         {% if user.is_authenticated %}
