@@ -114,6 +114,20 @@ form[role="search"]:has(input:not(:placeholder-shown)) ~ #results .suggestions {
   font-size: 0.8rem;
 }
 
+/* While the server works on an Add / Remove press ("Adding…"), the button says so and is disabled (htmx puts the class
+   htmx-request on the form for as long as it waits). Outside that time only the usual words show. */
+.to-watch-action .busy {
+  display: none;
+}
+
+.to-watch-action form.htmx-request .idle {
+  display: none;
+}
+
+.to-watch-action form.htmx-request .busy {
+  display: inline;
+}
+
 /* A dropped series has this note where the button would be. */
 .dropped-note {
   display: block;

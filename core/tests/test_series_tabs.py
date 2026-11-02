@@ -293,7 +293,7 @@ def test_the_tabs_show_plain_tiles_without_a_to_watch_button(client_with_series)
     html = page(client, '/series/watching/')
 
     assert 'Made-up Series 1' in html and 'class="tile"' in html
-    assert 'To Watch</button>' not in html and 'action="/to-watch/' not in html
+    assert 'To Watch</span>' not in html and 'action="/to-watch/' not in html
 
 
 def test_the_watching_and_finished_tabs_say_so_when_empty(client_with_series):

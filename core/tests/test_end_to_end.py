@@ -563,7 +563,9 @@ def test_a_series_on_the_to_watch_list_shows_in_the_calendar_until_it_is_removed
     page.get_by_role('link', name='Search', exact=True).click()
     page.wait_for_load_state('load')
     page.get_by_role('searchbox').press_sequentially('made-up')
-    page.get_by_role('button', name='Add to To Watch').click()
+    # The series is on the list at once and the button asks for its episodes right after, so wait for that answer.
+    with page.expect_response('**/to-watch/collect/'):
+        page.get_by_role('button', name='Add to To Watch').click()
     expect(page.get_by_role('button', name='Remove from To Watch')).to_be_visible()
 
     # Adding collected its dates, so the calendar shows the episode on the day TMDB gives, with no job run by hand.

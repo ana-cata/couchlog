@@ -200,7 +200,7 @@ def test_the_dropped_tab_shows_plain_tiles_without_a_to_watch_button(me):
     html = page(me, '/series/dropped/')
 
     assert 'Made-up Series 1' in html and 'class="tile"' in html
-    assert 'To Watch</button>' not in html and 'action="/to-watch/' not in html
+    assert 'To Watch</span>' not in html and 'action="/to-watch/' not in html
 
 
 # --- Up Next and the Calendar -----------------------------------------------------------------
@@ -367,7 +367,7 @@ def test_the_page_of_a_dropped_series_says_so_and_offers_bring_back(me):
     assert 'action="/series/bring-back/"' in html and 'Bring back' in html
     assert 'Stop watching' not in html
     # No To Watch button either: the Dropped note takes its place.
-    assert 'To Watch</button>' not in html
+    assert 'To Watch</span>' not in html and 'action="/to-watch/' not in html
     assert 'In your Dropped list' in html
 
 
