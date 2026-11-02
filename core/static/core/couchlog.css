@@ -44,6 +44,11 @@ header nav li {
   flex-direction: column;
 }
 
+/* The suggestions under an empty search box go as soon as something is typed, without waiting for the results. */
+form[role="search"]:has(input:not(:placeholder-shown)) ~ #results .suggestions {
+  display: none;
+}
+
 .tile {
   display: block;
   flex: 1;

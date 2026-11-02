@@ -139,7 +139,9 @@ def test_restoring_a_page_from_htmx_history_gets_the_whole_page(logged_in_client
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize('url', ['/search/', '/search/?q=made-up', '/movie/603/', '/series/1399/'])
+@pytest.mark.parametrize(
+    'url', ['/search/', '/search/?q=made-up', '/search/suggestions/', '/movie/603/', '/series/1399/']
+)
 def test_these_pages_are_closed_when_logged_out(client, respx_mock, url):
     response = client.get(url)
 

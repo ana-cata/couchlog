@@ -1,0 +1,16 @@
+{# The suggested movies and series under an empty search box. `blocks` has, for movies and for series, a heading and either tiles or an error. #}
+<div class="suggestions">
+  {% for block in blocks %}
+    {% if block.error %}
+      <h2>{{ block.heading }}</h2>
+      <p role="alert">{{ block.error }}</p>
+    {% elif block.tiles %}
+      <h2>{{ block.heading }}</h2>
+      <ul class="results">
+        {% for tile in block.tiles %}
+          {% include 'core/_tile.html' with live=True %}
+        {% endfor %}
+      </ul>
+    {% endif %}
+  {% endfor %}
+</div>
