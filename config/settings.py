@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
 import os
+import warnings
 from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
@@ -53,6 +54,9 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    # Serves the CSS, logo and htmx when debug is off (runserver does it itself when debug is on).
+    # Right after SecurityMiddleware, so these files need no login.
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -88,10 +92,17 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
 
+# On the PC the file is db.sqlite3 in the project folder. In Docker, docker-compose.yml sets DJANGO_DB_PATH to a file in the volume.
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'NAME': os.environ.get('DJANGO_DB_PATH') or BASE_DIR / 'db.sqlite3',
+        'OPTIONS': {
+            # Safe against power cuts: a cut loses at most the last action and never corrupts the file.
+            # The write-ahead log (WAL) writes changes to a side file first, and "normal" syncs to disk less often.
+            # A WAL database is a few files (db.sqlite3-wal and -shm), so backups must use SQLite's backup command.
+            'init_command': 'PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;',
+        },
     }
 }
 
@@ -138,6 +149,14 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
 STATIC_URL = 'static/'
+
+# `collectstatic` copies all the static files here (the Dockerfile runs it), and WhiteNoise serves them from here.
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# On the PC that folder does not exist (runserver serves the files itself), and WhiteNoise would warn about it on
+# every start and in every test. With debug off (Docker) the warning stays, because there it would mean a mistake.
+if DEBUG:
+    warnings.filterwarnings('ignore', message='No directory at')
 
 
 # Email

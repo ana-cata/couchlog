@@ -5,8 +5,10 @@ description = "Track the movies and series you watch"
 requires-python = ">=3.14"
 dependencies = [
     "django>=6.1.2",
+    "gunicorn>=26.2.0",
     "httpx>=0.28.1",
     "python-dotenv>=1.2.4",
+    "whitenoise>=6.12.0",
 ]
 
 [dependency-groups]
@@ -25,3 +27,5 @@ extend-exclude = ["*/migrations/*"]
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings"
+# WhiteNoise warns when the staticfiles folder is missing, which is normal on the PC (see config/settings.py).
+filterwarnings = ["ignore:No directory at"]
