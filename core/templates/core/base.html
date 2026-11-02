@@ -11,6 +11,7 @@
   <script src="{% static 'core/htmx.min.js' %}" defer></script>
   <script src="{% static 'core/back.js' %}" defer></script>
   <script src="{% static 'core/suggestions.js' %}" defer></script>
+  <script src="{% static 'core/problems.js' %}" defer></script>
 </head>
 <body>
   {# The bar across the top. The page you are on is marked with aria-current (hot pink and bold, see couchlog.css). #}
@@ -34,6 +35,11 @@
       </ul>
       {% endwith %}
     </nav>
+    {# Says so when a button or a search gets no answer from Couchlog (problems.js). In the bar, so it shows wherever #}
+    {# the page is scrolled. Hidden until then. #}
+    <div class="container">
+      <p id="problem" role="alert" hidden></p>
+    </div>
   </header>
   <main class="container">
     {% for message in messages %}

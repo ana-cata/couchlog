@@ -2,7 +2,7 @@
 
 ## What it does
 
-- **Search page** (`/search/`, linked as "Search" in the header). Type a title and matching movies and series appear below the box as you type, a moment after you stop typing. Pressing Enter also works.
+- **Search page** (`/search/`, linked as "Search" in the header). Type a title and matching movies and series appear below the box as you type, a moment after you stop typing. While TMDB is being asked, "Searching…" with a small spinner shows under the box, and it goes when the results arrive. Pressing Enter also works.
 - **Suggestions.** While the box is empty, the page shows **Suggested movies** and **Suggested series** below it: up to 10 of each, as normal tiles (they open the title page and have the To Watch button). They are picked from what you watch and save (see below). They appear a moment after the page, they vanish as soon as you type a letter, and clearing the box brings them back. Searching for something shows the results as before.
 - **Adding a suggestion.** Press "Add to To Watch" on a suggested tile and, once the title is on your list, that tile leaves and **the next suggestion of the same kind takes its place**, in the same spot, so the block stays full (up to 10) and you can keep adding. Only suggestions do this: a search result keeps its tile and its button turns into "Remove from To Watch". If no spare suggestion is left, the tile just goes and the block is one shorter (when the last one goes, its heading goes too). There is no Undo on the suggestion: the title is on your To Watch list (Movies or Series), where Remove and its Undo already are. Reloading the page picks the suggestions again without it.
 - Results are shown as **tiles** in a grid: the poster on top, the name below, then the year and whether it is a movie or a series. The whole tile is a link, and when the mouse is over a tile (or you tab to it) its title and year are underlined so the choice is easy to see. The grid fits the screen (about two tiles across on a phone, more on a wide screen), and every tile is the same size: a long name is cut with "..." (hover to see it all). People (actors, directors) that TMDB also finds are left out.
@@ -35,6 +35,7 @@
   - TMDB cannot be reached, or does not accept the key: a short message under the box. For the suggestions, the message takes the place of the movies (or the series) that could not be loaded, and the other block still shows.
   - Nothing matches: "No movies or series match ...".
   - A title that TMDB does not have: the normal "page not found" screen.
+  - Couchlog itself does not answer a search or a button (no Wi-Fi, the PC or Pi off), or answers with an error: a line under the header bar says so (see [Messages](messages.md)).
 - A result with no poster shows "No poster", and one with no date shows "Year unknown".
 - **Undo:** not needed for search itself, because search changes none of your data. For a rating and note, editing again is the way back (see above).
 
@@ -52,6 +53,7 @@
 **Live results**
 - The box (`core/templates/core/search.html`) uses htmx. A request goes out 0.4 seconds after typing stops (`hx-trigger="input changed delay:400ms, search"`), so TMDB is not asked on every key. A newer request cancels an older one still running (`hx-sync`), so a slow old answer never replaces a newer one.
 - The address bar is updated with the search text (`hx-replace-url`), so reloading the page keeps the results.
+- "Searching…" is `<p id="searching" aria-busy="true">` under the form, named by the box's `hx-indicator`. htmx gives it the class `htmx-request` while a search is on its way, and `couchlog.css` shows it only then (see [Messages](messages.md)).
 - The `/search/` view (`core/views.py`) answers a normal request with the whole page (`search.html`) and an htmx request with only the list (`_search_results.html`). The answer is marked `Vary: HX-Request` so the browser never shows the list-only version as a page.
 - Each tile (`_tile.html`, with the link part in `_tile_link.html`) is a link to the title page, with the To Watch button in the poster's corner (`_to_watch_button.html` with `corner`, a sibling of the link, not inside it, so a click on the button never opens the page; `.results li` is the positioning box and the button is placed against its top-right corner). `_tile.html`, the tile with the button, is only used by the search results and the suggestions; the To Watch lists and History use `_tile_link.html` on its own. The view checks your To Watch list to know which button to show.
 - Without JavaScript, Enter sends the form and the whole page loads with the results.
