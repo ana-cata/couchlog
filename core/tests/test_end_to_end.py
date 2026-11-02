@@ -528,11 +528,11 @@ def test_up_next_on_home_follows_the_check_buttons_and_the_series_page_bars(live
 
     # The series page shows the bars full. Undoing an episode there moves both bars back in place.
     page.goto(live_server.url + '/series/1399/')
-    expect(page.locator('#progress-series')).to_contain_text('3 of 3 aired episodes watched')
-    expect(page.locator('#progress-season-1')).to_contain_text('3 of 3 aired episodes watched')
+    expect(page.locator('#progress-series')).to_contain_text('3 of 3 episodes')
+    expect(page.locator('#progress-season-1')).to_contain_text('3 of 3 episodes')
     page.get_by_role('button', name='Mark episode 3 as not watched').click()
-    expect(page.locator('#progress-series')).to_contain_text('2 of 3 aired episodes watched')
-    expect(page.locator('#progress-season-1')).to_contain_text('2 of 3 aired episodes watched')
+    expect(page.locator('#progress-series')).to_contain_text('2 of 3 episodes')
+    expect(page.locator('#progress-season-1')).to_contain_text('2 of 3 episodes')
 
     # And back on Home the episode is next again.
     page.goto(live_server.url)
@@ -700,13 +700,13 @@ def test_remove_a_series_from_all_lists_with_a_question_first_then_undo(live_ser
     expect(page.get_by_role('button', name='Remove from To Watch')).to_have_count(0)
     expect(page.get_by_role('button', name='Remove from all lists')).to_have_count(0)
 
-    # Stop watching: now the small button is in the upper right corner.
+    # Stop watching: now the small button is there, under the poster with the other small buttons.
     page.get_by_role('button', name='Stop watching').click()
     corner = page.get_by_role('button', name='Remove from all lists')
     expect(corner).to_be_visible()
-    corner_box, heading_box = corner.bounding_box(), page.get_by_role('heading', name='Made-up Series').bounding_box()
-    assert corner_box['x'] > heading_box['x']  # to the right of the title
-    assert corner_box['y'] < heading_box['y'] + heading_box['height']  # at the top, level with it
+    corner_box, poster_box = corner.bounding_box(), page.locator('.title-poster .poster').bounding_box()
+    assert corner_box['y'] > poster_box['y'] + poster_box['height']  # below the poster
+    assert corner_box['x'] < poster_box['x'] + poster_box['width']  # in the poster's column, not next to the title
 
     # Cancel: the question is asked and nothing changes.
     corner.click()

@@ -325,15 +325,6 @@ form[role="search"]:has(input:not(:placeholder-shown)) ~ #results .suggestions {
   filter: brightness(1.15);
 }
 
-/* The title's own page: the button under the poster is only as wide as its words, on one line (the poster is only
-   185 px wide, and "Remove from To Watch" is the longest). */
-.title-poster .to-watch-action button {
-  width: auto;
-  padding: 0.25rem 0.6rem;
-  font-size: 0.75rem;
-  white-space: nowrap;
-}
-
 /* Words that screen readers read but nobody sees. */
 .visually-hidden {
   position: absolute;
@@ -349,6 +340,35 @@ form[role="search"]:has(input:not(:placeholder-shown)) ~ #results .suggestions {
   display: block;
   margin-top: 0.5rem;
   text-align: center;
+}
+
+/* The seasons, under the description and the rating. */
+.seasons {
+  margin-top: 1.5rem;
+}
+
+/* A season's first line: its name and "3 of 10 episodes", a thin bar under them, and Pico's arrow at the right. The
+   arrow is a float in Pico; here the line is a row, so the arrow sits level with the name instead of under the bar. */
+.seasons summary {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.season-line {
+  flex: 1;
+  min-width: 0;
+}
+
+.season-line small {
+  color: var(--pico-muted-color);
+}
+
+.season-line progress {
+  display: block;
+  width: 100%;
+  height: 0.35rem;
+  margin: 0.5rem 0 0;
 }
 
 /* The episodes of a series: the name and air date on the left, the round check button on the right. */
@@ -489,8 +509,8 @@ form[role="search"]:has(input:not(:placeholder-shown)) ~ #results .suggestions {
   filter: brightness(1.15);
 }
 
-/* A progress bar with how many aired episodes are watched written under it: on the series page (the series and
-   each season) and on the Home cards. */
+/* A progress bar with how many aired episodes are watched written under it, on the Home cards. (The series page has
+   its own: .series-bar and .season-line.) */
 .progress {
   display: block;
 }
@@ -506,9 +526,6 @@ form[role="search"]:has(input:not(:placeholder-shown)) ~ #results .suggestions {
   color: var(--pico-muted-color);
 }
 
-.series-progress {
-  margin-bottom: 1rem;
-}
 
 /* The News section on Home: wide banners in a grid, each with the days left in its corner. */
 .news {
@@ -672,27 +689,54 @@ form[role="search"]:has(input:not(:placeholder-shown)) ~ #results .suggestions {
   gap: 1.5rem;
 }
 
-/* The poster with its To Watch button below it, next to the details. */
+/* The poster, with what is about the title itself under it: the series' bar and the small buttons. It is next to the
+   details. */
 .title-poster {
   flex: none;
   width: 185px;
 }
 
-.title-details {
-  flex: 1 1 16rem;
+/* The whole series' bar: thin, with "8 of 15 episodes" under it. */
+.series-bar progress {
+  display: block;
+  width: 100%;
+  height: 0.35rem;
+  margin: 0.75rem 0 0.25rem;
 }
 
-/* "Remove from all lists": small, in the upper right corner of a series page, with the title next to it. */
-.remove-all {
-  float: right;
-  margin: 0 0 0.5rem 1rem;
+.series-bar small {
+  display: block;
+  color: var(--pico-muted-color);
 }
 
-.remove-all button {
+/* The small buttons under the poster, one under the other: To Watch, Stop watching, Bring back, Remove from all
+   lists. Each is only as wide as its words, on one line (the poster is only 185 px wide and "Remove from all lists"
+   is the longest). */
+.poster-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.poster-actions > :first-child {
+  margin-top: 0.75rem;
+}
+
+.poster-actions form {
+  margin: 0;
+}
+
+.title-poster button {
   width: auto;
   margin: 0;
-  padding: 0.25rem 0.75rem;
-  font-size: 0.8rem;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.title-details {
+  flex: 1 1 16rem;
 }
 
 /* The "Mark as watched" form (or the date it was watched) on a movie page. */
@@ -738,7 +782,8 @@ form[role="search"]:has(input:not(:placeholder-shown)) ~ #results .suggestions {
   line-height: 1.5;
 }
 
-/* Your stars and note on a title's page. */
+/* Your stars and note on a title's page. The stars, the note and the edit pencil run on in one line, so the pencil
+   sits right after the last words (the form, when it opens, goes under them). */
 .rating-section {
   margin-top: 1.5rem;
 }
@@ -749,15 +794,21 @@ form[role="search"]:has(input:not(:placeholder-shown)) ~ #results .suggestions {
 
 .rating-stars,
 .rating-note {
-  margin-bottom: 0.5rem;
+  overflow-wrap: anywhere;
 }
 
 .rating-stars {
   font-size: 1.25rem;
 }
 
-.rating-note {
-  overflow-wrap: anywhere;
+.rating-section details {
+  display: inline;
+}
+
+/* The form opens under the saved text, with a little room. */
+.rating-section details form {
+  display: block;
+  margin-top: 0.75rem;
 }
 
 /* "No rating" and the five star choices in a row (they wrap on a narrow screen). */
@@ -775,16 +826,31 @@ form[role="search"]:has(input:not(:placeholder-shown)) ~ #results .suggestions {
   margin: 0;
 }
 
-/* The edit icon (a pencil) that opens the form once something is saved. It is only the icon, with no arrow. */
+/* Neither the pencil nor the "Rate it" button has Pico's arrow: the pencil is an icon, and the button looks like one. */
+.rating-section summary::after {
+  display: none;
+}
+
+/* The edit icon (a pencil) that opens the form once something is saved, right after the saved text. */
 .rating-section summary.rating-edit {
   display: inline-flex;
+  vertical-align: middle;
   width: fit-content;
+  margin-inline-start: 0.25rem;
   padding: 0.25rem;
   color: var(--pico-color);
 }
 
-.rating-section summary.rating-edit::after {
-  display: none;
+/* "Rate it or add a note", with nothing saved yet: a small quiet button with a star. */
+.rating-section summary.rating-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: auto;
+  margin: 0;
+  padding: 0.3rem 0.8rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
 }
 
 /* "Time spent watching" on the Profile page: the name on the left, the time on the right. */

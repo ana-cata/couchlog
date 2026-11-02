@@ -1,10 +1,10 @@
 {# The answer to a round check button when htmx asked: the episode's row (htmx swaps it in place of the row the #}
 {# button is in), then the button of its season, in case this episode just completed or broke the season, and the #}
-{# progress bars of the season and of the series. #}
+{# first line of the season (its count and bar) and the series' bar. #}
 {% include 'core/_episode_row.html' %}
 {% for season in seasons %}
   {% include 'core/_season_action.html' with oob=True %}
   {% include 'core/_season_rewatch.html' with oob=True %}
-  {% include 'core/_progress.html' with oob=True dom_id=season.progress_id watched=season.watched_count aired=season.aired_count %}
+  {% include 'core/_season_line.html' with oob=True %}
 {% endfor %}
-{% include 'core/_progress.html' with oob=True dom_id='progress-series' watched=progress.watched aired=progress.aired %}
+{% include 'core/_series_bar.html' with oob=True watched=progress.watched total=progress.total %}

@@ -3,6 +3,7 @@ and the screens that show them."""
 
 import datetime
 import re
+from html.parser import HTMLParser
 
 import pytest
 import time_machine
@@ -472,12 +473,34 @@ def test_each_account_has_its_own_up_next(two_series):
 # --- the progress bars on the series page -----------------------------------------------------
 
 
+class _Bar(HTMLParser):
+    """Finds the element with one id (the series' bar, or a season's first line) and the <progress> inside it."""
+
+    def __init__(self, dom_id):
+        super().__init__()
+        self.dom_id, self.depth, self.found, self.numbers = dom_id, 0, False, None
+
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        if not self.found and attrs.get('id') == self.dom_id:
+            self.found, self.depth = True, 1
+        elif self.depth:
+            self.depth += 1
+            if tag == 'progress':
+                self.numbers = (int(attrs['value']), int(attrs['max']))
+
+    def handle_endtag(self, tag):
+        if self.depth:
+            self.depth -= 1
+
+
 def bar(html, dom_id):
-    """(watched, aired) of the bar with this id, or None when it shows no bar."""
-    match = re.search(rf'<span class="progress" id="{dom_id}"[^>]*>(.*?)</span>', html, re.DOTALL)
-    assert match, f'no bar with the id {dom_id}'
-    numbers = re.search(r'value="(\d+)" max="(\d+)"', match[1])
-    return (int(numbers[1]), int(numbers[2])) if numbers else None
+    """(watched, total) of the bar with this id, or None when it shows no bar. The series page counts every episode
+    it knows of, aired or not (Home counts only the ones that have aired)."""
+    finder = _Bar(dom_id)
+    finder.feed(html)
+    assert finder.found, f'no bar with the id {dom_id}'
+    return finder.numbers
 
 
 @pytest.fixture
@@ -497,21 +520,35 @@ def series_page(client):
 def test_the_series_page_shows_a_bar_for_the_series_and_one_for_each_season_but_not_the_specials(series_page):
     html = series_page.get('/series/1/').content.decode()
 
-    assert bar(html, 'progress-series') == (0, 3)  # the special and the episode that has not aired are not counted
+    # The special is not counted, but the episode that has not aired is: the season will have two.
+    assert bar(html, 'progress-series') == (0, 4)
     assert bar(html, 'progress-season-1') == (0, 2)
-    assert bar(html, 'progress-season-2') == (0, 1)
+    assert bar(html, 'progress-season-2') == (0, 2)
     assert bar(html, 'progress-season-0') is None
-    assert '0 of 3 aired episodes watched' in html
+    assert '0 of 4 episodes' in html
+    assert 'Season 2' in html and '· 0 of 2 episodes' in html  # the season's first line
 
 
-def test_a_season_with_nothing_aired_has_no_bar(client):
+def test_a_season_with_nothing_aired_yet_still_counts_the_episodes_it_will_have(client):
     series = make_series(1)
     make_episode(series, 1, 1, air_date=TOMORROW)
 
     html = client.get('/series/1/').content.decode()
 
+    assert bar(html, 'progress-series') == (0, 1)
+    assert bar(html, 'progress-season-1') == (0, 1)
+
+
+def test_a_series_with_only_specials_has_no_series_bar_and_the_specials_have_no_count(client):
+    series = make_series(1)
+    make_episode(series, 0, 1)
+    make_episode(series, 0, 2)
+
+    html = client.get('/series/1/').content.decode()
+
     assert bar(html, 'progress-series') is None
-    assert bar(html, 'progress-season-1') is None
+    assert bar(html, 'progress-season-0') is None
+    assert '· 2 episodes' in html
 
 
 def test_the_bars_follow_what_is_watched_and_the_series_bar_is_the_seasons_added_up(series_page):
@@ -523,8 +560,8 @@ def test_the_bars_follow_what_is_watched_and_the_series_bar_is_the_seasons_added
     html = client.get('/series/1/').content.decode()
 
     assert bar(html, 'progress-season-1') == (1, 2)
-    assert bar(html, 'progress-season-2') == (1, 1)
-    assert bar(html, 'progress-series') == (2, 3)
+    assert bar(html, 'progress-season-2') == (1, 2)
+    assert bar(html, 'progress-series') == (2, 4)
 
 
 def test_marking_an_episode_with_htmx_sends_the_new_bars_along_with_the_row(series_page):
@@ -535,8 +572,8 @@ def test_marking_an_episode_with_htmx_sends_the_new_bars_along_with_the_row(seri
     html = response.content.decode()
 
     assert bar(html, 'progress-season-1') == (2, 2)
-    assert bar(html, 'progress-series') == (2, 3)
-    assert html.count('hx-swap-oob="true"') >= 3  # the season button and both bars are put in place by their ids
+    assert bar(html, 'progress-series') == (2, 4)
+    assert html.count('hx-swap-oob="true"') >= 3  # the season button, its first line and the series' bar are put in place by their ids
 
 
 def test_marking_a_whole_season_with_htmx_sends_the_new_bars(series_page):
@@ -546,7 +583,7 @@ def test_marking_a_whole_season_with_htmx_sends_the_new_bars(series_page):
     html = response.content.decode()
 
     assert bar(html, 'progress-season-1') == (2, 2)
-    assert bar(html, 'progress-series') == (2, 3)
+    assert bar(html, 'progress-series') == (2, 4)
 
 
 def test_undoing_an_episode_moves_the_bars_back(series_page):
@@ -558,14 +595,16 @@ def test_undoing_an_episode_moves_the_bars_back(series_page):
     html = response.content.decode()
 
     assert bar(html, 'progress-season-1') == (0, 2)
-    assert bar(html, 'progress-series') == (0, 3)
+    assert bar(html, 'progress-series') == (0, 4)
     assert snapshot() == rows_before
 
 
-def test_the_up_next_card_and_the_series_page_agree(two_series):
+def test_home_counts_the_aired_episodes_and_the_series_page_counts_every_episode(two_series):
     client = two_series
+    make_episode(client.episodes[(1, 1)].title, 1, 4, air_date=TOMORROW)  # one more, still to air
     card = cards(home(client))[0]
 
     html = client.get('/series/1/').content.decode()
 
-    assert card[2] == bar(html, 'progress-series') == (1, 3)
+    assert card[2] == (1, 3)  # Home: 1 of the 3 that have aired
+    assert bar(html, 'progress-series') == (1, 4)  # the series page: 1 of the 4 the series will have

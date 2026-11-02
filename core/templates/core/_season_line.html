@@ -1,0 +1,13 @@
+{# The first line of a season (its summary): the name, how many of its episodes are watched ("Season 2 · 3 of 10 #}
+{# episodes", the 10 counting episodes that have not aired yet) and a thin bar under it. The Specials have no count, #}
+{# only their number of episodes. The answer to a button puts a new line in place of this one (`oob` is set then, #}
+{# and htmx swaps it by its id). `season` comes from `_season_info` in core/views.py. #}
+<span class="season-line" id="{{ season.progress_id }}"{% if oob %} hx-swap-oob="true"{% endif %}>
+  <span class="season-name">{{ season.name }}</span>
+  {% if season.number == 0 %}
+    <small>· {{ season.episodes|length }} episode{{ season.episodes|length|pluralize }}</small>
+  {% else %}
+    <small>· {{ season.watched_count }} of {{ season.total_count }} episode{{ season.total_count|pluralize }}</small>
+    <progress value="{{ season.watched_count }}" max="{{ season.total_count }}" aria-label="Episodes watched"></progress>
+  {% endif %}
+</span>

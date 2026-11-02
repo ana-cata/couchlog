@@ -1,0 +1,9 @@
+{# The whole series' bar under its poster: the episodes watched out of all the episodes we know of, aired or not #}
+{# (Specials are left out). Empty when the series has no regular episodes, so there is never a bar with nothing to #}
+{# count. The answer to a button puts a new one in place of it (`oob` is set then, and htmx swaps it by its id). #}
+<div class="series-bar" id="progress-series"{% if oob %} hx-swap-oob="true"{% endif %}>
+  {% if total %}
+    <progress value="{{ watched }}" max="{{ total }}" aria-label="Episodes watched"></progress>
+    <small>{{ watched }} of {{ total }} episode{{ total|pluralize }}</small>
+  {% endif %}
+</div>
