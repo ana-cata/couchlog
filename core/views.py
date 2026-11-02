@@ -106,9 +106,9 @@ def search_suggestions(request):
     holds up the box). Movies and series are asked separately: if TMDB fails for one, the other still shows."""
     blocks = []
     for kind, heading in (('movie', 'Suggested movies'), ('series', 'Suggested series')):
-        block = {'heading': heading, 'tiles': [], 'error': ''}
+        block = {'heading': heading, 'tiles': [], 'spares': [], 'error': ''}
         try:
-            block['tiles'] = suggest(request.user, kind)
+            block['tiles'], block['spares'] = suggest(request.user, kind)
         except tmdb.TmdbError as problem:
             block['error'] = str(problem)
         blocks.append(block)
