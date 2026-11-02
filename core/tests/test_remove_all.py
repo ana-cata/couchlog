@@ -1,4 +1,4 @@
-"""Remove from all lists: a series I started (or dropped) leaves every list, with its history, rating and note."""
+"""Remove from all lists: a dropped series leaves every list, with its history, rating and note."""
 
 import datetime
 import re
@@ -140,7 +140,7 @@ def make_finished(me):
 
 
 @pytest.mark.parametrize('tab', ['watching', 'finished'])
-def test_a_series_under_watching_or_finished_has_no_to_watch_button_but_has_the_corner_button(me, tab):
+def test_a_series_under_watching_or_finished_has_neither_a_to_watch_button_nor_the_corner_button(me, tab):
     if tab == 'finished':
         make_finished(me)
     else:
@@ -152,17 +152,17 @@ def test_a_series_under_watching_or_finished_has_no_to_watch_button_but_has_the_
 
     assert 'Remove from To Watch' not in html and 'Add to To Watch' not in html
     assert 'action="/to-watch/' not in html
-    assert 'Remove from all lists' in html and 'action="/series/remove-all/"' in html
+    assert 'Remove from all lists' not in html and 'action="/series/remove-all/"' not in html
 
 
-def test_a_started_series_that_is_not_on_the_list_has_no_add_button_either(me):
+def test_a_started_series_that_is_not_on_the_list_has_no_add_button_and_no_corner_button(me):
     ToWatchItem.objects.all().delete()
     mark(me, me.first)
 
     html = page(me, ADDRESS)
 
     assert 'Add to To Watch' not in html
-    assert 'Remove from all lists' in html
+    assert 'Remove from all lists' not in html
 
 
 def test_a_series_only_on_the_to_watch_list_keeps_its_button_and_has_no_corner_button(me):
@@ -191,6 +191,17 @@ def test_a_dropped_series_has_the_corner_button_and_still_says_it_is_dropped(me)
     assert 'Bring back' in html
 
 
+def test_the_corner_button_follows_the_flow_and_is_gone_again_after_bringing_the_series_back(me):
+    """To Watch -> Watching -> Dropped is the only way to it. Bring back puts the series in Watching: no button."""
+    assert 'Remove from all lists' not in page(me, ADDRESS)  # To Watch
+    mark(me, me.first)
+    assert 'Remove from all lists' not in page(me, ADDRESS)  # Watching
+    drop(me)
+    assert 'Remove from all lists' in page(me, ADDRESS)  # Dropped
+    me.post('/series/bring-back/', {'kind': 'series', 'tmdb_id': 1})
+    assert 'Remove from all lists' not in page(me, ADDRESS)  # Watching again
+
+
 def test_a_film_page_has_no_corner_button(me, respx_mock):
     respx_mock.get('https://api.themoviedb.org/3/movie/603').respond(
         json={'id': 603, 'title': 'Made-up Movie', 'release_date': '1999-03-31', 'overview': 'A made-up story.'}
@@ -208,6 +219,7 @@ def test_the_question_names_the_series_and_what_goes(me):
     mark(me, me.first)
     mark(me, me.second)
     rate(me)
+    drop(me)
 
     html = page(me, ADDRESS)
 
@@ -219,12 +231,14 @@ def test_the_question_names_the_series_and_what_goes(me):
 
 def test_the_question_says_so_when_there_is_one_watch_and_no_rating(me):
     mark(me, me.first)
+    drop(me)
 
     assert 'Its 1 watch will be deleted.' in page(me, ADDRESS)
 
 
 def test_the_question_does_not_mention_a_rating_that_is_not_there(me):
     mark(me, me.first)
+    drop(me)
 
     html = page(me, ADDRESS)
 

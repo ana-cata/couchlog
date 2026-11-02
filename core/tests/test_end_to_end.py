@@ -692,12 +692,16 @@ def test_remove_a_series_from_all_lists_with_a_question_first_then_undo(live_ser
     page.get_by_label('Password').fill('made-up-password')
     page.get_by_role('button', name='Log in').click()
 
-    # It is under Watching. Its page has no To Watch button, and the small button is in the upper right corner.
+    # It is under Watching. Its page has no To Watch button and no way off all lists yet: that comes with Dropped.
     page.get_by_role('link', name='Series', exact=True).click()
     expect(page.locator('.tile')).to_contain_text('Made-up Series')
     page.locator('.tile').click()
     expect(page.get_by_role('heading', name='Made-up Series')).to_be_visible()
     expect(page.get_by_role('button', name='Remove from To Watch')).to_have_count(0)
+    expect(page.get_by_role('button', name='Remove from all lists')).to_have_count(0)
+
+    # Stop watching: now the small button is in the upper right corner.
+    page.get_by_role('button', name='Stop watching').click()
     corner = page.get_by_role('button', name='Remove from all lists')
     expect(corner).to_be_visible()
     corner_box, heading_box = corner.bounding_box(), page.get_by_role('heading', name='Made-up Series').bounding_box()
@@ -725,12 +729,13 @@ def test_remove_a_series_from_all_lists_with_a_question_first_then_undo(live_ser
     page.get_by_role('link', name='Watching', exact=True).click()
     expect(page.get_by_text('No series in Watching yet')).to_be_visible()
 
-    # Undo: everything is back, down to the ticks on its episodes and the stars.
+    # Undo: everything is back, down to the ticks on its episodes and the stars. It is dropped again, as it was.
     page.get_by_role('link', name='To Watch', exact=True).click()
     page.get_by_role('button', name='Undo').click()
     expect(page.get_by_text('Put “Made-up Series” back on all your lists, with its history.')).to_be_visible()
     assert (Watch.objects.count(), ToWatchItem.objects.count(), Rating.objects.count()) == (2, 1, 1)
-    page.get_by_role('link', name='Watching', exact=True).click()
+    assert DroppedSeries.objects.count() == 1
+    page.get_by_role('link', name='Dropped', exact=True).click()
     page.locator('.tile').click()
     expect(page.get_by_role('button', name='Mark episode 1 as not watched')).to_be_visible()
     expect(page.get_by_role('button', name='Mark episode 2 as not watched')).to_be_visible()

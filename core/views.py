@@ -202,10 +202,10 @@ def _series_page(request, tmdb_id):
         'dropped': dropped,
         # "Stop watching" is offered for a series that is in one of my tabs: started or on my To Watch list.
         'can_drop': not dropped and (on_list or bool(watches)),
-        # A series I started is under Watching or Finished: there it has no To Watch button, and "Remove from all
-        # lists" (in the corner, also for a dropped series) is the way to take it off my lists.
+        # A series I started is under Watching or Finished: there it has no To Watch button. "Remove from all lists"
+        # (in the corner) is only for a dropped series: Watching -> Dropped -> Remove from all lists.
         'started': bool(watches),
-        'can_remove_all': dropped or bool(watches),
+        'can_remove_all': dropped,
         'watch_total': sum(count for _, count in watches.values()),
         'undo_seconds': _undo_seconds(),
         'next': request.get_full_path(),
