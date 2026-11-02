@@ -334,7 +334,19 @@ def test_the_buttons_only_accept_a_button_press(me, url):
 # --- the series page --------------------------------------------------------------------------
 
 
-def test_the_series_page_offers_stop_watching_for_a_series_on_the_list(me):
+def test_the_series_page_does_not_offer_stop_watching_for_a_series_only_on_the_list(me):
+    html = page(me, ADDRESS)
+
+    # Nothing is marked, so there is nothing to stop. It leaves the list with its Remove button.
+    assert 'Stop watching' not in html
+    assert 'action="/series/drop/"' not in html
+    assert 'Bring back' not in html
+    assert 'Remove from To Watch' in html
+
+
+def test_the_series_page_offers_stop_watching_for_a_started_series_that_is_on_the_list_too(me):
+    mark(me, me.first)
+
     html = page(me, ADDRESS)
 
     assert 'Stop watching' in html

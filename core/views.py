@@ -199,8 +199,9 @@ def _series_page(request, tmdb_id):
         'line': title_line('series', series.year, series.status, series.runtime, series.genres),
         'on_list': on_list,
         'dropped': dropped,
-        # "Stop watching" is offered for a series that is in one of my tabs: started or on my To Watch list.
-        'can_drop': not dropped and (on_list or bool(watches)),
+        # "Stop watching" is only for a series I started (I marked an episode of it). One that is only on my To Watch
+        # list has nothing to stop: it leaves with "Remove from To Watch".
+        'can_drop': not dropped and bool(watches),
         # A series I started is under Watching or Finished: there it has no To Watch button. "Remove from all lists"
         # (in the corner) is only for a dropped series: Watching -> Dropped -> Remove from all lists.
         'started': bool(watches),

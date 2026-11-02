@@ -2,7 +2,7 @@
 
 ## What it does
 
-- **The series page** (`/series/<TMDB id>/`, open it from a search result or from Series → To Watch) shows the poster with, **under it**, a small progress bar and the small buttons (To Watch, Stop watching, Bring back, Remove from all lists: only the ones that fit this series), then the title, year, description, your rating and note, and the **seasons and episodes**. The To Watch button is not there for a series you started (see "Remove from all lists" below).
+- **The series page** (`/series/<TMDB id>/`, open it from a search result or from Series → To Watch) shows the poster with, **under it**, a small progress bar and the small buttons (To Watch, Stop watching, Bring back, Remove from all lists: only the ones that fit this series), then the title, year, description, your rating and note, and the **seasons and episodes**. The To Watch button is not there for a series you started (see "Remove from all lists" below), and "Stop watching" is only there for a series you started.
 - **Seasons** are folded away: click a season (its arrow is at the right) to open or close it. The first season is open when you arrive. **Specials** (TMDB's season 0) are listed last. Each season's first line says its name and how many of its episodes you watched, like **Season 2 · 3 of 10 episodes**, with a thin bar under it (see "Progress bars").
 - **The page never moves.** Pressing a circle changes only that episode's row, in place: no reload, no jump, and the scroll position and open seasons stay as they are, even deep in a long season.
 - **Each episode** shows its number, name and air date, and, if it has aired, a **round check button** on the right:
@@ -83,7 +83,7 @@ Series has four tabs, in this order: **Watching, To Watch, Finished, Dropped**. 
 
 ## Dropped series
 
-- **Stop watching** is a small button on the series page, **under the poster** (under the bar). It is there for a series that is in one of your tabs: one you have marked an episode of, or one on your To Watch list. A series you never touched does not show it.
+- **Stop watching** is a small button on the series page, **under the poster** (under the bar). It is there **only for a series you started** (you marked an episode of it). A series that is only on your To Watch list has nothing to stop, so its page shows "Remove from To Watch" and no "Stop watching"; a series you never touched shows neither.
 - Pressing it moves the series to **Series → Dropped**, and the page says so. The series is then **in no other tab**, **not on Home** (Up Next) and **not on the [Calendar](calendar.md)**, even if it was also on your To Watch list.
 - **Nothing else changes:** your watches, your progress and your To Watch entry stay exactly as they were, so your history is kept.
 - **A dropped series' page** says "You stopped watching this series." and has a **Bring back** button and a **Remove from all lists** button, both under the poster (see below). The episodes are still there. Marking an episode on it does **not** bring the series back: Dropped only changes with these two buttons.
@@ -164,7 +164,7 @@ For a series you want gone completely: off every list, with everything you saved
 
 **Dropped** (`series_drop`, `series_bring_back` in `core/views.py`; `dropped_series` and `dropped_tab` in `core/episodes.py`)
 - `dropped_series(user)` gives the ids of the account's dropped series. `series_tabs` leaves them out of Watching and Finished (so Up Next, which follows Watching, leaves them out too), the Series → To Watch screen excludes them, and the Calendar (`upcoming` in `core/releases.py`) leaves them out of both the Watching and the To Watch series. `dropped_tab(user)` is the Dropped tab's list.
-- The series page asks `core_droppedseries` whether the series is dropped, and shows "Stop watching" (under the poster) only when it is not dropped and is on your list or has a watch of yours (`can_drop` in `_series_page`). Both buttons are normal forms: the server saves, then goes back to `next` with a message ("… is under Series → Dropped now. Bring it back any time." / "Brought … back. It is in its own tab again."). Dropping a series that is already dropped, or bringing back one that is not, changes nothing and says so.
+- The series page asks `core_droppedseries` whether the series is dropped, and shows "Stop watching" (under the poster) only when it is not dropped and has a watch of yours (`can_drop` in `_series_page`; being on the list is not enough). The `series_drop` address itself still accepts any saved series: the page is the only gate. Both buttons are normal forms: the server saves, then goes back to `next` with a message ("… is under Series → Dropped now. Bring it back any time." / "Brought … back. It is in its own tab again."). Dropping a series that is already dropped, or bringing back one that is not, changes nothing and says so.
 - Search and the To Watch button block (`_to_watch_button.html`): the search view marks each series result you dropped (`result['dropped']`, by TMDB id and kind), and the block shows "In your Dropped list" in place of the button. TMDB is not involved; it is one question to our own table.
 
 **Remove from all lists** (`series_remove_all`, `series_remove_all_undo` in `core/views.py`; `title.html`, `_recently_removed.html`)

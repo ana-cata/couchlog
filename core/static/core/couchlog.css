@@ -291,13 +291,14 @@ form[role="search"]:has(input:not(:placeholder-shown)) ~ #results .suggestions {
   display: inline;
 }
 
-/* The To Watch button on a poster: a small round + in the top-right corner, and a ✓ once the title is on the list. It
-   has a navy edge so it shows on a light poster as well as a dark one. Its words are there for screen readers, and
-   for the hover hint. Light pink at rest and hot pink under the mouse, like every main button. */
+/* The To Watch button on a poster (the Search page only): a small round + in the top-right corner, and a ✓ once the
+   title is on the list. It has a navy edge so it shows on a light poster as well as a dark one. Its words are there
+   for screen readers, and for the hover hint. Light pink at rest and hot pink under the mouse, like every main button.
+   It is small on purpose: in rem it grows with the text on a wide screen, as the tiles do. */
 .to-watch-corner form {
   position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
+  top: 0.4rem;
+  right: 0.4rem;
   z-index: 1;
 }
 
@@ -305,15 +306,20 @@ form[role="search"]:has(input:not(:placeholder-shown)) ~ #results .suggestions {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 2.25rem;
-  min-width: 2.25rem;
-  height: 2.25rem;
+  width: 1.5rem;
+  min-width: 1.5rem;
+  height: 1.5rem;
   margin: 0;
   padding: 0;
-  border: 2px solid var(--couch-navy);
+  border: 1.5px solid var(--couch-navy);
   border-radius: 50%;
   background: var(--couch-light-pink);
   color: var(--couch-navy);
+}
+
+.corner-button svg {
+  width: 0.8rem;
+  height: 0.8rem;
 }
 
 .corner-button:is(:hover, :focus-visible),

@@ -11,8 +11,9 @@
 
   {% if items %}
     <ul class="results">
+      {# No button on the tiles: to take a title off the list, open it and press "Remove from To Watch". #}
       {% for item in items %}
-        {% include 'core/_tile.html' with tile=item.title on_list=True %}
+        <li>{% include 'core/_tile_link.html' with tile=item.title %}</li>
       {% endfor %}
     </ul>
   {% else %}

@@ -77,8 +77,15 @@ def test_log_in_search_add_a_title_then_remove_it_and_undo(live_server, page, re
     expect(page.locator('.tile')).to_have_count(0)
     page.get_by_role('link', name='Movies', exact=True).click()
 
-    # Remove it: it leaves the list and is offered under "Recently removed".
+    # The tiles of the list have no button: to take a title off, open it and press the button on its page.
+    expect(page.get_by_role('button', name='Remove from To Watch')).to_have_count(0)
+    page.locator('.tile').click()
+    expect(page.get_by_role('heading', name='Made-up Movie')).to_be_visible()
     page.get_by_role('button', name='Remove from To Watch').click()
+    expect(page.get_by_role('button', name='Add to To Watch')).to_be_visible()
+
+    # It left the list and is offered under "Recently removed".
+    page.get_by_role('link', name='Movies', exact=True).click()
     expect(page.locator('.tile')).to_have_count(0)
     expect(page.get_by_role('heading', name='Recently removed')).to_be_visible()
     # No "Removed ..." notice at the top: the list itself shows it.
@@ -147,16 +154,21 @@ def test_a_page_left_open_stops_offering_undo_when_time_is_up(live_server, page,
     monkeypatch.setattr('core.views.UNDO_WINDOW', datetime.timedelta(seconds=3))
     user = User.objects.create_user(username='made-up-user', password='made-up-password')
     Profile.objects.create(user=user, timezone='Europe/Lisbon')
-    title = Title.objects.create(kind='series', tmdb_id=1399, title='Made-up Series', year='2011')
+    # Its episodes are fresh, so opening its page does not ask TMDB.
+    title = Title.objects.create(
+        kind='series', tmdb_id=1399, title='Made-up Series', year='2011', episodes_refreshed_at=timezone.now()
+    )
     ToWatchItem.objects.create(user=user, title=title)
 
     page.goto(live_server.url)
     page.get_by_label('Username').fill('made-up-user')
     page.get_by_label('Password').fill('made-up-password')
     page.get_by_role('button', name='Log in').click()
-    page.get_by_role('link', name='Series', exact=True).click()
-    page.get_by_role('link', name='To Watch', exact=True).click()
+    # Take it off the list from its own page, then open the list, which offers it back.
+    page.goto(live_server.url + '/series/1399/')
     page.get_by_role('button', name='Remove from To Watch').click()
+    expect(page.get_by_role('button', name='Add to To Watch')).to_be_visible()
+    page.goto(live_server.url + '/series/')
     expect(page.get_by_role('heading', name='Recently removed')).to_be_visible()
     expect(page.get_by_role('button', name='Undo')).to_be_visible()
 
@@ -584,10 +596,12 @@ def test_a_series_on_the_to_watch_list_shows_in_the_calendar_until_it_is_removed
     expect(item).to_contain_text('S1E1 · Made-up premiere')
     expect(page.get_by_role('heading', name=f'{airs:%A} {airs.day}')).to_be_visible()
 
-    # Removing the series from the list takes it off the calendar.
+    # Removing the series from the list (from its own page) takes it off the calendar.
     page.get_by_role('link', name='Series', exact=True).click()
     page.get_by_role('link', name='To Watch', exact=True).click()
+    page.locator('.tile').click()
     page.get_by_role('button', name='Remove from To Watch').click()
+    expect(page.get_by_role('button', name='Add to To Watch')).to_be_visible()
     page.get_by_role('link', name='Calendar', exact=True).click()
     expect(item).to_have_count(0)
     expect(page.get_by_text('Nothing coming up')).to_be_visible()

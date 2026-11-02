@@ -1,5 +1,6 @@
-"""The To Watch button on a poster: a small round + in the poster's corner (a ✓ once the title is on the list) on every
-tile, and a small button with words on a title's own page. Pressing it does what the old wide button did."""
+"""The To Watch button on a poster: a small round + in the poster's corner (a ✓ once the title is on the list) on the tiles
+of the Search page (results and suggestions) and nowhere else, and a small button with words on a title's own page.
+Pressing it does what the old wide button did."""
 
 import re
 
@@ -59,7 +60,7 @@ def make_item(user, kind, tmdb_id, **extra):
     return ToWatchItem.objects.create(user=user, title=title)
 
 
-# --- on the tiles -------------------------------------------------------------------------------------------------
+# --- on the Search page's tiles ------------------------------------------------------------------------------------
 
 
 def test_search_results_have_a_round_button_in_the_poster_corner_and_no_wide_button(me, respx_mock):
@@ -93,12 +94,17 @@ def test_a_title_on_the_list_has_a_check_that_removes_it(me, respx_mock):
     assert '<span class="idle">Remove from To Watch</span><span class="busy">Removing…</span>' in html
 
 
-def test_the_to_watch_lists_have_the_round_button_too(me):
+def test_the_to_watch_lists_have_no_button_on_their_tiles(me):
     make_item(me.user, 'movie', 603)
     make_item(me.user, 'series', 1399)
 
-    assert round_buttons(page(me, '/movies/')) == [(ROUND_ON_LIST, 'Remove from To Watch')]
-    assert round_buttons(page(me, '/series/')) == [(ROUND_ON_LIST, 'Remove from To Watch')]
+    for url in ('/movies/', '/series/'):
+        html = page(me, url)
+        # The title is there and opens its page, and that page is where "Remove from To Watch" is.
+        assert 'class="tile"' in html
+        assert round_buttons(html) == []
+        assert 'action="/to-watch/remove/"' not in html
+        assert '<button' not in html
 
 
 # --- on a title's own page ----------------------------------------------------------------------------------------

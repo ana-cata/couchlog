@@ -12,7 +12,7 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 from playwright.sync_api import expect
 
-from core.models import Episode, Profile, Rating, Title, ToWatchItem
+from core.models import Episode, Profile, Rating, Title, ToWatchItem, Watch
 
 # The browser's driver runs inside an event loop, and Django refuses database calls from
 # there unless told it is fine. It is fine in a test.
@@ -59,28 +59,52 @@ def box(locator):
     return locator.bounding_box()
 
 
+def start(series, user):
+    """Mark the first episode as watched, so the series is one I started."""
+    Watch.objects.create(user=user, title=series, episode=series.episodes.get(episode_number=1), watched_on=LONG_AGO)
+
+
 # --- under the poster ---------------------------------------------------------------------------------------------
 
 
-def test_the_bar_and_the_small_buttons_are_under_the_poster_in_its_column(opened):
+def test_a_series_only_on_the_list_has_its_bar_and_remove_button_under_the_poster_and_no_stop_watching(opened):
     page = opened
     poster = box(page.locator('.title-poster .poster'))
     bar = box(page.locator('#progress-series progress'))
     to_watch = box(page.get_by_role('button', name='Remove from To Watch'))
-    stop = box(page.get_by_role('button', name='Stop watching'))
 
     expect(page.locator('#progress-series')).to_contain_text('0 of 3 episodes')
-    assert poster['y'] + poster['height'] <= bar['y'] < to_watch['y'] < stop['y']  # the bar, then the buttons
-    for part in (bar, to_watch, stop):
-        assert part['x'] < poster['x'] + poster['width']  # all in the poster's column, not next to the title
+    assert poster['y'] + poster['height'] <= bar['y'] < to_watch['y']  # the bar, then the button
+    for part in (bar, to_watch):
+        assert part['x'] < poster['x'] + poster['width']  # both in the poster's column, not next to the title
     assert bar['width'] <= poster['width']  # a small bar, no wider than the poster
-    # The bar is not above the seasons any more, and the right column has no second copy of the button.
-    expect(page.get_by_role('button', name='Stop watching')).to_have_count(1)
+    # Nothing is marked, so there is nothing to stop: it leaves the list with the button above.
+    expect(page.get_by_role('button', name='Stop watching')).to_have_count(0)
+    # The bar is not above the seasons any more.
     expect(page.locator('#progress-series')).to_have_count(1)
 
 
-def test_a_dropped_series_has_bring_back_and_remove_from_all_lists_under_the_poster(opened, series, me):
+def test_a_series_i_started_has_its_bar_then_stop_watching_under_the_poster(opened, series, me):
+    start(series, me)
     page = opened
+    page.reload()
+    poster = box(page.locator('.title-poster .poster'))
+    bar = box(page.locator('#progress-series progress'))
+    stop = box(page.get_by_role('button', name='Stop watching'))
+
+    expect(page.locator('#progress-series')).to_contain_text('1 of 3 episodes')
+    assert poster['y'] + poster['height'] <= bar['y'] < stop['y']  # the bar, then the button
+    for part in (bar, stop):
+        assert part['x'] < poster['x'] + poster['width']
+    # I started it, so it is under Watching: no To Watch button, and the right column has no second Stop watching.
+    expect(page.get_by_role('button', name='Remove from To Watch')).to_have_count(0)
+    expect(page.get_by_role('button', name='Stop watching')).to_have_count(1)
+
+
+def test_a_dropped_series_has_bring_back_and_remove_from_all_lists_under_the_poster(opened, series, me):
+    start(series, me)
+    page = opened
+    page.reload()
     page.get_by_role('button', name='Stop watching').click()
     expect(page.get_by_role('button', name='Bring back')).to_be_visible()
 
