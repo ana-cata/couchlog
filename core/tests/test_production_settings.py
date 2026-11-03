@@ -95,7 +95,13 @@ def test_with_debug_off_the_static_files_are_served_without_a_login(client, sett
     settings.STATIC_ROOT = tmp_path
     call_command('collectstatic', interactive=False, verbosity=0)
 
-    for file in ['core/couchlog.css', 'core/pico.min.css', 'core/htmx.min.js', 'core/logo-couchlog.svg']:
+    for file in [
+        'core/couchlog.css',
+        'core/pico.min.css',
+        'core/htmx.min.js',
+        'core/logo-couchlog.svg',
+        'core/apple-touch-icon.png',
+    ]:
         response = client.get(f'/static/{file}')
 
         assert response.status_code == 200, file
