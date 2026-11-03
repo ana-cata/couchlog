@@ -10,7 +10,7 @@ How Couchlog looks: the logo, the colours and where each one goes. The logo file
 |---|---|---|
 | `logoCouchlog_hotpink.svg` | **Main logo.** Hot pink `#e764bb`. | Header of the app, login page, anywhere the logo appears on navy. |
 | `logoCouchlog_lightpink.svg` | Variation. Light pink `#ffb3d9`. | A quieter place where the main logo would be too loud (for example the footer or the About page). Only on navy. |
-| `logoCouchlog_small_square.svg` | Variation. Just the couch, in a square. | Browser tab icon and phone home screen icon, on a navy rounded square. |
+| `logoCouchlog_small_square.svg` | Variation. Just the couch, in a square. | Browser tab icon and phone home screen icon, on navy (see "What this means for the app today"). |
 | `logoCouchlog_image.svg` | The whole presentation board with the palette. | Reference only. Never used in the app. |
 
 Rules for every logo:
@@ -63,7 +63,8 @@ The rule: **pink means "you are here" or "you can press this". Everything else i
 Built in card #48.
 - The header shows the main logo (hot pink), linking to the home page (`core/static/core/logo-couchlog.svg`, a copy of `logoCouchlog_hotpink.svg`).
 - The browser tab shows the couch icon (`core/static/core/favicon.svg`: the couch on a navy rounded square, with a thicker line so it still reads at 16 and 32 px).
-- Not done yet: the phone home screen icon (an iPhone needs a PNG, not an SVG) and the light pink wordmark.
+- The phone home screen icon is the couch on a full navy square (`core/static/core/apple-touch-icon.png`, 180 × 180, linked as `apple-touch-icon` on every page). Built in card #77. It keeps the original couch line (180 px is big enough), the couch is 70% of the square's width, and the square has no rounded corners and nothing see-through, because the phone rounds the corners itself and an iPhone puts black behind see-through parts. It was made once from `logoCouchlog_small_square.svg` with a short Playwright script (draw it on navy in the browser, take a picture), so redo it the same way if the couch changes.
+- Not done yet: the light pink wordmark.
 - The About page keeps the TMDB logo and notice, smaller than ours.
 - Quieter buttons (Remove, Undo ...) are a softened off-white outline; the main buttons are solid light pink with navy text. (Changed in card #67: they were hot pink.)
 - Underlined links are the ones inside text. The names under posters stay off-white and are underlined when the mouse is over them.

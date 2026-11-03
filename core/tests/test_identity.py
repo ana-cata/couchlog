@@ -1,10 +1,13 @@
-"""The look of the app (the spec is Identity/identity.md): always dark, the logo in the header and the tab icon.
+"""The look of the app (the spec is Identity/identity.md): always dark, the logo in the header, the tab icon
+and the phone home screen icon.
 
 The colours themselves are checked by eye in the browser, not here. These tests only check what can break
 without anyone noticing: a page that lost its dark setting, a logo that does not link home, a missing file."""
 
 import os
 import re
+import struct
+from pathlib import Path
 
 import pytest
 from django.contrib.auth.models import User
@@ -125,6 +128,24 @@ def test_the_tab_icon_link_points_to_a_file_that_exists(client):
     icon = re.search(r'<link rel="icon" href="/static/([^"]+)"', html)
     assert icon
     assert finders.find(icon.group(1))
+
+
+def test_every_page_links_the_home_screen_icon(client):
+    for visitor, url in [(Client(), url) for url in OPEN_PAGES] + [(client, url) for url in LOGGED_IN_PAGES]:
+        html = visitor.get(url).content.decode()
+
+        assert '<link rel="apple-touch-icon" href="/static/core/apple-touch-icon.png">' in html, url
+
+
+def test_the_home_screen_icon_is_a_180_pixel_png_without_see_through_parts():
+    data = Path(finders.find('core/apple-touch-icon.png')).read_bytes()
+
+    # A PNG starts with the same 8 bytes; then come its width, height, bit depth and colour type.
+    assert data[:8] == b'\x89PNG\r\n\x1a\n'
+    width, height, _, colour_type = struct.unpack('>IIBB', data[16:26])
+    assert (width, height) == (180, 180)
+    # Colour type 2 is plain red, green and blue. An iPhone puts black behind see-through parts.
+    assert colour_type == 2
 
 
 def test_our_logo_is_bigger_than_the_tmdb_logo(live_server, page):

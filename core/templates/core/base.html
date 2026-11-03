@@ -6,6 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Couchlog{% endblock %}</title>
   <link rel="icon" href="{% static 'core/favicon.svg' %}" type="image/svg+xml">
+  {# The phone home screen icon. A phone rounds its corners itself, so it is a full navy square. #}
+  <link rel="apple-touch-icon" href="{% static 'core/apple-touch-icon.png' %}">
   <link rel="stylesheet" href="{% static 'core/pico.min.css' %}">
   <link rel="stylesheet" href="{% static 'core/couchlog.css' %}">
   <script src="{% static 'core/htmx.min.js' %}" defer></script>
