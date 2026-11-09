@@ -6,6 +6,9 @@ services:
       context: .
       # The build uses the machine's own network. On the Pi the build could not look up the Python packages' site without it.
       network: host
+      # Docker wants permission before a build uses the machine's network. This gives it, for the build only.
+      entitlements:
+        - network.host
     # A name for the image, so `daily` below uses this same one.
     image: couchlog
     # The app is at http://localhost:3000 (on the Pi: http://<pi-address>:3000). It listens on 8000 inside.
