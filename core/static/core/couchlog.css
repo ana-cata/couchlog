@@ -288,15 +288,18 @@ form[role="search"]:has(input:not(:placeholder-shown)) ~ #results .suggestions {
 
 /* While the server works on an Add / Remove press ("Adding…"), the button says so and is disabled (htmx puts the class
    htmx-request on the form for as long as it waits). Outside that time only the usual words show. */
-.to-watch-action .busy {
+.to-watch-action .busy,
+.watched-form .busy {
   display: none;
 }
 
-.to-watch-action form.htmx-request .idle {
+.to-watch-action form.htmx-request .idle,
+form.watched-form.htmx-request .idle {
   display: none;
 }
 
-.to-watch-action form.htmx-request .busy {
+.to-watch-action form.htmx-request .busy,
+form.watched-form.htmx-request .busy {
   display: inline;
 }
 
@@ -787,6 +790,8 @@ button.corner-button.on-list:is(:hover, :focus-visible) {
   grid-column: 2;
   grid-row: 1;
   width: auto;
+  /* A tap is a tap: the phone does not wait to see whether it is a double tap to zoom. */
+  touch-action: manipulation;
 }
 
 .watched-form :is(input[type="date"], button) {

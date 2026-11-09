@@ -86,7 +86,8 @@
               </ul>
             {% endif %}
             {# The same date box marks the film the first time and adds another watch after that. #}
-            <form method="post" action="{% url 'watched_add' %}" class="watched-form" hx-boost="true" hx-push-url="false">
+            {# While the server works the button says "Saving…" and cannot be pressed again (htmx-request, see the stylesheet). #}
+            <form method="post" action="{% url 'watched_add' %}" class="watched-form" hx-boost="true" hx-push-url="false" hx-disabled-elt="find button">
               {% csrf_token %}
               <input type="hidden" name="kind" value="{{ item.kind }}">
               <input type="hidden" name="tmdb_id" value="{{ item.tmdb_id }}">
@@ -99,7 +100,7 @@
                 <input type="checkbox" name="date_unknown">
                 Date unknown
               </label>
-              <button type="submit">{% if watches %}Watch again{% else %}Mark as watched{% endif %}</button>
+              <button type="submit"><span class="idle">{% if watches %}Watch again{% else %}Mark as watched{% endif %}</span><span class="busy">Saving…</span></button>
             </form>
           </div>
         {% elif item.kind == 'series' %}
