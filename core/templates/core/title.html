@@ -68,6 +68,24 @@
 
         {% if item.kind == 'movie' %}
           <div class="watched-section">
+            {# The same date box marks the film the first time and adds another watch after that. It comes before the list, #}
+            {# so a new watch does not push the button down the page. #}
+            {# While the server works the button says "Saving…" and cannot be pressed again (htmx-request, see the stylesheet). #}
+            <form method="post" action="{% url 'watched_add' %}" class="watched-form" hx-boost="true" hx-push-url="false" hx-disabled-elt="find button">
+              {% csrf_token %}
+              <input type="hidden" name="kind" value="{{ item.kind }}">
+              <input type="hidden" name="tmdb_id" value="{{ item.tmdb_id }}">
+              <input type="hidden" name="next" value="{{ next }}">
+              <label>
+                {% if watches %}Watched again on{% else %}Watched on{% endif %}
+                <input type="date" name="watched_on" value="{{ today|date:'Y-m-d' }}" max="{{ today|date:'Y-m-d' }}">
+              </label>
+              <label>
+                <input type="checkbox" name="date_unknown">
+                Date unknown
+              </label>
+              <button type="submit"><span class="idle">{% if watches %}Watch again{% else %}Mark as watched{% endif %}</span><span class="busy">Saving…</span></button>
+            </form>
             {# Every watch with its date and its own button to take it back. With one watch that button is "Mark as not watched". #}
             {% if watches %}
               <p><strong>Watched{% if watches|length > 1 %} {{ watches|length }} times{% endif %}</strong></p>
@@ -85,23 +103,6 @@
                 {% endfor %}
               </ul>
             {% endif %}
-            {# The same date box marks the film the first time and adds another watch after that. #}
-            {# While the server works the button says "Saving…" and cannot be pressed again (htmx-request, see the stylesheet). #}
-            <form method="post" action="{% url 'watched_add' %}" class="watched-form" hx-boost="true" hx-push-url="false" hx-disabled-elt="find button">
-              {% csrf_token %}
-              <input type="hidden" name="kind" value="{{ item.kind }}">
-              <input type="hidden" name="tmdb_id" value="{{ item.tmdb_id }}">
-              <input type="hidden" name="next" value="{{ next }}">
-              <label>
-                {% if watches %}Watched again on{% else %}Watched on{% endif %}
-                <input type="date" name="watched_on" value="{{ today|date:'Y-m-d' }}" max="{{ today|date:'Y-m-d' }}">
-              </label>
-              <label>
-                <input type="checkbox" name="date_unknown">
-                Date unknown
-              </label>
-              <button type="submit"><span class="idle">{% if watches %}Watch again{% else %}Mark as watched{% endif %}</span><span class="busy">Saving…</span></button>
-            </form>
           </div>
         {% elif item.kind == 'series' %}
           {% if dropped %}
