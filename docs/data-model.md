@@ -55,4 +55,4 @@ Each card that adds a table updates this list.
 
 **Known limits**
 - The database file is `db.sqlite3` in the project folder, unless `DJANGO_DB_PATH` says otherwise. Docker sets it to a file in a volume (see [deploying.md](deploying.md)).
-- SQLite runs in write-ahead log mode with the "normal" sync level, so a power cut loses at most the last action and does not corrupt the file. The database is then a few files next to each other (`db.sqlite3-wal` and `-shm` as well), so a backup must use SQLite's backup command, not a plain copy. Automatic backups come with the Pi (milestone M6).
+- SQLite runs in write-ahead log mode with the "normal" sync level, so a power cut loses at most the last action and does not corrupt the file. The database is then a few files next to each other (`db.sqlite3-wal` and `-shm` as well), so a backup must use SQLite's backup command, not a plain copy. How the daily backups work is in [deploying.md](deploying.md).
