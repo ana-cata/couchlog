@@ -2,13 +2,14 @@
 of the Search page (results and suggestions) and nowhere else, and a small button with words on a title's own page.
 Pressing it does what the old wide button did."""
 
+import datetime
 import re
 
 import pytest
 from django.contrib.auth.models import User
 from django.test import Client
 
-from core.models import Profile, Title, ToWatchItem
+from core.models import DroppedSeries, Episode, Profile, Title, ToWatchItem, Watch
 
 SEARCH_URL = 'https://api.themoviedb.org/3/search/multi'
 MOVIE_URL = 'https://api.themoviedb.org/3/movie/603'
@@ -29,6 +30,7 @@ RESULTS = {
 }
 ROUND = 'corner-button'
 ROUND_ON_LIST = 'corner-button on-list'
+CHECK_ONLY = '<span class="corner-button on-list">'
 
 
 @pytest.fixture(autouse=True)
@@ -92,6 +94,74 @@ def test_a_title_on_the_list_has_a_check_that_removes_it(me, respx_mock):
     assert round_buttons(html) == [(ROUND_ON_LIST, 'Remove from To Watch'), (ROUND, 'Add to To Watch')]
     assert 'action="/to-watch/remove/"' in html
     assert '<span class="idle">Remove from To Watch</span><span class="busy">Removing…</span>' in html
+
+
+def watch_film(user):
+    film = Title.objects.get_or_create(kind='movie', tmdb_id=603, defaults={'title': 'Made-up Movie'})[0]
+    return Watch.objects.create(user=user, title=film, watched_on=datetime.date(2026, 1, 1))
+
+
+def make_series():
+    return Title.objects.create(kind='series', tmdb_id=1399, title='Made-up Series')
+
+
+def test_a_film_in_history_has_a_check_with_nothing_to_press(me, respx_mock):
+    respx_mock.get(SEARCH_URL).respond(json=RESULTS)
+    watch_film(me.user)
+
+    html = page(me, '/search/?q=made-up')
+
+    assert html.count(CHECK_ONLY) == 1
+    assert 'In your History' in html
+    assert round_buttons(html) == [(ROUND, 'Add to To Watch')]  # only the series can still be added
+
+
+def test_a_series_i_started_has_a_check_with_nothing_to_press(me, respx_mock):
+    respx_mock.get(SEARCH_URL).respond(json=RESULTS)
+    series = make_series()
+    episode = Episode.objects.create(title=series, tmdb_id=1, season_number=1, episode_number=1)
+    Watch.objects.create(user=me.user, title=series, episode=episode, watched_on=datetime.date(2026, 1, 1))
+
+    html = page(me, '/search/?q=made-up')
+
+    assert html.count(CHECK_ONLY) == 1
+    assert 'In your Series lists' in html
+    assert round_buttons(html) == [(ROUND, 'Add to To Watch')]  # only the film can still be added
+
+
+def test_a_dropped_series_has_a_check_with_nothing_to_press(me, respx_mock):
+    respx_mock.get(SEARCH_URL).respond(json=RESULTS)
+    DroppedSeries.objects.create(user=me.user, title=make_series())
+
+    html = page(me, '/search/?q=made-up')
+
+    assert html.count(CHECK_ONLY) == 1
+    assert 'In your Dropped list' in html
+    assert round_buttons(html) == [(ROUND, 'Add to To Watch')]
+
+
+def test_a_film_in_history_of_another_account_can_still_be_added(me, respx_mock):
+    respx_mock.get(SEARCH_URL).respond(json=RESULTS)
+    watch_film(User.objects.create_user(username='second-user', password='made-up-password'))
+
+    html = page(me, '/search/?q=made-up')
+
+    assert CHECK_ONLY not in html
+    assert round_buttons(html) == [(ROUND, 'Add to To Watch'), (ROUND, 'Add to To Watch')]
+
+
+def test_a_film_on_both_lists_can_be_taken_off_to_watch_and_then_keeps_a_check(me, respx_mock):
+    respx_mock.get(SEARCH_URL).respond(json=RESULTS)
+    make_item(me.user, 'movie', 603)
+    watch_film(me.user)
+
+    html = page(me, '/search/?q=made-up')
+    removed = press(me, 'remove')
+
+    assert round_buttons(html)[0] == (ROUND_ON_LIST, 'Remove from To Watch')
+    assert CHECK_ONLY in removed
+    assert round_buttons(removed) == []
+    assert Watch.objects.filter(user=me.user).count() == 1  # History is not touched
 
 
 def test_the_to_watch_lists_have_no_button_on_their_tiles(me):

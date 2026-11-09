@@ -304,7 +304,8 @@ form[role="search"]:has(input:not(:placeholder-shown)) ~ #results .suggestions {
    title is on the list. It has a navy edge so it shows on a light poster as well as a dark one. Its words are there
    for screen readers, and for the hover hint. Light pink at rest and hot pink under the mouse, like every main button.
    It is small on purpose: in rem it grows with the text on a wide screen, as the tiles do. */
-.to-watch-corner form {
+.to-watch-corner form,
+.to-watch-corner > .corner-button {
   position: absolute;
   top: 0.4rem;
   right: 0.4rem;
@@ -336,7 +337,7 @@ form[role="search"]:has(input:not(:placeholder-shown)) ~ #results .suggestions {
   background: var(--couch-pink);
 }
 
-.corner-button.on-list:is(:hover, :focus-visible) {
+button.corner-button.on-list:is(:hover, :focus-visible) {
   filter: brightness(1.15);
 }
 

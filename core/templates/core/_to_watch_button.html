@@ -6,7 +6,13 @@
 {# A series I dropped has no button: it says so instead, and "Bring back" is on its page. #}
 {# `data-on-list` tells suggestions.js that the title is now on the list, so a suggested tile can be replaced. #}
 <div class="to-watch-action{% if corner %} to-watch-corner{% endif %}"{% if on_list and not dropped %} data-on-list{% endif %}>
-  {% if dropped %}
+  {% if corner and dropped or corner and started or corner and watched and not on_list %}
+    {# A tile whose title is already in one of my lists, other than To Watch: the same check, with nothing to press. #}
+    <span class="corner-button on-list">
+      {% include 'core/_check_icon.html' %}
+      <span class="visually-hidden">{% if dropped %}In your Dropped list{% elif started %}In your Series lists{% else %}In your History{% endif %}</span>
+    </span>
+  {% elif dropped %}
     <small class="dropped-note"><a href="{% url 'series_dropped' %}">In your Dropped list</a></small>
   {% elif started %}
     {# A series I started is under Watching or Finished: no button here. "Remove from all lists" is on its page. #}
