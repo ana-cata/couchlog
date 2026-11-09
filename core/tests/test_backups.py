@@ -32,16 +32,23 @@ class FakeR2:
     def __init__(self):
         self.objects = {}
         self.upload_problem = None
+        self.storage_classes = []
+        self.lists = 0
+        self.sizes = {}  # says a copy is bigger than it is, so no test has to hold gigabytes
 
-    def put_object(self, Bucket, Key, Body):
+    def put_object(self, Bucket, Key, Body, StorageClass):
         assert Bucket == 'made-up-bucket'
         if self.upload_problem:
             raise self.upload_problem
         self.objects[Key] = Body
+        self.storage_classes.append(StorageClass)
 
     def list_objects_v2(self, Bucket, Prefix):
         assert Bucket == 'made-up-bucket'
-        contents = [{'Key': key} for key in sorted(self.objects) if key.startswith(Prefix)]
+        self.lists += 1
+        contents = [
+            {'Key': key, 'Size': self.sizes.get(key, len(self.objects[key]))} for key in sorted(self.objects) if key.startswith(Prefix)
+        ]
         return {'Contents': contents} if contents else {}
 
     def delete_object(self, Bucket, Key):
@@ -169,6 +176,57 @@ def test_copies_that_are_not_couchlogs_are_never_deleted(r2, database, clock):
     for name in others:
         assert r2.objects[name] == b'not ours'
     assert len(backups.couchlog_copies(r2)) == 14
+
+
+def test_an_upload_is_always_standard_storage(r2, database):
+    call_command('backup_db', stdout=io.StringIO())
+
+    assert r2.storage_classes == ['STANDARD']
+
+
+def test_a_backup_makes_one_list_and_one_upload(r2, database, clock):
+    for day in range(1, 16):
+        r2.objects[f'couchlog-2026-10-{day:02}-100000.sqlite3'] = b'an older copy'
+
+    call_command('backup_db', stdout=io.StringIO())
+
+    assert r2.lists == 1
+    assert len(r2.storage_classes) == 1
+    assert len(backups.couchlog_copies(r2)) == 14
+
+
+@pytest.mark.parametrize(('new_size', 'allowed'), [(100, True), (101, False)])
+def test_the_limit_is_5_gb_counting_the_new_copy(new_size, allowed):
+    copies = [{'Key': 'a', 'Size': backups.STORAGE_LIMIT - 200}, {'Key': 'b', 'Size': 100}]
+    assert backups.STORAGE_LIMIT == 5_000_000_000
+
+    if allowed:
+        backups.refuse_if_over_the_limit(copies, new_size)
+    else:
+        with pytest.raises(CommandError):
+            backups.refuse_if_over_the_limit(copies, new_size)
+
+
+def test_over_the_limit_nothing_is_uploaded_or_deleted_and_it_says_why(r2, database):
+    names = [f'couchlog-2026-10-{day:02}-100000.sqlite3' for day in range(1, 16)]
+    for name in names:
+        r2.objects[name] = b'an older copy'
+    r2.sizes[names[0]] = backups.STORAGE_LIMIT
+    before = dict(r2.objects)
+
+    with pytest.raises(CommandError, match='more than 5 GB'):
+        call_command('backup_db', stdout=io.StringIO())
+
+    assert r2.objects == before
+
+
+def test_the_size_of_other_files_does_not_count(r2, database):
+    r2.objects['photo.jpg'] = b'not ours'
+    r2.sizes['photo.jpg'] = backups.STORAGE_LIMIT
+
+    call_command('backup_db', stdout=io.StringIO())
+
+    assert len(backups.couchlog_copies(r2)) == 1
 
 
 @pytest.mark.parametrize('setting', backups.R2_SETTINGS)

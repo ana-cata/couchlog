@@ -55,7 +55,7 @@ To see what the app is doing: `docker compose ps` and `docker compose logs --tai
 ### Backups
 
 **Setting up Cloudflare** (done once; Cloudflare may word these buttons slightly differently):
-1. In the Cloudflare dashboard, open **R2 Object Storage** and create a bucket named `couchlog-backups`. Leave it private: do not turn on public access or add a public domain.
+1. In the Cloudflare dashboard, open **R2 Object Storage** and create a bucket named `couchlog-backups`. Leave it private: do not turn on public access or add a public domain. Leave the default storage class on **Standard**.
 2. On the R2 overview page, copy the **Account ID**.
 3. Under **API Tokens** on that same page, create an **Account API token** with the permission **Object Read & Write**, applied to **`couchlog-backups` only**.
 4. Cloudflare then shows an **Access Key ID** and a **Secret Access Key**. The secret is shown only once. Keep the page open for the next step and do not save them anywhere else.
@@ -67,6 +67,7 @@ To see what the app is doing: `docker compose ps` and `docker compose logs --tai
    R2_BUCKET=couchlog-backups
    ```
 6. Deploy as above. `docker compose logs daily` should say `Uploaded couchlog-...sqlite3.`, and the copy appears in the bucket.
+7. Under **Billable Usage** in the Cloudflare dashboard, set a budget alert to the lowest amount it accepts. It only sends an email and does not stop anything, but it would tell you if R2 ever started to cost money.
 
 Without those settings (as on the PC), the backup says what is missing and does nothing.
 
@@ -115,6 +116,7 @@ Without those settings (as on the PC), the backup says what is missing and does 
 - **Backups** (`core/backups.py`, commands `backup_db` and `restore_db`, package `boto3`, which R2 accepts because it works like Amazon S3):
   - **Making a copy:** SQLite's backup command writes a copy in a temporary folder, inside the container and not in the volume. The folder is removed afterwards, also when something fails. The copy is uploaded with its UTC date and time in the name (`couchlog-YYYY-MM-DD-HHMMSS.sqlite3`).
   - **What is kept:** only after a successful upload, the oldest copies are deleted so 14 are left. A file counts as Couchlog's only if its whole name fits that pattern, so anything else in the bucket is left alone.
+  - **Staying on the free plan** (10 GB of storage and 1 million uploads and lists a month; Cloudflare has no hard spending limit for R2): each backup is one list and one upload, and deleting is free. Uploads always use Standard storage, because the free plan does not cover Infrequent Access. Before the upload, the sizes of Couchlog's copies are added up (`STORAGE_LIMIT`, 5 GB, in `core/backups.py`). If the new copy would take the total over the limit, nothing is uploaded or deleted and the log says `backup_db failed: Nothing was uploaded: the copies in R2 would take more than 5 GB`.
   - **No keys in a copy:** the TMDB key, the login secret and the R2 keys live in `.env`, which is never part of a backup. The login sessions (the "you are logged in" codes) are erased from the copy and the file is rebuilt with `VACUUM`, because erased rows otherwise stay readable in it. The app's own database keeps them. Just before the upload, the copy is searched for the values of those four keys; if one is found, nothing is uploaded and the log names the setting, never the value.
   - **What a copy does hold:** the account (with the password stored scrambled, which a restored copy needs for logging in) and the history. It is not encrypted, so the bucket stays private and the R2 key reaches only that bucket.
   - **Restoring:** the copy is downloaded and checked (a real, undamaged database with Couchlog's account table). The current database is then saved as `db-before-restore.sqlite3` next to it, in the volume, and SQLite's backup command writes the copy into the database. This keeps write-ahead log mode and is safe with the app running: a page opened at that moment may just wait a moment. The saved file stays on the Pi, is replaced by the next restore, and is removed by `--undo`.
@@ -126,4 +128,5 @@ Without those settings (as on the PC), the backup says what is missing and does 
 - A refresh that fails is only tried again 24 hours later. If the Pi's network is not ready just after a restart, that day's first refresh is lost; `docker compose restart daily` runs it again.
 - Migrations run at every start. Copying the database before a deploy that changes the tables is still a habit of mine (plan.md, section 4): `backup_db` by hand, above.
 - "14 copies" means the last 14 runs, not 14 days. Each restart of `daily` makes one, so a day with many restarts or deploys pushes older copies out sooner.
+- If the 5 GB limit is ever reached, backups stop until copies are deleted from the bucket by hand, and the only sign is the line in `docker compose logs daily`. Only Couchlog's copies are counted, not other files or other buckets.
 - A failed backup is only tried again 24 hours later; `docker compose exec daily python manage.py backup_db` makes one at once.
