@@ -11,3 +11,9 @@ document.addEventListener('click', function (event) {
     history.back();
   }
 });
+
+// A phone can freeze a whole page in memory when I leave it and show that frozen page again on Back, without asking
+// Couchlog, whatever the never-cache headers say. It may be out of date by then, so load it again.
+window.addEventListener('pageshow', function (event) {
+  if (event.persisted) location.reload();
+});

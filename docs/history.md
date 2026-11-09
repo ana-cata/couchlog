@@ -25,7 +25,7 @@
 | `/watched/add/` | Mark a movie as watched (button, POST only) | Yes |
 | `/watched/remove/` | Mark as not watched, the undo (button, POST only) | Yes |
 
-The buttons are normal forms, not htmx: the server saves, then sends the browser back to the page (the `next` field, only if it is a page of this site; History otherwise) with a message. Mark and Watch again are the same form and the same address: they send `kind` (only `movie`; a series is refused with a 400), `tmdb_id`, `watched_on` and `date_unknown`. Un-mark sends `watch_id`.
+On a movie's page htmx sends these forms in the background (`hx-boost`) and swaps the page in place, and the page stays where it was (`scrollIntoViewOnBoost` is off in `base.html`). So one press of Back is still one page back. While the server works, the Mark as watched / Watch again button says "Saving…" and cannot be pressed again (`hx-disabled-elt`). Without JavaScript they are normal forms. Either way the server saves, then sends the browser back to the page (the `next` field, only if it is a page of this site; History otherwise) with a message. Mark and Watch again are the same form and the same address: they send `kind` (only `movie`; a series is refused with a 400), `tmdb_id`, `watched_on` and `date_unknown`. Un-mark sends `watch_id`.
 
 **Tables** (see [data model](data-model.md))
 - `core_watch`: one row per watch: `user`, `title` (links to `core_title`), `watched_on` (a day; empty means date unknown) and `created_at`. There is deliberately no "one per title" limit (design rule 1): a rewatch is another row, so no table changed for Watch again. Episodes use this table too, with a link to the episode (see [Series](series.md)); a movie's watch has no episode.

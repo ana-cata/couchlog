@@ -10,6 +10,8 @@
   <link rel="apple-touch-icon" href="{% static 'core/apple-touch-icon.png' %}">
   <link rel="stylesheet" href="{% static 'core/pico.min.css' %}">
   <link rel="stylesheet" href="{% static 'core/couchlog.css' %}">
+  {# Buttons that update the page in place must leave it where it was: htmx would otherwise go back to the top. #}
+  <meta name="htmx-config" content='{"scrollIntoViewOnBoost":false}'>
   <script src="{% static 'core/htmx.min.js' %}" defer></script>
   <script src="{% static 'core/back.js' %}" defer></script>
   <script src="{% static 'core/suggestions.js' %}" defer></script>

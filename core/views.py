@@ -135,7 +135,7 @@ def title(request, kind, tmdb_id):
     if kind == 'series':
         return _series_page(request, tmdb_id)
     try:
-        item = tmdb.get_title(kind, tmdb_id)
+        item = _movie_details(tmdb_id)
     except tmdb.TmdbNotFound:
         raise Http404 from None
     except tmdb.TmdbError as problem:
@@ -158,6 +158,16 @@ def title(request, kind, tmdb_id):
         )
         context['today'] = _today(request)
     return render(request, 'core/title.html', context)
+
+
+def _movie_details(tmdb_id):
+    """What a movie's page shows. A saved copy with its length and genres is used as it is (design rule 6), so the page,
+    which comes back after every button on it, does not wait for TMDB. Anything else is read from TMDB and not saved."""
+    saved = Title.objects.filter(kind='movie', tmdb_id=tmdb_id).first()
+    if saved and saved.runtime and saved.genres:
+        keys = ('kind', 'tmdb_id', 'title', 'year', 'poster_url', 'overview', 'runtime', 'genres')
+        return {key: getattr(saved, key) for key in keys}
+    return tmdb.get_title('movie', tmdb_id)
 
 
 def _series_page(request, tmdb_id):
