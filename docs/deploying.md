@@ -23,7 +23,7 @@ Log in from the PC with `ssh ana-cata@homelab.local`. Commands below run on the 
 1. `git pull`
 2. `docker buildx bake --allow=network.host -f docker-compose.yml couchlog` builds the new version.
 3. `docker compose up -d` starts it. The migrations run by themselves when the container starts.
-4. Do the five-minute check (plan.md, section 7).
+4. Do the five-minute check, below.
 
 **Go back if a deploy breaks something:**
 1. `git log --oneline -5` shows the recent versions. Pick the one before the deploy.
@@ -51,6 +51,17 @@ If the broken version changed the tables, the older code may not fit them. Resto
 To see what the app is doing: `docker compose ps` and `docker compose logs --tail 20 couchlog`.
 
 **Reading the daily task's log:** `docker compose logs daily`. Each run starts with a line like `2026-11-09 15:52 UTC Starting refresh_calendar.`, then one line per title, then `Finished refresh_calendar.` and `Next run in 24 hours.` A run with a problem says `refresh_calendar failed` and which titles could not be refreshed; the task keeps running and tries again the next day. Times are in UTC, whatever the account's time zone is.
+
+### The five-minute check
+
+Do this after every deploy, on the phone, on the home Wi-Fi, at `http://192.168.1.164:3000`. It leaves your data as it was.
+
+1. **Log in.** If you are already logged in, press **Log out** on the Profile page first. Log in with your username and password. Home opens.
+2. **Search for a title.** Press **Search** and type a title. Posters and names appear under the box. Add nothing.
+3. **Mark an episode and undo it.** Open a series and a season, and press the gray circle of an aired episode you have not marked. If a pop-up asks about earlier episodes, choose **No, only** (it names the episode, for example "No, only S1E7"). The circle turns green and the bars move. Press the small **−** next to it. The circle is gray again and the bars are back. Do not press the green circle: that counts a rewatch (the **−** takes it back).
+4. **Open the Calendar.** Press **Calendar**. The upcoming episodes and films of your lists are shown by month and day.
+
+If a step fails, go back to the previous version (below) and open a fix card.
 
 ### Backups
 
