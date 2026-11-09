@@ -99,10 +99,13 @@ def search(request):
     dropped = set(DroppedSeries.objects.filter(user=request.user).values_list('title__tmdb_id', flat=True))
     # A series I started is under Watching or Finished: no To Watch button for it either.
     started = set(started_series(request.user).values_list('title__tmdb_id', flat=True))
+    # A film in History is in my lists too, so its tile has the check and nothing to add.
+    watched = set(Watch.objects.filter(user=request.user, title__kind='movie').values_list('title__tmdb_id', flat=True))
     for result in results:
         result['on_list'] = (result['kind'], result['tmdb_id']) in on_list
         result['dropped'] = result['kind'] == 'series' and result['tmdb_id'] in dropped
         result['started'] = result['kind'] == 'series' and result['tmdb_id'] in started
+        result['watched'] = result['kind'] == 'movie' and result['tmdb_id'] in watched
 
     # htmx also asks for the whole page when it restores a page from its history.
     live_update = request.headers.get('HX-Request') and not request.headers.get('HX-History-Restore-Request')
@@ -456,6 +459,11 @@ def _answer(request, kind, tmdb_id, on_list, text, ok=True, collect=False):
         # A tile's button sends `corner`, so the answer is the small round button again, not the one with words.
         if request.POST.get('corner'):
             context['corner'] = True
+            # A film also in History keeps a check after it leaves To Watch, as it has when the search is drawn.
+            context['watched'] = (
+                kind == 'movie'
+                and Watch.objects.filter(user=request.user, title__kind=kind, title__tmdb_id=tmdb_id).exists()
+            )
         if collect:
             context['collect'] = True
         if not ok:
