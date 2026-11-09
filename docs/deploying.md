@@ -9,9 +9,9 @@
 
 **Try it on the PC** (Docker Desktop must be running):
 1. In `.env`, set `DJANGO_SECRET_KEY` to a long random text. Make one with `uv run python -c "import secrets; print(secrets.token_urlsafe(50))"`. Leave `DJANGO_DEBUG` out of `.env` (or `true`): Compose turns debug off by itself, and debug off on the PC would make `runserver` show no CSS.
-2. `docker compose up --build` builds the image and starts Couchlog (add `-d` to run it in the background).
+2. `docker buildx bake --allow=network.host -f docker-compose.yml couchlog` builds the image, and `docker compose up -d` starts Couchlog.
 3. Open http://localhost:3000. The first time the database is empty, so make an account: `docker compose exec couchlog python manage.py createsuperuser`.
-4. `docker compose down` stops and removes the container; the data stays. Starting again with `docker compose up` (or `up --build` after a code change) shows the same data.
+4. `docker compose down` stops and removes the container; the data stays. Starting again with `docker compose up -d` (after a code change, build first as in step 2) shows the same data.
 5. `docker compose down -v` also deletes the volume, which **erases the database**. Use it only to start from nothing.
 
 ## On the Pi
@@ -20,12 +20,13 @@ Log in from the PC with `ssh ana-cata@homelab.local`. Commands below run on the 
 
 **Deploy a new version** (after a pull request is merged):
 1. `git pull`
-2. `docker compose up -d --build`. The migrations run by themselves when the container starts.
-3. Do the five-minute check (plan.md, section 7).
+2. `docker buildx bake --allow=network.host -f docker-compose.yml couchlog` builds the new version.
+3. `docker compose up -d` starts it. The migrations run by themselves when the container starts.
+4. Do the five-minute check (plan.md, section 7).
 
 **Go back if a deploy breaks something:**
 1. `git log --oneline -5` shows the recent versions. Pick the one before the deploy.
-2. `git checkout <that commit>`, then `docker compose up -d --build`.
+2. `git checkout <that commit>`, then build and start it as in the deploy steps above.
 3. When the fix is merged: `git checkout main`, then deploy as above.
 
 If the broken version changed the tables, the older code may not fit them. Restore a copy of the database made before the deploy.
@@ -43,7 +44,7 @@ If the broken version changed the tables, the older code may not fit them. Resto
    ```
 5. `git clone git@github-couchlog:ana-cata/couchlog.git ~/couchlog`.
 6. In `~/couchlog`, make a `.env` with `chmod 600`: a **new** `DJANGO_SECRET_KEY` (not the PC's), `TMDB_API_KEY`, and `DJANGO_ALLOWED_HOSTS=192.168.1.164,homelab.local`.
-7. `docker compose up -d --build`, then `docker compose exec couchlog python manage.py createsuperuser`.
+7. Build and start it as in the deploy steps above, then `docker compose exec couchlog python manage.py createsuperuser`.
 8. Check it by restarting the Pi with `sudo reboot`: Couchlog comes back by itself.
 
 To see what the app is doing: `docker compose ps` and `docker compose logs --tail 20 couchlog`.
@@ -53,7 +54,7 @@ To see what the app is doing: `docker compose ps` and `docker compose logs --tai
 ## How it works
 
 - **`Dockerfile`**: a small Python 3.14 image. It installs the packages exactly as `uv.lock` says (no dev tools), copies the code, runs `collectstatic`, and runs as a normal user (`app`), not root. On start it applies the migrations, then starts **gunicorn** (the server that runs the app) with 2 workers on port 8000.
-- **`docker-compose.yml`**: two containers from one image, named `couchlog`. The first start may print "pull access denied for couchlog" before building: Compose looked for that name online first, and it is harmless. The image is built on the machine's own network (`network: host`): on the Pi, the build's temporary container failed to look up the Python packages' site, most likely because the Pi's first three DNS servers are IPv6 and that container has no IPv6. Docker wants permission for that, given by `entitlements: network.host` under `build:` (without it the Pi stopped with "additional privileges requested"). It applies to the build only; the running containers do not use the machine's network. Port 3000 on the host goes to 8000 inside. `.env` is handed to the container when it starts and is never copied into the image. The volume `couchlog-data` is mounted at `/data`. `restart: unless-stopped` brings it back after a crash and when the Pi restarts (but not after you stopped it yourself with `docker compose stop`).
+- **`docker-compose.yml`**: two containers from one image, named `couchlog`. The image is built on the machine's own network (`network: host`): on the Pi, the build's temporary container failed to look up the Python packages' site, most likely because the Pi's first three DNS servers are IPv6 and that container has no IPv6. Docker asks for permission for that, and `docker compose` has no way to give it, so the build is its own command, `docker buildx bake --allow=network.host`. `docker compose up --build` stops on the Pi with "additional privileges requested" (Buildx 0.38.1; Buildx 0.37.0 on the PC did not ask). The permission applies to the build only; the running containers do not use the machine's network. Port 3000 on the host goes to 8000 inside. `.env` is handed to the container when it starts and is never copied into the image. The volume `couchlog-data` is mounted at `/data`. `restart: unless-stopped` brings it back after a crash and when the Pi restarts (but not after you stopped it yourself with `docker compose stop`).
 - **The `daily` container** runs `python manage.py run_daily` (`core/management/commands/run_daily.py`), with the same `.env`, settings and volume as the app and no port.
   - It first waits until the database has every migration, checking every 5 seconds, because the app applies them when its own container starts and both start together. The check is in the command, and not Compose's `depends_on`, because Docker does not follow `depends_on` when it restarts containers after a reboot.
   - It then runs the commands in `DAILY_COMMANDS` (today only `refresh_calendar`) and sleeps 24 hours. There is no fixed hour: the 24 hours count from when the container started, so a deploy or a reboot moves the time.
