@@ -3,6 +3,7 @@
 ## What it does
 
 - Couchlog runs inside a **Docker container** on the Raspberry Pi, at `http://192.168.1.164:3000` on the home network. It starts by itself when the Pi restarts.
+- A second container, **`daily`**, refreshes the Calendar, News and new episodes by itself: once when it starts (so also after the Pi was off) and then every 24 hours. Nobody runs `refresh_calendar` by hand on the Pi.
 - The same setup can be tried on the PC. Everyday work stays the same: `uv run python manage.py runserver` on the PC.
 - The container has its own database, kept in a Docker **volume** (storage that belongs to Docker, outside the container). It is not the `db.sqlite3` on the PC. Rebuilding or removing the container does not erase it.
 
@@ -47,10 +48,17 @@ If the broken version changed the tables, the older code may not fit them. Resto
 
 To see what the app is doing: `docker compose ps` and `docker compose logs --tail 20 couchlog`.
 
+**Reading the daily task's log:** `docker compose logs daily`. Each run starts with a line like `2026-11-09 15:52 UTC Starting refresh_calendar.`, then one line per title, then `Finished refresh_calendar.` and `Next run in 24 hours.` A run with a problem says `refresh_calendar failed` and which titles could not be refreshed; the task keeps running and tries again the next day. Times are in UTC, whatever the account's time zone is.
+
 ## How it works
 
 - **`Dockerfile`**: a small Python 3.14 image. It installs the packages exactly as `uv.lock` says (no dev tools), copies the code, runs `collectstatic`, and runs as a normal user (`app`), not root. On start it applies the migrations, then starts **gunicorn** (the server that runs the app) with 2 workers on port 8000.
-- **`docker-compose.yml`**: one container. The image is built on the machine's own network (`network: host`): on the Pi, the build's temporary container failed to look up the Python packages' site, most likely because the Pi's first three DNS servers are IPv6 and that container has no IPv6. Port 3000 on the host goes to 8000 inside. `.env` is handed to the container when it starts and is never copied into the image. The volume `couchlog-data` is mounted at `/data`. `restart: unless-stopped` brings it back after a crash and when the Pi restarts (but not after you stopped it yourself with `docker compose stop`).
+- **`docker-compose.yml`**: two containers from one image, named `couchlog`. The first start may print "pull access denied for couchlog" before building: Compose looked for that name online first, and it is harmless. The image is built on the machine's own network (`network: host`): on the Pi, the build's temporary container failed to look up the Python packages' site, most likely because the Pi's first three DNS servers are IPv6 and that container has no IPv6. Port 3000 on the host goes to 8000 inside. `.env` is handed to the container when it starts and is never copied into the image. The volume `couchlog-data` is mounted at `/data`. `restart: unless-stopped` brings it back after a crash and when the Pi restarts (but not after you stopped it yourself with `docker compose stop`).
+- **The `daily` container** runs `python manage.py run_daily` (`core/management/commands/run_daily.py`), with the same `.env`, settings and volume as the app and no port.
+  - It first waits until the database has every migration, checking every 5 seconds, because the app applies them when its own container starts and both start together. The check is in the command, and not Compose's `depends_on`, because Docker does not follow `depends_on` when it restarts containers after a reboot.
+  - It then runs the commands in `DAILY_COMMANDS` (today only `refresh_calendar`) and sleeps 24 hours. There is no fixed hour: the 24 hours count from when the container started, so a deploy or a reboot moves the time.
+  - Any error is written to the log and the loop goes on. One command failing does not stop the next.
+  - `restart: unless-stopped` is what makes it run again when the Pi starts. `init: true` lets `docker compose down` stop it at once.
 - **`.dockerignore`**: keeps `.env`, the database files, `.venv`, `.git`, the tests, `docs/` and `Identity/` out of the image.
 - **Settings** (all in `.env`, see `.env.example`):
 
@@ -65,9 +73,9 @@ To see what the app is doing: `docker compose ps` and `docker compose logs --tai
 - **Static files** (CSS, logo, htmx): `collectstatic` copies them into `staticfiles/` while the image is built, and **WhiteNoise** serves them, with no login needed. Django's default storage is used, with no file-name hashing.
 - **Database safety**: SQLite runs in write-ahead log mode with the "normal" sync level (`config/settings.py`, on the PC too). A power cut loses at most the last action and does not corrupt the file. The database is then a few files (`db.sqlite3`, `-wal`, `-shm`), so a backup must use SQLite's backup command, not a plain copy (the backup comes with a later card). The volume is a named Docker volume, not a folder from Windows, because this mode needs a real Linux disk.
 - **No HTTPS** in Stage 1, so the "secure cookie" and "redirect to HTTPS" settings stay off. Turning them on would break the login on `http://`.
-- **Tests**: `core/tests/test_production_settings.py` checks the database path (and its fallback to `db.sqlite3`), the power-cut settings, that debug off without a secret key refuses to start, and that the CSS, logo and htmx are served without a login. The container itself is checked by hand with the steps above.
+- **Tests**: `core/tests/test_production_settings.py` checks the database path (and its fallback to `db.sqlite3`), the power-cut settings, that debug off without a secret key refuses to start, and that the CSS, logo and htmx are served without a login. `core/tests/test_run_daily.py` checks that `run_daily` refreshes at the start and a day later, survives failures, and waits for the migrations. The containers themselves are checked by hand with the steps above.
 
 **Known limits**
 - `homelab.local` can point to any of the Pi's addresses, including its Wi-Fi one. `192.168.1.164` is the fixed address, so use it for bookmarks.
-- The calendar is not refreshed by itself yet. Run it by hand with `docker compose exec couchlog python manage.py refresh_calendar`; the daily task comes with the next card.
+- A refresh that fails is only tried again 24 hours later. If the Pi's network is not ready just after a restart, that day's first refresh is lost; `docker compose restart daily` runs it again.
 - Migrations run at every start. Copying the database before a deploy that changes the tables is still a habit of mine (plan.md, section 4).

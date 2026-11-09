@@ -116,7 +116,7 @@ For a series you want gone completely: off every list, with everything you saved
 - It prints one line per series ("“Made-up Series”: Ended, 2 new episodes") and "Refreshed N series.", then the same for films. One title failing (TMDB not answering) does not stop the others: it is reported on the error output, and the command ends with an error so a scheduler can tell. Run it again later.
 - Series nobody follows are left alone.
 - Running it twice changes nothing the second time.
-- For now you run it **by hand**. The daily scheduled run comes with the Raspberry Pi (milestone M6). Opening a series page also refreshes that one series when its saved copy is over a day old.
+- On the Raspberry Pi it runs **by itself**, when the Pi starts and every 24 hours (see [Running in Docker](deploying.md)). On the PC with `runserver` you run it by hand. Opening a series page also refreshes that one series when its saved copy is over a day old.
 
 ## How it works
 
@@ -213,7 +213,7 @@ For a series you want gone completely: off every list, with everything you saved
 - The question looks only at the nearest marked episode before the one you press. An episode you skipped earlier, before that one, is never asked about again; mark it with its circle or the season button.
 - If you mark episodes far apart on purpose (say a series with fillers), each jump asks once; answer "No, only this one" to skip them.
 - Pressing a circle and then reloading the page, or leaving it, without answering simply drops the question: nothing was saved.
-- New episodes only appear when the series page is opened (and its copy is over a day old) or when `refresh_calendar` is run by hand. There is no daily schedule yet.
+- New episodes only appear when the series page is opened (and its copy is over a day old) or when `refresh_calendar` runs: by itself on the Pi, by hand on the PC with `runserver`.
 - A series that TMDB has not yet marked as ended stays in Watching even when you have watched everything, until a refresh picks up the change.
 - How the tabs are worked out (`series_tabs` in `core/episodes.py`) looks at every series you have started each time a tab opens; that is fine for dozens of series.
 - The series' own details (poster, description) are saved once and not refreshed.

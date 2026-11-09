@@ -16,7 +16,7 @@
 - **Your own calendar:** each account sees only its own series and list.
 - **Empty:** "Nothing coming up" appears, with a reminder of the command below.
 - **Adding a title collects its dates right away.** When you press Add to To Watch, Couchlog asks TMDB for the film's cinema and streaming dates, or for the series' episodes and then TVmaze for its upcoming episodes, so the Calendar is right without waiting for the command. A film's dates are collected during the add. A series is put on the list at once and its dates follow a few seconds later, so the Calendar may not show a series you added a moment ago until you reload it (see [To Watch](to-watch.md)).
-- **The dates are not live after that.** The page only shows what was saved. Dates TMDB or TVmaze add or change later (a streaming date, new episodes) arrive when the `refresh_calendar` command runs. Run it by hand now and then; the daily run comes with the Raspberry Pi.
+- **The dates are not live after that.** The page only shows what was saved. Dates TMDB or TVmaze add or change later (a streaming date, new episodes) arrive when the `refresh_calendar` command runs. On the Raspberry Pi it runs by itself when the Pi starts and every 24 hours (see [Running in Docker](deploying.md)). On the PC with `runserver`, run it by hand now and then.
 - **No countdown here.** The "today", "tomorrow", "in 3 days" labels are only in the News section on [Home](home.md). The Calendar shows the days as before, and Home's News is cut from the same list (`upcoming()`), so the two always agree.
 
 ## How it works
