@@ -30,7 +30,7 @@ On every pull request, GitHub runs the lint and the tests (`.github/workflows/ch
 
 ## Run it in Docker
 
-The real app runs in Docker on the Raspberry Pi; on the PC, Docker is for trying that setup and everyday work stays with `runserver`. With Docker Desktop running and a `DJANGO_SECRET_KEY` in `.env`, `docker compose up --build` starts Couchlog at http://localhost:3000, with its own database in a Docker volume that survives `docker compose down`. See [docs/deploying.md](docs/deploying.md) for the steps on the PC and the Pi, the settings and what is checked.
+The real app runs in Docker on the Raspberry Pi; on the PC, Docker is for trying that setup and everyday work stays with `runserver`. With Docker Desktop running and a `DJANGO_SECRET_KEY` in `.env`, `docker buildx bake --allow=network.host -f docker-compose.yml couchlog` builds it and `docker compose up -d` starts Couchlog at http://localhost:3000, with its own database in a Docker volume that survives `docker compose down`. See [docs/deploying.md](docs/deploying.md) for the steps on the PC and the Pi, the settings and what is checked.
 
 ## Open it from the phone
 

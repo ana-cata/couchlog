@@ -1,10 +1,12 @@
 # Couchlog as it runs on the Pi: two containers from one image, sharing the database in a volume.
-# Start it with: docker compose up --build
+# Build it with: docker buildx bake --allow=network.host -f docker-compose.yml couchlog
+# Then start it with: docker compose up -d
 services:
   couchlog:
     build:
       context: .
       # The build uses the machine's own network. On the Pi the build could not look up the Python packages' site without it.
+      # Docker wants permission for that, which is the --allow in the build command above.
       network: host
     # A name for the image, so `daily` below uses this same one.
     image: couchlog
