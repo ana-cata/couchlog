@@ -8,7 +8,7 @@ from django.db.utils import OperationalError
 from django.utils import timezone
 
 # What runs once a day, in this order. One failing does not stop the next.
-DAILY_COMMANDS = ['refresh_calendar']
+DAILY_COMMANDS = ['refresh_calendar', 'backup_db']
 
 A_DAY = 24 * 60 * 60  # seconds
 MIGRATIONS_CHECK_EVERY = 5  # seconds

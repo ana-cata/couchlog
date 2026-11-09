@@ -39,6 +39,12 @@ ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').sp
 # The TMDB key is only used by server code (core/tmdb.py), never sent to the browser.
 TMDB_API_KEY = os.environ.get('TMDB_API_KEY', '')
 
+# Where the daily database copies go (Cloudflare R2, core/backups.py). Only set on the Pi; empty means no backups.
+R2_ACCOUNT_ID = os.environ.get('R2_ACCOUNT_ID', '')
+R2_ACCESS_KEY_ID = os.environ.get('R2_ACCESS_KEY_ID', '')
+R2_SECRET_ACCESS_KEY = os.environ.get('R2_SECRET_ACCESS_KEY', '')
+R2_BUCKET = os.environ.get('R2_BUCKET', '')
+
 
 # Application definition
 

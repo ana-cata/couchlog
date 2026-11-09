@@ -119,7 +119,7 @@ def test_an_unexpected_error_does_not_stop_it_either(db, sleeps, monkeypatch):
 
     _, err = run()
 
-    assert err.count('database is locked') == 3
+    assert err.count('database is locked') == 3 * len(run_daily.DAILY_COMMANDS)
     assert sleeps == [run_daily.A_DAY] * 3
 
 
@@ -137,6 +137,23 @@ def test_a_command_that_fails_does_not_stop_the_next_one(db, sleeps, monkeypatch
     run()
 
     assert ran == ['first', 'second'] * 3
+
+
+def test_the_backup_runs_every_day_after_the_refresh_and_a_failed_one_is_tried_again(db, sleeps, monkeypatch):
+    ran = []
+
+    def fake(name, **kwargs):
+        ran.append(name)
+        if name == 'backup_db' and ran.count('backup_db') == 1:
+            raise RuntimeError('made-up R2 problem')
+
+    monkeypatch.setattr(run_daily, 'call_command', fake)
+
+    out, err = run()
+
+    assert ran == ['refresh_calendar', 'backup_db'] * 3
+    assert '2026-11-09 10:00 UTC backup_db failed: made-up R2 problem. It runs again in 24 hours.' in err
+    assert '2026-11-10 10:00 UTC Finished backup_db.' in out
 
 
 def test_it_waits_for_the_migrations_before_the_first_refresh(db, clock, monkeypatch):
@@ -162,7 +179,7 @@ def test_it_waits_for_the_migrations_before_the_first_refresh(db, clock, monkeyp
     out, _ = run()
 
     assert waits ==[run_daily.MIGRATIONS_CHECK_EVERY, run_daily.MIGRATIONS_CHECK_EVERY, run_daily.A_DAY]
-    assert ran == ['refresh_calendar']
+    assert ran == ['refresh_calendar', 'backup_db']
     assert out.count('Waiting for the app to apply the migrations.') == 1
 
 
