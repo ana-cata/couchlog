@@ -763,6 +763,14 @@ button.corner-button.on-list:is(:hover, :focus-visible) {
   margin-top: 1.5rem;
 }
 
+/* On a phone, room at the end of every page. Safari's toolbar floats over the bottom of the screen, and while it is
+   hidden a tap near the bottom edge brings it back and never reaches the page, so the last button must sit higher. */
+@media (max-width: 575px) {
+  main.container {
+    padding-bottom: 9rem;
+  }
+}
+
 .watched-section form {
   max-width: 20rem;
 }
@@ -784,6 +792,10 @@ button.corner-button.on-list:is(:hover, :focus-visible) {
 .watched-form label:has(input[type="checkbox"]) {
   grid-column: 1 / -1;
   grid-row: 2;
+}
+
+.watched-form + p {
+  margin-top: 1.25rem;
 }
 
 .watched-form button {

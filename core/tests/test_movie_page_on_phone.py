@@ -71,6 +71,47 @@ def test_one_tap_on_a_phone_adds_one_watch_and_the_page_stays_where_it_was(live_
     context.close()
 
 
+def test_at_the_end_of_the_page_the_button_stays_clear_of_safaris_toolbar(live_server, browser, respx_mock):
+    """Safari's toolbar covers about the last 75 pixels of the screen, and while it is hidden a tap there only brings it
+    back. A real Safari is not available in the tests, so this checks where the button ends up on a phone-sized screen."""
+    make_user()
+    respx_mock.get(MOVIE_URL).respond(json=MADE_UP_MOVIE)
+    height = 400
+    context = browser.new_context(viewport={'width': 390, 'height': height}, has_touch=True, is_mobile=True)
+    page = context.new_page()
+    log_in(page, live_server)
+    page.goto(live_server.url + '/movie/603/')
+    page.wait_for_load_state('load')
+    page.evaluate('window.scrollTo(0, document.body.scrollHeight)')
+
+    def room_under(name):
+        box = page.get_by_role('button', name=name).bounding_box()
+        return height - (box['y'] + box['height'])
+
+    assert room_under('Mark as watched') >= 100
+
+    page.get_by_role('button', name='Mark as watched').tap()
+    expect(page.get_by_role('button', name='Watch again')).to_be_visible()
+    page.wait_for_timeout(200)
+
+    # The watch is listed under the button, so only the "Marked as watched" line at the top can move it.
+    assert room_under('Watch again') >= 80
+    context.close()
+
+
+def test_the_list_of_watches_comes_after_the_button(db, respx_mock):
+    respx_mock.get(MOVIE_URL).respond(json=MADE_UP_MOVIE)
+    client = logged_in_client(db)
+    client.post(
+        '/watched/add/',
+        {'kind': 'movie', 'tmdb_id': 603, 'watched_on': '2026-01-01', 'next': '/movie/603/'},
+    )
+
+    html = client.get('/movie/603/').content.decode()
+
+    assert html.index('class="watched-form"') < html.index('class="watch-list"')
+
+
 def test_a_page_the_phone_brings_back_from_memory_is_loaded_again(live_server, page):
     """A real frozen page cannot be made in the test browser, so this sends the event the browser sends for one."""
     make_user()
