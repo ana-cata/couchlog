@@ -93,7 +93,7 @@ The header has **Search**, **Movies**, **Series**, **Calendar** and **Profile** 
 *Done when:* marking a movie moves it to my history with a date, and I can undo it.
 
 **5. Mark episodes as watched.** On the series page, each season lists its episodes with checkboxes. Three ways to mark: one episode; a whole season; or "watched up to here", which marks every episode up to the chosen one. "Up to here" has no button of its own: the round check button asks for it, with a pop-up "did you watch the earlier episodes too?" whenever the episode I press skips episodes I have not marked (the ones that have aired between the nearest episode I marked before it and it, or everything before it when nothing before it is marked); "Yes" marks the skipped ones and the pressed episode, "No, only this one" marks just it (changed on card #35; before, it was asked only on the first mark in a series). The season button turns into "mark the season as not watched" once the season is complete, and pressing it again is how a whole season is undone (no notice and no Undo button). Episodes that have not aired yet cannot be marked. Because I cannot import my old history, this is how I will enter it, so "up to here" must be quick. Episodes have no date box: each watch saves the day I pressed the button (in my time zone), and only movies let me choose the date or leave it "unknown". Marking an episode moves the series from To Watch to Watching (see "How the app is organized").
-*Done when:* each of the three ways saves the right episodes, and each can be undone: one episode by its circle, a whole season in one step by pressing its button again. ("Up to here" has no one-step undo of its own, unless it marked a whole season; decided on review.)
+*Done when:* each of the three ways saves the right episodes, and each can be undone: one episode by the small "−" next to its green circle (since card #43; pressing the green circle again counts a rewatch), a whole season in one step by pressing its button again. ("Up to here" has no one-step undo of its own, unless it marked a whole season; decided on review.)
 
 **6. Up Next with progress bars.** The home screen shows, for each series in the Watching tab, the next episode I have not seen (only episodes that have already aired). A dropped series is not shown. Checking it off marks it watched and the next one appears. Each series and each season shows a progress bar (watched episodes out of aired episodes).
 *Done when:* after I mark an episode, the next one appears and the bar moves; a series with nothing left to watch leaves the list until a new episode airs; and undoing a check-off brings the episode and the bar back.
@@ -154,23 +154,25 @@ The header has **Search**, **Movies**, **Series**, **Calendar** and **Profile** 
 
 ## 4. How we work
 
-Until the first version (the MVP) is finished, the app only runs on my **Windows PC**. Only when the MVP is complete and everything works there do I deploy it to the **Raspberry Pi**, which then runs the real app. Nothing goes to the Pi before that.
+I build and test on my **Windows PC**. The **Raspberry Pi** runs the real app with my real data (since M6). Only what is merged into `main` goes to the Pi.
 
-For every feature, repeat this loop. A feature is done when it is tested and merged into `main`.
+For every feature, repeat this loop. A feature is done when it is tested, merged into `main` and running on the Pi.
 
 1. Take the next card on the GitHub project board (To do, Doing, Done). Each card is one feature from section 3, and its "done when" is the test.
 2. Build it on a separate branch (`feature/<name>`), never directly on `main`.
 3. Write the tests, and run the app on the PC (`uv run python manage.py runserver`) to try it. To check it on my phone, run it in Docker on the PC (`docker buildx bake --allow=network.host -f docker-compose.yml couchlog`, then `docker compose up -d`) and open `http://<PC address>:3000` from the phone while both are on the home Wi-Fi; the PC's address must be in `DJANGO_ALLOWED_HOSTS` in `.env` (see `docs/deploying.md`).
 4. Push the branch and open a pull request. GitHub Actions runs the checks (lint and tests) automatically.
 5. Read the changes in the pull request (I do the PR for now). Merge into `main` only when the checks are green.
-6. Check the "done when" conditions once more on `main` on the PC. Move the card to Done and add a line to the status log (section 10).
+6. Check the "done when" conditions once more on `main` on the PC.
+7. Deploy it to the Pi (below). Move the card to Done and add a line to the status log (section 10).
 
-**Deploying to the Pi (only after the MVP is finished):**
+**Deploying to the Pi** (the full steps, and how to go back, are in `docs/deploying.md`):
 
-1. Before deploying: have the Dockerfile and the Docker Compose file ready, SSH and the deploy key working on the Pi (section 9), and remember that the data on the PC is only test data, so the Pi starts with a fresh database.
-2. On the Pi, pull `main`, then build and start the container (`docker buildx bake --allow=network.host -f docker-compose.yml couchlog`, then `docker compose up -d`).
-3. Check the "done when" conditions of the MVP features on the real app, from my phone.
-4. From then on, each new feature follows the loop above and is then deployed to the Pi the same way.
+1. If the change alters the tables, first make a copy of the database by hand (`backup_db`).
+2. On the Pi, pull `main`, then build and start the containers (`docker buildx bake --allow=network.host -f docker-compose.yml couchlog`, then `docker compose up -d`).
+3. Do the five-minute check (section 7) from my phone.
+
+The data on the PC stays test data. It never goes to the Pi.
 
 **Rules:**
 - **`main` always works.** If a deploy breaks something, go back to the previous commit and rebuild.
@@ -328,9 +330,21 @@ Goal: Couchlog runs on the Raspberry Pi with my real data.
 - [x] Set up the daily calendar task on the Pi, which also runs when the Pi starts (card #80)
 - [x] Set up automatic database backups and try restoring one (section 8) (card #81)
 - [x] Use safe SQLite settings so a power cut cannot corrupt the database (section 8) (done with card #69)
-- [ ] Check the Must features on the Pi, from my phone
+- [x] Check the Must features on the Pi, from my phone (card #82)
 
 Done when: I open Couchlog on my phone at the Pi's address on the home network and all 7 Must features work.
+
+**M6 finished on 2026-11-09.**
+
+#### What I learned (M6)
+
+- **The estimate was too high again.** About a week was planned; the first deploy, the daily task and the backups were built and put on the Pi in one day (2026-11-09).
+- **The Pi builds the app without trouble, but its network and its newer Docker did not behave like the PC's.** The build failed on looking up the Python packages' site, most likely because of the Pi's IPv6 DNS servers, so it now builds on the machine's own network (#79). The Pi's newer Docker then asked for a permission `docker compose` cannot give, so building became its own command (#85). The PC had not shown either problem.
+- **A container for the daily task was simpler than a cron job.** It lives in the repo, it can be tested on the PC, and restarting by itself is what makes it run when the Pi starts (#80).
+- **A backup is more than a copy.** It must be made with SQLite's own command, leave out the login sessions and contain no keys, and it only counts once a restore has really been tried (#81).
+- **"Free" needs a limit of our own.** Cloudflare has no hard spending limit for R2, so Couchlog stops uploading at 5 GB and only uses Standard storage (#87).
+- **Use the Pi's number address.** `homelab.local` can point to its Wi-Fi address as well, so the bookmark uses `192.168.1.164`.
+- **The real phone found what the tests could not.** Using Couchlog on my iPhone showed a frozen page on Back (#91), Safari's toolbar swallowing a tap near the bottom of the screen (#93), and the + on Search for a film already in History (#89). The automatic tests only use Chromium, so the check on the phone stays part of every deploy. Screenshots of the steps are what explained the toolbar problem.
 
 ### The Should features
 
@@ -351,7 +365,7 @@ The order can change if something turns out harder or more useful than expected:
 | Unit tests | One piece of logic | The "next episode" calculation |
 | Integration tests | Logic with the database | Marking a season saves the right episodes |
 | End-to-end tests | A full path in a real browser | Log in, search, add a series, tick an episode, see it in the calendar |
-| Manual testing | Me, on the PC and on my phone over the home Wi-Fi (on the Pi after M6) | The "done when" checklist from section 3 |
+| Manual testing | Me, on the PC and on my phone over the home Wi-Fi (on the Pi since M6) | The "done when" checklist from section 3 |
 
 **How tests work:**
 - **Made-up TMDB responses.** Tests use saved example answers instead of calling the real TMDB, so they are fast and never fail because TMDB is down.
@@ -381,7 +395,7 @@ The order can change if something turns out harder or more useful than expected:
 - M3 and M4: the heaviest logic tests (next episode, seasons, time zones, undo).
 - Before each milestone ends: a quick manual check against the real TMDB, to see that its answers still look like my made-up ones.
 
-**After each deploy to the Pi (from M6):** a five-minute manual check: log in, search for a title, mark an episode and undo it, open the calendar.
+**After each deploy to the Pi (from M6):** a five-minute manual check: log in, search for a title, mark an episode and undo it, open the calendar. The steps, with what each one should show, are in `docs/deploying.md` under "The five-minute check".
 
 ## 8. Going live
 
@@ -438,10 +452,10 @@ Sorted by when each item matters.
 | Accepted | A movie's release dates are midnight UTC and are turned into my time zone, so it shows a day early for a time zone west of UTC (the Americas) | Accepted on card #12 (my decision). If the calendar feels wrong, show TMDB's day as given (no conversion). |
 | Before "Where to watch" | The streaming data (from JustWatch, through TMDB) may need its own credit, and it must be free to use | Check TMDB's documentation before building feature 14. If it turns out to need a paid service, the feature is removed from the plan. |
 | M5 | Problems with the Pi only show up at the end, because I deploy only after the MVP | Done: the Docker files were written and tested on the PC in M5 (card #69), and the app runs in Docker with the production settings. The ARM build was checked on the Pi on card #79 and works. Keep avoiding anything that only works on Windows. |
-| M6 | Building the app on the Pi may be slow or fail | The Pi has 4 GB RAM, a 64-bit OS and Docker, and SSH from my PC works, so it should work but will be slow the first time. Done on card #79: it builds on the Pi. The build failed at first on looking up the Python packages' site, so it now uses the Pi's own network (`network: host`). |
+| M6 | Building the app on the Pi may be slow or fail | The Pi has 4 GB RAM, a 64-bit OS and Docker, and SSH from my PC works, so it should work but will be slow the first time. Done on card #79: it builds on the Pi. The build failed at first on looking up the Python packages' site, so it now uses the Pi's own network (`network: host`), with its own build command (`docker buildx bake --allow=network.host`, pull request #85). |
 | M6 | The Pi has to download the code from my private GitHub repo | Done on card #79: the Pi has a deploy key (a key that only allows reading this one repo). |
-| M6 | The Pi's SD card can fail, or a power cut can damage the file | Automatic daily backups to Cloudflare R2, away from the house (a payment method is on file with Cloudflare, nothing is paid), and safe SQLite settings (section 8). Shut the Pi down properly instead of unplugging it. Consider an SSD later. |
-| M6 | The Pi is not always on yet | The daily calendar job must also run when the Pi starts, so the calendar is correct after being off. |
+| M6 | The Pi's SD card can fail, or a power cut can damage the file | Done on cards #69, #81 and #87: daily backups to Cloudflare R2, away from the house (a payment method is on file with Cloudflare, nothing is paid), a restore tried on the Pi, and safe SQLite settings (section 8). Still to keep doing: shut the Pi down properly instead of unplugging it. Consider an SSD later. |
+| M6 | The Pi is not always on yet | Done on card #80: the `daily` container runs when the Pi starts and then every 24 hours, so the calendar is correct after the Pi was off. |
 | Stage 2 | How do I set up a VPN to reach the home server from outside? I have little experience with this | Learn it later, with help, once the app works at home. Compare options then (for example Tailscale, or a VPN built into the home router). Not needed in the first weeks. |
 | Stage 2 | Friends outside my home network would also need VPN access | Decide before inviting friends. Start with myself only. |
 | Stage 2 | Installing the app on a phone needs a secure (HTTPS) address, which a plain home-network address does not have | In Stage 1 I can use the app in the phone's browser. Solve the install-to-home-screen part together with the VPN in Stage 2. |
@@ -519,3 +533,4 @@ Sorted by when each item matters.
 | 2026-11-09 | Card #87 merged (pull request #88). Found on the phone check of card #82: a film in History still had the round + on Search, so it could end up on To Watch as well. Card #89 built (pull request open): on Search, a film in History and a series under Watching, Finished or Dropped now show the pink check with nothing to press. A title on To Watch keeps the check that removes it. A film's own page can still put a watched film back on To Watch, on purpose. No table change. The card was not in the plan, so no box is ticked. |
 | 2026-11-09 | Card #89 merged (pull request #90). Card #91 built (pull request open), the other problems from the phone check of card #82. A page the phone brings back from memory on Back is loaded again, so the list is never out of date (`pageshow` in `back.js`; the never-cache headers of #71 do not stop a frozen page). The buttons that update a page in place leave it where it was (`scrollIntoViewOnBoost` off). Mark as watched and Watch again say "Saving…" and lock while the server works. Slowness: the Pi and TMDB measured fast on one run (address lookup 0.04 s, TMDB 0.38 s, a simple page 0.04 s), so a saved movie with its length and genres now uses the saved copy instead of asking TMDB each time its page is drawn, and gunicorn has 4 threads per worker so a page waiting for TMDB does not hold up the others. Still not confirmed: why a press sometimes seemed to need a second one; it could not be reproduced, because Python is blocked on the PC by a Windows App Control policy. No table change. The card was not in the plan, so no box is ticked. |
 | 2026-11-09 | Card #91 merged (pull request #92); Back, the page jump and the slowness were checked on my phone. Screenshots from my iPhone (Safari) explained the double press. At the end of a movie page the button sat at the bottom of the screen, and while Safari's toolbar is hidden a tap there only brings the toolbar back and never reaches the page. Card #93 built (pull request open): on a phone every page has extra room at its end (9rem, up to 575 px wide), so the last button sits above the toolbar, and on a movie page the list of watches now comes under the button, so a new watch does not push it down. Real Safari is not in the tests, which check where the button ends up on a phone-sized screen in Chromium. No table change. The card was not in the plan, so no box is ticked. |
+| 2026-11-09 | Card #93 merged (pull request #94) and checked on my iPhone. **M6 finished** (card #82, pull request open): all 7 Must features were checked on my phone at the Pi's address on the home network, and I started entering my real history. The check found three problems, each fixed on its own card first (#89, #91, #93). New: the five-minute check after each deploy is written step by step in `docs/deploying.md`, section 4 now has deploying as part of the normal loop, the M6 rows in section 9 are up to date, and there is a "What I learned (M6)" note. Next (my decision): discuss the options for reaching Couchlog from outside my home network (Stage 2, section 8), before Where to watch or the Could features. |
