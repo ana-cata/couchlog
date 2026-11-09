@@ -21,6 +21,9 @@ from django.utils import timezone
 
 KEEP = 14
 
+# R2's free plan has 10 GB, and Cloudflare has no hard spending limit. Couchlog stops at half of that, so it stays free.
+STORAGE_LIMIT = 5_000_000_000  # bytes
+
 # The date and time in the name make the alphabetical order the same as the order in time.
 NAME_FORMAT = 'couchlog-%Y-%m-%d-%H%M%S.sqlite3'
 IS_COUCHLOG_COPY = re.compile(r'couchlog-\d{4}-\d{2}-\d{2}-\d{6}\.sqlite3')
@@ -96,16 +99,23 @@ def refuse_if_it_holds_a_key(data):
 
 
 def couchlog_copies(client):
-    """The names of Couchlog's copies in the bucket, oldest first. Anything else in the bucket is not ours."""
+    """Couchlog's copies in the bucket, oldest first, each with its Key (name) and Size. Anything else is not ours."""
     listing = client.list_objects_v2(Bucket=settings.R2_BUCKET, Prefix='couchlog-')
-    return sorted(item['Key'] for item in listing.get('Contents', []) if IS_COUCHLOG_COPY.fullmatch(item['Key']))
+    copies = [item for item in listing.get('Contents', []) if IS_COUCHLOG_COPY.fullmatch(item['Key'])]
+    return sorted(copies, key=lambda item: item['Key'])
 
 
-def delete_oldest(client):
-    names = couchlog_copies(client)[:-KEEP]
-    for name in names:
+def refuse_if_over_the_limit(copies, new_size):
+    if sum(item['Size'] for item in copies) + new_size > STORAGE_LIMIT:
+        raise CommandError('Nothing was uploaded: the copies in R2 would take more than 5 GB, the limit that keeps it free.')
+
+
+def delete_oldest(client, names):
+    """`names` is every copy, oldest first. Returns the ones it deleted."""
+    oldest = names[:-KEEP]
+    for name in oldest:
         client.delete_object(Bucket=settings.R2_BUCKET, Key=name)
-    return names
+    return oldest
 
 
 def backup():
@@ -119,13 +129,17 @@ def backup():
     refuse_if_it_holds_a_key(data)
     with r2_errors():
         client = r2_client()
-        client.put_object(Bucket=settings.R2_BUCKET, Key=name, Body=data)
-        return name, delete_oldest(client)
+        # One list and one upload per backup. Cloudflare counts both, and deleting is free.
+        copies = couchlog_copies(client)
+        refuse_if_over_the_limit(copies, len(data))
+        # Standard, whatever the bucket's own setting says: the free plan does not cover Infrequent Access.
+        client.put_object(Bucket=settings.R2_BUCKET, Key=name, Body=data, StorageClass='STANDARD')
+        return name, delete_oldest(client, sorted({item['Key'] for item in copies} | {name}))
 
 
 def list_copies():
     with r2_errors():
-        return couchlog_copies(r2_client())
+        return [item['Key'] for item in couchlog_copies(r2_client())]
 
 
 def check_is_couchlog_database(path, name):
