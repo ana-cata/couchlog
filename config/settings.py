@@ -36,6 +36,12 @@ if not SECRET_KEY:
 # Comma-separated. Add the PC's address here to open the app from the phone.
 ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
+# Comma-separated, each with its https://. The HTTPS addresses forms may be sent from. Only set on the Pi: behind the
+# Cloudflare Tunnel the app receives plain HTTP, so Django cannot match a form from https:// by itself.
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip() for origin in os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',') if origin.strip()
+]
+
 # The TMDB key is only used by server code (core/tmdb.py), never sent to the browser.
 TMDB_API_KEY = os.environ.get('TMDB_API_KEY', '')
 
