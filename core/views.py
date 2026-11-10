@@ -3,6 +3,7 @@ from datetime import timedelta
 from zoneinfo import ZoneInfo
 
 from django.contrib import messages
+from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_not_required
 from django.core import serializers
 from django.core.exceptions import BadRequest
@@ -18,6 +19,7 @@ from django.views.decorators.http import require_POST
 from django.views.decorators.vary import vary_on_headers
 
 from . import releases, tmdb, tvmaze
+from .cloudflare_access import LOGOUT_ADDRESS, on_cloudflare_address
 from .episodes import (
     dropped_series,
     dropped_tab,
@@ -1038,6 +1040,15 @@ def episodes_watched_up_to(request):
 @login_not_required
 def about(request):
     return render(request, 'core/about.html')
+
+
+class LogoutView(auth_views.LogoutView):
+    """On the Cloudflare address, logging out also ends Cloudflare's session, or the next page would sign back in."""
+
+    def get_success_url(self):
+        if on_cloudflare_address(self.request):
+            return LOGOUT_ADDRESS
+        return super().get_success_url()
 
 
 def profile(request):

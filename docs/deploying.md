@@ -3,7 +3,7 @@
 ## What it does
 
 - Couchlog runs inside a **Docker container** on the Raspberry Pi, at `http://192.168.1.164:3000` on the home network. It starts by itself when the Pi restarts.
-- From outside the home it is at `https://couchlog.ana-cata.com`. A person types their email, and only emails on the allow list receive a one-time code and get through. The router stays closed. Until card #97, Couchlog still asks for its username and password after the code.
+- From outside the home it is at `https://couchlog.ana-cata.com`. A person types their email, and only emails on the allow list receive a one-time code and get through. That is the only sign-in there: no password, and the first time their account is created by itself. The router stays closed. `/admin/` only opens from the home address.
 - A second container, **`daily`**, refreshes the Calendar, News and new episodes by itself: once when it starts (so also after the Pi was off) and then every 24 hours. Nobody runs `refresh_calendar` by hand on the Pi.
 - The `daily` container also sends a **backup** of the database to Cloudflare R2 (private online storage) at each run, and keeps the newest 14 copies. So a copy survives the SD card, the Pi or the house having a problem. Any copy can be restored, and a restore can be undone.
 - The same setup can be tried on the PC. Everyday work stays the same: `uv run python manage.py runserver` on the PC.
@@ -128,7 +128,30 @@ Without those settings (as on the PC), the backup says what is missing and does 
    ```
 4. `docker compose up -d`. `docker compose ps` shows `tunnel`, and `docker compose logs --tail 20 tunnel` says `Registered tunnel connection`.
 
-**Add or remove an email:** in Zero Trust, under **Access controls**, **Policies**, edit `Allowed emails`. Removing an email stops new codes, but someone already in stays in until their session ends (up to a month). To end it at once, use **Revoke existing tokens** on the `couchlog` application, or revoke the person under **Users**. Do not add friends before card #97.
+**Turn on the sign-in by email code** (done once, card #97). **The order matters:** if step 2 is skipped, Couchlog makes a new empty account for you.
+1. Deploy as above, with the settings below still left out. Nothing changes yet.
+2. At home, open `http://192.168.1.164:3000/admin/`, then **Users**, then your account. Fill in **Email address** with the address on the allow list, and save.
+3. `nano .env` on the Pi and add these:
+   ```
+   CLOUDFLARE_ACCESS_TEAM_DOMAIN=ana-cata.cloudflareaccess.com
+   CLOUDFLARE_ACCESS_AUD=<the AUD tag on the couchlog application's page>
+   CLOUDFLARE_ACCESS_ADDRESS=couchlog.ana-cata.com
+   ```
+4. `docker compose up -d`. If `docker compose ps` does not show `couchlog` running, `docker compose logs --tail 20 couchlog` says which setting is wrong.
+5. Check it on the phone with Wi-Fi off: open the address, type your email and the code, and your history is there. `/admin/` says it only opens from the home address. At home, your username and password still work.
+
+To turn it off again, remove those three lines and run `docker compose up -d`. Couchlog then asks for its username and password after the code again.
+
+**Add a friend:** in Zero Trust, under **Access controls**, **Policies**, add their full email to `Allowed emails`. Their account appears, empty, the first time they sign in. Do nothing in Couchlog.
+
+**Remove a friend:**
+1. Remove their email from `Allowed emails`. This stops new codes, but someone already in stays in until their session ends (up to a month).
+2. To end it at once, use **Revoke existing tokens** on the `couchlog` application, or revoke the person under **Users**.
+3. At home, in `/admin/`, **Users**, open their account and untick **Active**. Their data stays and they stay out. An account can also be deleted there, which erases its data. If the email is still on the allow list, the next sign-in makes a new empty account.
+
+**Change a friend's email:** at home, in `/admin/`, **Users**, change **Email address** on their account first. The username can stay as it is. Then swap the address in `Allowed emails`. In the other order, the new email gets a new empty account.
+
+**"Cannot sign in" page:** it says why. "More than one Couchlog account uses this email" means two accounts in `/admin/` have the same address, so change or clear one. "Another account already uses this email as its username" means an account has that email as its username but a different email address, so fix that account in `/admin/`. "Try again in a few minutes" means the Pi could not fetch Cloudflare's keys, so check that the Pi has internet.
 
 **If the tunnel is down** (the home address keeps working, so Couchlog can still be used at home):
 1. `docker compose ps` shows whether `tunnel` is running. `docker compose logs --tail 20 tunnel` says why not.
@@ -163,6 +186,7 @@ Without those settings (as on the PC), the backup says what is missing and does 
 | `DJANGO_CSRF_TRUSTED_ORIGINS` | Only on the Pi: `https://couchlog.ana-cata.com`. Without it, every form sent through that address is refused. Empty means none, which is all the home address needs. |
 | `COMPOSE_PROFILES` | `tunnel` on the Pi, so the tunnel starts. Left out on the PC. |
 | `TUNNEL_TOKEN` | Only on the Pi. The tunnel's secret. Compose reads it for the `tunnel` container only. |
+| `CLOUDFLARE_ACCESS_TEAM_DOMAIN`, `CLOUDFLARE_ACCESS_AUD`, `CLOUDFLARE_ACCESS_ADDRESS` | Only on the Pi: the team's address and the public address (both without `https://`) and the application's AUD tag. All three empty means the sign-in by email code is off. With only some set, or with `https://` in an address, the app refuses to start, so a mistake cannot leave the password form and `/admin/` open on the public address. See [profile.md](profile.md). |
 | `DJANGO_DB_PATH` | Set by Compose to `/data/db.sqlite3`. On the PC it is left out and the file is `db.sqlite3` in the project folder. |
 | `TMDB_API_KEY` | As on the PC. |
 | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` | Only on the Pi. All four are needed, or no backup is made. |
@@ -177,7 +201,7 @@ Without those settings (as on the PC), the backup says what is missing and does 
   - **What a copy does hold:** the account (with the password stored scrambled, which a restored copy needs for logging in) and the history. It is not encrypted, so the bucket stays private and the R2 key reaches only that bucket.
   - **Restoring:** the copy is downloaded and checked (a real, undamaged database with Couchlog's account table). The current database is then saved as `db-before-restore.sqlite3` next to it, in the volume, and SQLite's backup command writes the copy into the database. This keeps write-ahead log mode and is safe with the app running: a page opened at that moment may just wait a moment. The saved file stays on the Pi, is replaced by the next restore, and is removed by `--undo`.
 - **HTTPS** is Cloudflare's job on the outside address. The app itself still receives plain HTTP from the tunnel, inside the Pi, and the home address is plain HTTP, so the "secure cookie" and "redirect to HTTPS" settings stay off. Turning them on would break the login on `http://` (to be settled in the security check, card #99). Because the app sees HTTP while the browser is on `https://`, Django cannot match a form to its address by itself, which is what `DJANGO_CSRF_TRUSTED_ORIGINS` is for.
-- **Tests**: `core/tests/test_production_settings.py` checks the database path (and its fallback to `db.sqlite3`), the power-cut settings, that debug off without a secret key refuses to start, and that the CSS, logo and htmx are served without a login. `core/tests/test_run_daily.py` checks that `run_daily` refreshes at the start and a day later, survives failures, and waits for the migrations. `core/tests/test_backups.py` uses a fake R2 and a made-up database in write-ahead log mode, and checks the copy, that no key or login session is in it, that only 14 copies are left, and that restore and undo work. `core/tests/test_cloudflare_address.py` uses Django's real forged-request protection, and checks that the trusted addresses come from the setting, that a form from a trusted address is accepted and one from another address refused, and that logging in at the home address still works. The containers, the real R2 and the real Cloudflare are checked by hand with the steps above.
+- **Tests**: `core/tests/test_production_settings.py` checks the database path (and its fallback to `db.sqlite3`), the power-cut settings, that debug off without a secret key refuses to start, and that the CSS, logo and htmx are served without a login. `core/tests/test_run_daily.py` checks that `run_daily` refreshes at the start and a day later, survives failures, and waits for the migrations. `core/tests/test_backups.py` uses a fake R2 and a made-up database in write-ahead log mode, and checks the copy, that no key or login session is in it, that only 14 copies are left, and that restore and undo work. `core/tests/test_cloudflare_address.py` uses Django's real forged-request protection, and checks that the trusted addresses come from the setting, that a form from a trusted address is accepted and one from another address refused, and that logging in at the home address still works. `core/tests/test_cloudflare_sign_in.py` uses made-up keys and tokens, and checks every way a token can be wrong, how the account is found or created, the home address ignoring the header, `/admin/`, and Log out. The containers, the real R2 and the real Cloudflare are checked by hand with the steps above.
 
 **Known limits**
 - `homelab.local` can point to any of the Pi's addresses, including its Wi-Fi one. `192.168.1.164` is the fixed address, so use it for bookmarks.

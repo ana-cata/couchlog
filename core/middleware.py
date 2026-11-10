@@ -1,8 +1,15 @@
 from django.contrib import messages
-from django.shortcuts import redirect
+from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils.cache import add_never_cache_headers
 
+from .cloudflare_access import (
+    TOKEN_HEADER,
+    SignInRefused,
+    account_for,
+    on_cloudflare_address,
+    verified_email,
+)
 from .models import Profile
 
 
@@ -21,6 +28,33 @@ class NeverCacheMiddleware:
         response = self.get_response(request)
         add_never_cache_headers(response)
         return response
+
+
+class CloudflareSignInMiddleware:
+    """On the Cloudflare address, the person is whoever Cloudflare's token says, on every request.
+
+    Couchlog keeps no login of its own there, so a shared browser cannot stay in the wrong account. Any other address
+    is left alone and the token header is not even read there, so a made-up header at home does nothing.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if not on_cloudflare_address(request):
+            return self.get_response(request)
+
+        try:
+            if request.path.startswith(reverse('admin:index')):
+                raise SignInRefused('The admin page only opens from the home address.')
+            request.user = account_for(verified_email(request.headers.get(TOKEN_HEADER, '')))
+        except SignInRefused as refused:
+            return render(request, 'core/sign_in_refused.html', {'message': refused.message}, status=refused.status)
+
+        # The username and password form is not used here, and someone with a token is already in.
+        if request.path == reverse('login'):
+            return redirect('home')
+        return self.get_response(request)
 
 
 class TimeZoneChosenMiddleware:
