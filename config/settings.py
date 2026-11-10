@@ -51,6 +51,22 @@ R2_ACCESS_KEY_ID = os.environ.get('R2_ACCESS_KEY_ID', '')
 R2_SECRET_ACCESS_KEY = os.environ.get('R2_SECRET_ACCESS_KEY', '')
 R2_BUCKET = os.environ.get('R2_BUCKET', '')
 
+# Sign-in by email code on the Cloudflare address (core/cloudflare_access.py). Only set on the Pi; all empty means off.
+CLOUDFLARE_ACCESS_TEAM_DOMAIN = os.environ.get('CLOUDFLARE_ACCESS_TEAM_DOMAIN', '').strip().lower()
+CLOUDFLARE_ACCESS_AUD = os.environ.get('CLOUDFLARE_ACCESS_AUD', '').strip()
+CLOUDFLARE_ACCESS_ADDRESS = os.environ.get('CLOUDFLARE_ACCESS_ADDRESS', '').strip().lower()
+
+# Half set up, or an address with https:// in it, would leave the sign-in off without saying so, and the password form
+# and /admin/ open on the public address. So the app refuses to start.
+_access_settings = (CLOUDFLARE_ACCESS_TEAM_DOMAIN, CLOUDFLARE_ACCESS_AUD, CLOUDFLARE_ACCESS_ADDRESS)
+if any(_access_settings) and (
+    not all(_access_settings) or '/' in CLOUDFLARE_ACCESS_TEAM_DOMAIN or '/' in CLOUDFLARE_ACCESS_ADDRESS
+):
+    raise ImproperlyConfigured(
+        'Set all three CLOUDFLARE_ACCESS_ settings in the .env file, or none of them. '
+        'The team domain and the address go without https://.'
+    )
+
 
 # Application definition
 
@@ -75,6 +91,8 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    # After the normal login, so it can replace it on the Cloudflare address; before the check that a login exists.
+    'core.middleware.CloudflareSignInMiddleware',
     # Every page needs a login unless its view is marked with @login_not_required.
     'django.contrib.auth.middleware.LoginRequiredMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -122,7 +140,8 @@ DATABASES = {
 
 
 # Login
-# Accounts are made in the admin page. Sessions are stored in the database (Django's default).
+# On the home address: accounts are made in the admin page, and sessions are stored in the database (Django's default).
+# On the Cloudflare address: see CloudflareSignInMiddleware.
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'home'
 LOGOUT_REDIRECT_URL = 'login'
