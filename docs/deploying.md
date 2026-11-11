@@ -12,7 +12,7 @@
 
 **Try it on the PC** (Docker Desktop must be running):
 1. In `.env`, set `DJANGO_SECRET_KEY` to a long random text. Make one with `uv run python -c "import secrets; print(secrets.token_urlsafe(50))"`. Leave `DJANGO_DEBUG` out of `.env` (or `true`): Compose turns debug off by itself, and debug off on the PC would make `runserver` show no CSS.
-2. `docker buildx bake --allow=network.host -f docker-compose.yml couchlog` builds the image, and `docker compose up -d` starts Couchlog.
+2. `docker buildx bake --pull --allow=network.host -f docker-compose.yml couchlog` builds the image, and `docker compose up -d` starts Couchlog.
 3. Open http://localhost:3000. The first time the database is empty, so make an account: `docker compose exec couchlog python manage.py createsuperuser`.
 4. `docker compose down` stops and removes the container; the data stays. Starting again with `docker compose up -d` (after a code change, build first as in step 2) shows the same data.
 5. `docker compose down -v` also deletes the volume, which **erases the database**. Use it only to start from nothing.
@@ -23,7 +23,7 @@ Log in from the PC with `ssh ana-cata@homelab.local`. Commands below run on the 
 
 **Deploy a new version** (after a pull request is merged):
 1. `git pull`
-2. `docker buildx bake --allow=network.host -f docker-compose.yml couchlog` builds the new version.
+2. `docker buildx bake --pull --allow=network.host -f docker-compose.yml couchlog` builds the new version.
 3. `docker compose up -d` starts it. The migrations run by themselves when the container starts.
 4. Do the five-minute check, below.
 
@@ -201,7 +201,7 @@ The demo ([demo.md](demo.md)) is a separate copy of Couchlog at `https://couchlo
 
 ## How it works
 
-- **`Dockerfile`**: a small Python 3.14 image. It installs the packages exactly as `uv.lock` says (no dev tools), copies the code, runs `collectstatic`, and runs as a normal user (`app`), not root. On start it applies the migrations, then starts **gunicorn** (the server that runs the app) with 2 workers of 4 threads each on port 8000, so a page waiting for TMDB does not hold up the others. Those numbers are in `gunicorn.conf.py`, which gunicorn reads by itself; in the public demo it is 1 worker, on the port Render gives in `PORT`.
+- **`Dockerfile`**: a small Python 3.14 image (`python:3.14-slim`). The build command has `--pull`, so each build first fetches the newest version of that image, and the security fixes Debian and Python publish for it arrive with the next deploy. Without it, Docker keeps using the copy it downloaded the first time. It installs the packages exactly as `uv.lock` says (no dev tools), copies the code, runs `collectstatic`, and runs as a normal user (`app`), not root. On start it applies the migrations, then starts **gunicorn** (the server that runs the app) with 2 workers of 4 threads each on port 8000, so a page waiting for TMDB does not hold up the others. Those numbers are in `gunicorn.conf.py`, which gunicorn reads by itself; in the public demo it is 1 worker, on the port Render gives in `PORT`.
 - **`docker-compose.yml`**: three containers. `couchlog` and `daily` come from one image, named `couchlog`; `tunnel` is below. The image is built on the machine's own network (`network: host`): on the Pi, the build's temporary container failed to look up the Python packages' site, most likely because the Pi's first three DNS servers are IPv6 and that container has no IPv6. Docker asks for permission for that, and `docker compose` has no way to give it, so the build is its own command, `docker buildx bake --allow=network.host`. `docker compose up --build` stops on the Pi with "additional privileges requested" (Buildx 0.38.1; Buildx 0.37.0 on the PC did not ask). The permission applies to the build only; the running containers do not use the machine's network. Port 3000 on the host goes to 8000 inside. `.env` is handed to the container when it starts and is never copied into the image. The volume `couchlog-data` is mounted at `/data`. `restart: unless-stopped` brings it back after a crash and when the Pi restarts (but not after you stopped it yourself with `docker compose stop`).
 - **The `daily` container** runs `python manage.py run_daily` (`core/management/commands/run_daily.py`), with the same `.env`, settings and volume as the app and no port.
   - It first waits until the database has every migration, checking every 5 seconds, because the app applies them when its own container starts and both start together. The check is in the command, and not Compose's `depends_on`, because Docker does not follow `depends_on` when it restarts containers after a reboot.

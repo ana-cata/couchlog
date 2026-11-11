@@ -16,7 +16,7 @@ Every tool runs once from Docker or `uvx` (which runs a Python tool without addi
 
 ### 1. Secrets
 - The whole git history, not only today's files: `docker run --rm -v "${PWD}:/repo:ro" ghcr.io/gitleaks/gitleaks:v8.28.0 git /repo --redact`. Expected: "no leaks found".
-- The image holds no `.env` and no database: build it (`docker buildx bake --allow=network.host -f docker-compose.yml couchlog`), then `docker run --rm --entrypoint sh couchlog -c "find / -xdev \( -name '.env*' -o -name '*.sqlite3*' -o -name '*.db' \) 2>/dev/null"`. Expected: nothing printed.
+- The image holds no `.env` and no database: build it (`docker buildx bake --pull --allow=network.host -f docker-compose.yml couchlog`), then `docker run --rm --entrypoint sh couchlog -c "find / -xdev \( -name '.env*' -o -name '*.sqlite3*' -o -name '*.db' \) 2>/dev/null"`. Expected: nothing printed.
 - On the Pi: `ls -l ~/couchlog/.env` shows `-rw-------`.
 - Read the issue and pull request text (`gh issue list --state all --json title,body,comments`, the same for `gh pr list`) for emails, keys, tokens and addresses.
 

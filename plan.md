@@ -163,7 +163,7 @@ For every feature, repeat this loop. A feature is done when it is tested, merged
 
 1. Take the next card on the GitHub project board (To do, Doing, Done). Each card is one feature from section 3, and its "done when" is the test.
 2. Build it on a separate branch (`feature/<name>`), never directly on `main`.
-3. Write the tests, and run the app on the PC (`uv run python manage.py runserver`) to try it. To check it on my phone, run it in Docker on the PC (`docker buildx bake --allow=network.host -f docker-compose.yml couchlog`, then `docker compose up -d`) and open `http://<PC address>:3000` from the phone while both are on the home Wi-Fi; the PC's address must be in `DJANGO_ALLOWED_HOSTS` in `.env` (see `docs/deploying.md`).
+3. Write the tests, and run the app on the PC (`uv run python manage.py runserver`) to try it. To check it on my phone, run it in Docker on the PC (`docker buildx bake --pull --allow=network.host -f docker-compose.yml couchlog`, then `docker compose up -d`) and open `http://<PC address>:3000` from the phone while both are on the home Wi-Fi; the PC's address must be in `DJANGO_ALLOWED_HOSTS` in `.env` (see `docs/deploying.md`).
 4. Push the branch and open a pull request. GitHub Actions runs the checks (lint and tests) automatically.
 5. Read the changes in the pull request (I do the PR for now). Merge into `main` only when the checks are green.
 6. Check the "done when" conditions once more on `main` on the PC.
@@ -172,7 +172,7 @@ For every feature, repeat this loop. A feature is done when it is tested, merged
 **Deploying to the Pi** (the full steps, and how to go back, are in `docs/deploying.md`):
 
 1. If the change alters the tables, first make a copy of the database by hand (`backup_db`).
-2. On the Pi, pull `main`, then build and start the containers (`docker buildx bake --allow=network.host -f docker-compose.yml couchlog`, then `docker compose up -d`).
+2. On the Pi, pull `main`, then build and start the containers (`docker buildx bake --pull --allow=network.host -f docker-compose.yml couchlog`, then `docker compose up -d`).
 3. Do the five-minute check (section 7) from my phone.
 
 The data on the PC stays test data. It never goes to the Pi.
