@@ -2,7 +2,7 @@
 
 ## What it does
 
-- Anyone, for example a recruiter, opens `https://demo.ana-cata.com` and presses **Try the demo**. They get their own throwaway account, already filled with sample movies and series, and can use the app for real. No email and no password.
+- Anyone, for example a recruiter, opens `https://couchlog-demo.ana-cata.com` and presses **Try the demo**. They get their own throwaway account, already filled with sample movies and series, and can use the app for real. No email and no password.
 - The demo is a **separate copy** of Couchlog on Render's free plan, with its own database and its own login secret. It has no connection to the Pi, the home network or my real data. How to deploy it and switch it off: [deploying.md](deploying.md#the-public-demo-on-render).
 - Each visitor has their own account, so nobody sees what another visitor did. Pressing the button again in another browser gives another new account.
 - **Sample data:** 3 movies watched (one with an unknown date), 3 movies on To Watch (two still to come out in cinemas: Dune: Part Three in December 2026 and Black Panther 3 in December 2028), Fleabag finished, Severance and Tulsa King halfway, and Chernobyl and The Rings of Power on To Watch. The dates of the watches are counted back from the visitor's today, so they always look recent. Tulsa King, The Rings of Power and Dune: Part Three keep the Calendar and News full for now, and Black Panther 3 keeps a film on the Calendar until December 2028.

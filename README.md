@@ -34,7 +34,7 @@ The real app runs in Docker on the Raspberry Pi; on the PC, Docker is for trying
 
 ## The public demo
 
-A separate copy of Couchlog on Render's free plan, at `https://demo.ana-cata.com`: anyone presses **Try the demo** and gets a throwaway account with sample titles, with limits. It is turned on with `DEMO_MODE=true`, which is never set on the PC or the Pi. See [docs/demo.md](docs/demo.md) for what it does and its limits, and [docs/deploying.md](docs/deploying.md#the-public-demo-on-render) for deploying it and switching it off.
+A separate copy of Couchlog on Render's free plan, at `https://couchlog-demo.ana-cata.com`: anyone presses **Try the demo** and gets a throwaway account with sample titles, with limits. It is turned on with `DEMO_MODE=true`, which is never set on the PC or the Pi. See [docs/demo.md](docs/demo.md) for what it does and its limits, and [docs/deploying.md](docs/deploying.md#the-public-demo-on-render) for deploying it and switching it off.
 
 ## Open it from the phone
 

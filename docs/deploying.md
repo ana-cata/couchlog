@@ -165,7 +165,7 @@ To turn it off again, remove those three lines and run `docker compose up -d`. C
 
 ## The public demo on Render
 
-The demo ([demo.md](demo.md)) is a separate copy of Couchlog at `https://demo.ana-cata.com`, built by Render from this repo's `Dockerfile`. It never runs on the Pi and has none of the Pi's secrets. Render and Cloudflare may word these buttons slightly differently.
+The demo ([demo.md](demo.md)) is a separate copy of Couchlog at `https://couchlog-demo.ana-cata.com`, built by Render from this repo's `Dockerfile`. It never runs on the Pi and has none of the Pi's secrets. Render and Cloudflare may word these buttons slightly differently.
 
 **Before (done once):** make the Render account, read the current free plan (going over a free limit must suspend the service, not charge; and whether it asks for a card), and give Render access to `ana-cata/couchlog` only (GitHub → Settings → Applications → Render → Only select repositories).
 
@@ -178,21 +178,21 @@ The demo ([demo.md](demo.md)) is a separate copy of Couchlog at `https://demo.an
    DJANGO_SECRET_KEY=<a new long random text, not the PC's or the Pi's>
    TMDB_API_KEY=<the TMDB key>
    DJANGO_DB_PATH=/data/db.sqlite3
-   DJANGO_ALLOWED_HOSTS=demo.ana-cata.com,<name>.onrender.com
-   DJANGO_CSRF_TRUSTED_ORIGINS=https://demo.ana-cata.com,https://<name>.onrender.com
+   DJANGO_ALLOWED_HOSTS=couchlog-demo.ana-cata.com,<name>.onrender.com
+   DJANGO_CSRF_TRUSTED_ORIGINS=https://couchlog-demo.ana-cata.com,https://<name>.onrender.com
    ```
    Make the secret key with `uv run python -c "import secrets; print(secrets.token_urlsafe(50))"`. `<name>.onrender.com` is the address Render shows at the top of the service. `DJANGO_DB_PATH` matters: the app runs as a normal user that can only write in `/data`.
 3. **Deploy.** When the log says gunicorn is listening, open `https://<name>.onrender.com`. The **Try the demo** page with the demo banner appears.
-4. **The address.** In Render, service **Settings** → **Custom Domains** → add `demo.ana-cata.com`. In Cloudflare, **DNS** for `ana-cata.com`, add a `CNAME` named `demo` pointing at `<name>.onrender.com`, with the proxy **off** (grey cloud) until Render shows the domain as verified with its certificate. Then turn the proxy **on** (orange cloud): the rate limiting rule only sees traffic that goes through Cloudflare. Under **SSL/TLS**, the mode must be **Full (strict)**, or the page loops.
-5. **The rate limiting rule** (the free plan has one): **Security** → **WAF** → **Rate limiting rules** → create one for requests where the hostname equals `demo.ana-cata.com`, counted per IP, 30 requests in 10 seconds, action **Block** for 10 seconds.
-6. **Check it** on the phone on mobile data with Wi-Fi off: open `https://demo.ana-cata.com`, press **Try the demo**, see the sample titles on Home, Movies, Series and Calendar. Open it in a second browser: it is a different account. `https://demo.ana-cata.com/admin/` says not found. About shows the TMDB credit.
+4. **The address.** In Render, service **Settings** → **Custom Domains** → add `couchlog-demo.ana-cata.com`. In Cloudflare, **DNS** for `ana-cata.com`, add a `CNAME` named `couchlog-demo` pointing at `<name>.onrender.com`, with the proxy **off** (grey cloud) until Render shows the domain as verified with its certificate. Then turn the proxy **on** (orange cloud): the rate limiting rule only sees traffic that goes through Cloudflare. Under **SSL/TLS**, the mode must be **Full (strict)**, or the page loops.
+5. **The rate limiting rule** (the free plan has one): **Security** → **WAF** → **Rate limiting rules** → create one for requests where the hostname equals `couchlog-demo.ana-cata.com`, counted per IP, 30 requests in 10 seconds, action **Block** for 10 seconds. A demo of another app later can share this one rule: change it to "hostname is in" and list both addresses.
+6. **Check it** on the phone on mobile data with Wi-Fi off: open `https://couchlog-demo.ana-cata.com`, press **Try the demo**, see the sample titles on Home, Movies, Series and Calendar. Open it in a second browser: it is a different account. `https://couchlog-demo.ana-cata.com/admin/` says not found. About shows the TMDB credit.
 
 **New versions:** Render deploys by itself after each merge to `main` (Auto-Deploy). A deploy empties the demo, like a restart.
 
 **Switch it off quickly**, from the phone if needed, any one of these:
 - **Stop it:** Render → the service → **Settings** → **Suspend Web Service**. The address stops answering. **Resume** brings it back, empty.
 - **No new visitors, keep the current ones:** set `DEMO_ACCOUNTS_PER_DAY=0` under **Environment**. The button then says the demo is full. (Saving restarts the demo, which empties it.)
-- **Take the address away:** delete the `demo` record in Cloudflare's DNS.
+- **Take the address away:** delete the `couchlog-demo` record in Cloudflare's DNS.
 
 **If the TMDB key leaks:** make a new key on TMDB (TMDB account → Settings → API; the old one stops working), and put it in `TMDB_API_KEY` on Render and in the Pi's `.env`.
 
