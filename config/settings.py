@@ -42,6 +42,17 @@ CSRF_TRUSTED_ORIGINS = [
     origin.strip() for origin in os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',') if origin.strip()
 ]
 
+# Only on the public demo, which is only ever reached over HTTPS: the login and form cookies are only sent over HTTPS,
+# and browsers are told to always use HTTPS for its address (HSTS, for six months, for that address only). Off on the
+# Pi, because the home address is plain HTTP and its login must keep working. Render's proxy says in a header that the
+# visitor used HTTPS, which Django needs to know before it sends the HSTS header.
+HTTPS_ONLY = os.environ.get('DJANGO_HTTPS_ONLY', 'false').strip().lower() == 'true'
+if HTTPS_ONLY:
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 60 * 60 * 24 * 182
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 # The TMDB key is only used by server code (core/tmdb.py), never sent to the browser.
 TMDB_API_KEY = os.environ.get('TMDB_API_KEY', '')
 
