@@ -19,9 +19,11 @@ jobs:
 
       - run: uv run ruff check .
 
-      # The end-to-end test drives a real browser (Chromium); this downloads it and the
-      # Linux libraries it needs.
-      - run: uv run playwright install --with-deps chromium
+      # The end-to-end test drives a real browser (Chromium); this downloads it. GitHub's Ubuntu
+      # machine already has the Linux libraries Chromium needs (it comes with Chrome), so they are
+      # not installed from Ubuntu's servers: when those servers did not answer (2026-11-11), the
+      # whole check failed before any test ran.
+      - run: uv run playwright install chromium
 
       # No .env and no TMDB key here: the tests use made-up TMDB answers.
       - run: uv run pytest
