@@ -6,6 +6,7 @@
 - From outside the home it is at `https://couchlog.ana-cata.com`. A person types their email, and only emails on the allow list receive a one-time code and get through. That is the only sign-in there: no password, and the first time their account is created by itself. The router stays closed. `/admin/` only opens from the home address.
 - A second container, **`daily`**, refreshes the Calendar, News and new episodes by itself: once when it starts (so also after the Pi was off) and then every 24 hours. Nobody runs `refresh_calendar` by hand on the Pi.
 - The `daily` container also sends a **backup** of the database to Cloudflare R2 (private online storage) at each run, and keeps the newest 14 copies. So a copy survives the SD card, the Pi or the house having a problem. Any copy can be restored, and a restore can be undone.
+- The **public demo** is a separate copy on Render, away from the Pi and the home network: [The public demo on Render](#the-public-demo-on-render) below.
 - The same setup can be tried on the PC. Everyday work stays the same: `uv run python manage.py runserver` on the PC.
 - The container has its own database, kept in a Docker **volume** (storage that belongs to Docker, outside the container). It is not the `db.sqlite3` on the PC. Rebuilding or removing the container does not erase it.
 
@@ -162,9 +163,44 @@ To turn it off again, remove those three lines and run `docker compose up -d`. C
 
 **Updating the tunnel:** change the version in `docker-compose.yml` in a pull request. Keep it at 2026.10.2 or newer, because older versions still trust eMudhra's compromised certificates ([Cloudflare's post](https://blog.cloudflare.com/emudhra-certificate-compromise/)).
 
+## The public demo on Render
+
+The demo ([demo.md](demo.md)) is a separate copy of Couchlog at `https://couchlog-demo.ana-cata.com`, built by Render from this repo's `Dockerfile`. It never runs on the Pi and has none of the Pi's secrets. Render and Cloudflare may word these buttons slightly differently.
+
+**Before (done once):** make the Render account, read the current free plan (going over a free limit must suspend the service, not charge; and whether it asks for a card), and give Render access to `ana-cata/couchlog` only (GitHub → Settings → Applications → Render → Only select repositories).
+
+**Deploy it** (done once):
+1. In Render: **New** → **Web Service** → the `couchlog` repo. Language **Docker**, branch `main`, a region in Europe, instance type **Free**. Leave the health check path empty.
+2. Under **Environment**, add these, and nothing else (no `R2_…`, no `CLOUDFLARE_ACCESS_…`, no `TUNNEL_TOKEN`: with any of them the demo refuses to start):
+   ```
+   DEMO_MODE=true
+   DJANGO_DEBUG=false
+   DJANGO_SECRET_KEY=<a new long random text, not the PC's or the Pi's>
+   TMDB_API_KEY=<the TMDB key>
+   DJANGO_DB_PATH=/data/db.sqlite3
+   DJANGO_ALLOWED_HOSTS=couchlog-demo.ana-cata.com,<name>.onrender.com
+   DJANGO_CSRF_TRUSTED_ORIGINS=https://couchlog-demo.ana-cata.com,https://<name>.onrender.com
+   ```
+   Make the secret key with `uv run python -c "import secrets; print(secrets.token_urlsafe(50))"`. `<name>.onrender.com` is the address Render shows at the top of the service. `DJANGO_DB_PATH` matters: the app runs as a normal user that can only write in `/data`.
+3. **Deploy.** When the log says gunicorn is listening, open `https://<name>.onrender.com`. The **Try the demo** page with the demo banner appears.
+4. **The address.** In Render, service **Settings** → **Custom Domains** → add `couchlog-demo.ana-cata.com`. In Cloudflare, **DNS** for `ana-cata.com`, add a `CNAME` named `couchlog-demo` pointing at `<name>.onrender.com`, with the proxy **off** (grey cloud) until Render shows the domain as verified with its certificate. Then turn the proxy **on** (orange cloud): the rate limiting rule only sees traffic that goes through Cloudflare. Under **SSL/TLS**, the mode must be **Full (strict)**, or the page loops.
+5. **The rate limiting rule** (the free plan has one): **Security** → **WAF** → **Rate limiting rules** → create one for requests where the hostname equals `couchlog-demo.ana-cata.com`, counted per IP, 30 requests in 10 seconds, action **Block** for 10 seconds. A demo of another app later can share this one rule: change it to "hostname is in" and list both addresses.
+6. **Check it** on the phone on mobile data with Wi-Fi off: open `https://couchlog-demo.ana-cata.com`, press **Try the demo**, see the sample titles on Home, Movies, Series and Calendar. Open it in a second browser: it is a different account. `https://couchlog-demo.ana-cata.com/admin/` says not found. About shows the TMDB credit.
+
+**New versions:** Render deploys by itself after each merge to `main` (Auto-Deploy). A deploy empties the demo, like a restart.
+
+**Switch it off quickly**, from the phone if needed, any one of these:
+- **Stop it:** Render → the service → **Settings** → **Suspend Web Service**. The address stops answering. **Resume** brings it back, empty.
+- **No new visitors, keep the current ones:** set `DEMO_ACCOUNTS_PER_DAY=0` under **Environment**. The button then says the demo is full. (Saving restarts the demo, which empties it.)
+- **Take the address away:** delete the `couchlog-demo` record in Cloudflare's DNS.
+
+**If the TMDB key leaks:** make a new key on TMDB (TMDB account → Settings → API; the old one stops working), and put it in `TMDB_API_KEY` on Render and in the Pi's `.env`.
+
+**Limits:** see [demo.md](demo.md). They are changed under **Environment**, with no new deploy.
+
 ## How it works
 
-- **`Dockerfile`**: a small Python 3.14 image. It installs the packages exactly as `uv.lock` says (no dev tools), copies the code, runs `collectstatic`, and runs as a normal user (`app`), not root. On start it applies the migrations, then starts **gunicorn** (the server that runs the app) with 2 workers of 4 threads each on port 8000, so a page waiting for TMDB does not hold up the others.
+- **`Dockerfile`**: a small Python 3.14 image. It installs the packages exactly as `uv.lock` says (no dev tools), copies the code, runs `collectstatic`, and runs as a normal user (`app`), not root. On start it applies the migrations, then starts **gunicorn** (the server that runs the app) with 2 workers of 4 threads each on port 8000, so a page waiting for TMDB does not hold up the others. Those numbers are in `gunicorn.conf.py`, which gunicorn reads by itself; in the public demo it is 1 worker, on the port Render gives in `PORT`.
 - **`docker-compose.yml`**: three containers. `couchlog` and `daily` come from one image, named `couchlog`; `tunnel` is below. The image is built on the machine's own network (`network: host`): on the Pi, the build's temporary container failed to look up the Python packages' site, most likely because the Pi's first three DNS servers are IPv6 and that container has no IPv6. Docker asks for permission for that, and `docker compose` has no way to give it, so the build is its own command, `docker buildx bake --allow=network.host`. `docker compose up --build` stops on the Pi with "additional privileges requested" (Buildx 0.38.1; Buildx 0.37.0 on the PC did not ask). The permission applies to the build only; the running containers do not use the machine's network. Port 3000 on the host goes to 8000 inside. `.env` is handed to the container when it starts and is never copied into the image. The volume `couchlog-data` is mounted at `/data`. `restart: unless-stopped` brings it back after a crash and when the Pi restarts (but not after you stopped it yourself with `docker compose stop`).
 - **The `daily` container** runs `python manage.py run_daily` (`core/management/commands/run_daily.py`), with the same `.env`, settings and volume as the app and no port.
   - It first waits until the database has every migration, checking every 5 seconds, because the app applies them when its own container starts and both start together. The check is in the command, and not Compose's `depends_on`, because Docker does not follow `depends_on` when it restarts containers after a reboot.

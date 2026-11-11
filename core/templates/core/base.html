@@ -46,6 +46,13 @@
     </div>
   </header>
   <main class="container">
+    {% if demo_mode %}
+      {# On every page of the public demo (docs/demo.md). #}
+      <p class="demo-banner">
+        This is a demo of Couchlog. Everything in it is erased regularly.
+        <a href="{{ demo_repo_url }}" target="_blank" rel="noopener">See the code on GitHub</a>.
+      </p>
+    {% endif %}
     {% for message in messages %}
       <p role="status">{{ message }}</p>
     {% endfor %}

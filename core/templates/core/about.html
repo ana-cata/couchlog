@@ -14,16 +14,26 @@
   </p>
   <p>This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
 
-  <p>
-    The dates of upcoming episodes also come from
-    <a href="https://www.tvmaze.com/" target="_blank" rel="noopener">TVmaze</a>, whose data is licensed under
-    <a href="https://www.tvmaze.com/api" target="_blank" rel="noopener">CC BY-SA</a>.
-  </p>
+  {% if demo_mode %}
+    {# The demo does not use TVmaze, so it has no TVmaze credit, and its own privacy note. #}
+    <p>
+      <strong>About this demo.</strong> The demo stores only what you do in it: the titles, watches, ratings and notes
+      of your throwaway account, and its time zone. It stores no email and no IP address, and keeps no backups.
+      Each account is deleted after 24 hours, and everything is erased whenever the demo restarts. The demo runs on its
+      own server, away from the real Couchlog.
+    </p>
+  {% else %}
+    <p>
+      The dates of upcoming episodes also come from
+      <a href="https://www.tvmaze.com/" target="_blank" rel="noopener">TVmaze</a>, whose data is licensed under
+      <a href="https://www.tvmaze.com/api" target="_blank" rel="noopener">CC BY-SA</a>.
+    </p>
 
-  <p>
-    <strong>Privacy.</strong> Couchlog stores what you add: your watch history, ratings and notes, your time zone and
-    your email. Daily backups are kept in private storage at Cloudflare R2. When you open Couchlog from outside my home,
-    the connection goes through Cloudflare, which could technically see what passes through. If you want your data
-    removed, tell me.
-  </p>
+    <p>
+      <strong>Privacy.</strong> Couchlog stores what you add: your watch history, ratings and notes, your time zone and
+      your email. Daily backups are kept in private storage at Cloudflare R2. When you open Couchlog from outside my
+      home, the connection goes through Cloudflare, which could technically see what passes through. If you want your
+      data removed, tell me.
+    </p>
+  {% endif %}
 {% endblock %}

@@ -1,4 +1,3 @@
-from django.contrib.auth import views as auth_views
 from django.urls import path, register_converter
 from django.views.generic import RedirectView
 
@@ -55,6 +54,8 @@ urlpatterns = [
     path('<kind:kind>/<int:tmdb_id>/', views.title, name='title'),
     path('about/', views.about, name='about'),
     path('profile/', views.profile, name='profile'),
-    path('login/', auth_views.LoginView.as_view(template_name='core/login.html'), name='login'),
+    path('login/', views.login, name='login'),
+    # Only in the public demo (docs/demo.md); "not found" everywhere else.
+    path('demo/start/', views.demo_start, name='demo_start'),
     path('logout/', views.LogoutView.as_view(), name='logout'),
 ]

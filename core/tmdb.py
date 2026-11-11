@@ -24,6 +24,11 @@ def _get(path, query=None):
     api_key = settings.TMDB_API_KEY
     if not api_key:
         raise TmdbError('TMDB_API_KEY is not set. Put your TMDB key in the .env file (see .env.example).')
+    if settings.DEMO_MODE:
+        # Every request counts toward the demo's hourly limit, and is refused past it (core/demo.py).
+        from .demo import use_tmdb_request
+
+        use_tmdb_request()
 
     # TMDB hands out two kinds of credential. The long "read access token" (starts with eyJ)
     # goes in a header; the short "API key" goes in the query string.

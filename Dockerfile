@@ -32,4 +32,5 @@ USER app
 EXPOSE 8000
 
 # Apply the migrations, then start gunicorn. The migrations run at every start, so the PC and the Pi stay in step.
-CMD ["sh", "-c", "python manage.py migrate --noinput && exec gunicorn config.wsgi --bind 0.0.0.0:8000 --workers 2 --threads 4"]
+# The address, the port and the number of workers are in gunicorn.conf.py (one worker in the public demo).
+CMD ["sh", "-c", "python manage.py migrate --noinput && exec gunicorn config.wsgi"]

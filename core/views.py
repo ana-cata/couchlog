@@ -2,7 +2,9 @@ import math
 from datetime import timedelta
 from zoneinfo import ZoneInfo
 
+from django.conf import settings
 from django.contrib import messages
+from django.contrib.auth import login as auth_login
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_not_required
 from django.core import serializers
@@ -20,6 +22,15 @@ from django.views.decorators.vary import vary_on_headers
 
 from . import releases, tmdb, tvmaze
 from .cloudflare_access import LOGOUT_ADDRESS, on_cloudflare_address
+from .demo import (
+    DEMO_FULL,
+    SAMPLES_UNREACHABLE,
+    DemoFull,
+    counts_as_change,
+    is_full,
+    search_refused,
+    start_account,
+)
 from .episodes import (
     dropped_series,
     dropped_tab,
@@ -86,7 +97,8 @@ def calendar(request):
 def search(request):
     query = request.GET.get('q', '').strip()
     results, error = [], ''
-    if query:
+    # In the demo, each search counts toward the visitor's hourly limit (core/demo.py), and past it TMDB is not asked.
+    if query and not (error := search_refused(request.user)):
         try:
             results = tmdb.search(query)
         except tmdb.TmdbError as problem:
@@ -349,6 +361,7 @@ def _posted_series(request):
 
 
 @require_POST
+@counts_as_change
 def series_drop(request):
     """Stop watching: move the series to Dropped. Nothing else is touched, so bringing it back is the undo."""
     series = _posted_series(request)
@@ -385,6 +398,7 @@ def _forget_expired_removals(user):
 
 
 @require_POST
+@counts_as_change
 def series_remove_all(request):
     """Take a series off every list (To Watch, Watching, Finished, Dropped) and delete its history, rating and note.
 
@@ -515,6 +529,7 @@ def _collect_dates(title):
 
 
 @require_POST
+@counts_as_change
 def to_watch_add(request):
     kind, tmdb_id = _posted_title(request)
 
@@ -666,6 +681,7 @@ def history(request):
 
 
 @require_POST
+@counts_as_change
 def watched_add(request):
     kind, tmdb_id = _posted_title(request)
     if kind != 'movie':
@@ -851,6 +867,7 @@ def _ask_earlier(request, question):
 
 
 @require_POST
+@counts_as_change
 def episode_watched_add(request):
     """Mark one episode as watched, on the day the button is pressed (in the account's time zone).
 
@@ -972,6 +989,7 @@ def _posted_season(request):
 
 
 @require_POST
+@counts_as_change
 def season_watched_add(request):
     """Mark every episode of a season that has aired and is not marked yet, in one step.
 
@@ -996,6 +1014,7 @@ def season_watched_remove(request):
 
 
 @require_POST
+@counts_as_change
 def season_watched_again(request):
     """Watch a season again: one more watch, dated today, for every episode of it that has aired, in one step.
 
@@ -1018,6 +1037,7 @@ def season_watched_again_remove(request):
 
 
 @require_POST
+@counts_as_change
 def episodes_watched_up_to(request):
     """The "Yes" of the question: mark the chosen episode and the episodes it skips (the ones that have aired and
     are not marked, between the nearest episode marked before it and it), in one step."""
@@ -1040,6 +1060,31 @@ def episodes_watched_up_to(request):
 @login_not_required
 def about(request):
     return render(request, 'core/about.html')
+
+
+@login_not_required
+def login(request):
+    """The login page. In the demo it is only the Try the demo button: the username and password form does not exist,
+    and a username and password sent to it are ignored."""
+    if settings.DEMO_MODE:
+        return render(request, 'core/demo_login.html', {'full': is_full()})
+    return auth_views.LoginView.as_view(template_name='core/login.html')(request)
+
+
+@login_not_required
+@require_POST
+def demo_start(request):
+    """The Try the demo button: a new throwaway account with the sample titles, and the visitor is signed in to it."""
+    if not settings.DEMO_MODE:
+        raise Http404
+    try:
+        user = start_account(request.POST.get('time_zone', ''))
+    except DemoFull:
+        return render(request, 'core/demo_login.html', {'full': True, 'error': DEMO_FULL})
+    except tmdb.TmdbError:
+        return render(request, 'core/demo_login.html', {'error': SAMPLES_UNREACHABLE})
+    auth_login(request, user)
+    return redirect('home')
 
 
 class LogoutView(auth_views.LogoutView):

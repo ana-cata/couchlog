@@ -3,6 +3,7 @@
 import datetime
 
 import httpx
+from django.conf import settings
 
 TVMAZE_BASE_URL = 'https://api.tvmaze.com'
 
@@ -16,6 +17,10 @@ class TvmazeNotFound(TvmazeError):
 
 
 def _get(path, query=None):
+    if settings.DEMO_MODE:
+        # TVmaze is off in the public demo, so its ShareAlike licence does not come up there. The demo's Calendar uses
+        # TMDB's dates only. Callers already treat this like TVmaze not answering.
+        raise TvmazeError('TVmaze is off in the demo.')
     try:
         # The lookup answers with a redirect to the show, so redirects are followed.
         response = httpx.get(TVMAZE_BASE_URL + path, params=query, follow_redirects=True, timeout=10)
