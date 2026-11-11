@@ -29,6 +29,7 @@ MOVIES = {
     496243: ('Parasite', '2019-05-30'),
     666277: ('Past Lives', '2023-06-02'),
     1170608: ('Dune: Part Three', '2026-12-15'),  # in cinemas after "today"
+    1386618: ('Black Panther 3', '2028-12-13'),  # in cinemas long after "today"
     700: ('Made-up Extra Movie', '2020-01-01'),  # not a sample: for adding one more
 }
 # name, TMDB status, the air dates of season 1's episodes
@@ -261,7 +262,7 @@ def test_a_new_account_gets_the_sample_data_dated_from_today(demo_on):
         'Parasite': None,
     }
     on_list = set(ToWatchItem.objects.filter(user=user, removed_at=None).values_list('title__title', flat=True))
-    assert on_list == {'Past Lives', 'Dune: Part Three', 'Chernobyl', 'The Rings of Power'}
+    assert on_list == {'Past Lives', 'Dune: Part Three', 'Black Panther 3', 'Chernobyl', 'The Rings of Power'}
     # Fleabag: every episode, the last 20 days ago. Severance: the first 4. Tulsa King: the 3 aired, the last yesterday.
     episodes = Watch.objects.filter(user=user, episode__isnull=False)
     fleabag = episodes.filter(title__tmdb_id=67070).order_by('episode__episode_number')
@@ -280,6 +281,7 @@ def test_the_sample_series_land_in_the_right_tabs_and_the_calendar_is_not_empty(
     assert 'Severance' in watching and 'Tulsa King' in watching
     calendar = visitor.get('/calendar/').content.decode()
     assert 'Tulsa King' in calendar and 'The Rings of Power' in calendar and 'Dune: Part Three' in calendar
+    assert 'Black Panther 3' in calendar
 
 
 def test_today_is_the_visitors_own_today(demo_on):
@@ -298,7 +300,7 @@ def test_only_the_first_account_asks_tmdb_for_the_samples(demo_on):
 
     assert asked > 0
     assert demo_on.call_count == asked
-    assert Title.objects.count() == 10
+    assert Title.objects.count() == 11
 
 
 def test_tmdb_not_answering_shows_a_friendly_message_and_makes_no_account(settings, db, respx_mock):

@@ -39,8 +39,9 @@ EPISODES_REFRESH_AFTER = datetime.timedelta(days=1)
 # being empty, so when they stop airing, swap them for others that air (docs/demo.md).
 # Movies watched, with how many days ago (None: date unknown).
 WATCHED_MOVIES = [(278, 2), (129, 9), (496243, None)]  # The Shawshank Redemption, Spirited Away, Parasite
-# Movies on the To Watch list. Dune: Part Three has a cinema date ahead, for the Calendar.
-TO_WATCH_MOVIES = [666277, 1170608]  # Past Lives, Dune: Part Three
+# Movies on the To Watch list. Dune: Part Three (December 2026) and Black Panther 3 (December 2028) have cinema dates
+# ahead, so the Calendar has a film for a long time.
+TO_WATCH_MOVIES = [666277, 1170608, 1386618]  # Past Lives, Dune: Part Three, Black Panther 3
 # Series with episodes watched: (TMDB id, how many episodes from the start, None for every aired one, how many days
 # ago the last of them was watched). One a day before that, going back.
 STARTED_SERIES = [
