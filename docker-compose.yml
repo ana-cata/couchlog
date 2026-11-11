@@ -1,5 +1,5 @@
 # Couchlog as it runs on the Pi: two containers from one image, sharing the database in a volume, and the tunnel.
-# Build it with: docker buildx bake --allow=network.host -f docker-compose.yml couchlog
+# Build it with: docker buildx bake --pull --allow=network.host -f docker-compose.yml couchlog
 # Then start it with: docker compose up -d
 services:
   couchlog:
