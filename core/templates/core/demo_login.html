@@ -1,0 +1,31 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Try the demo · Couchlog{% endblock %}
+
+{% block content %}
+  {# The demo's login page (DEMO_MODE): no username and no password, only the button that makes a throwaway account. #}
+  <h1>Try Couchlog</h1>
+  <p>
+    Couchlog keeps track of the movies and series I watch: a To Watch list, a history of what I have seen and a
+    calendar of what comes out next. Press the button to get your own throwaway account, already filled with sample
+    titles, and use it for real. No email and no password.
+  </p>
+  {% if error %}
+    <p role="alert">{{ error }}</p>
+  {% endif %}
+  {% if full %}
+    <p><button type="button" disabled>The demo is full for today. Try again tomorrow.</button></p>
+  {% else %}
+    <form method="post" action="{% url 'demo_start' %}">
+      {% csrf_token %}
+      {# Filled in with the browser's time zone below, so "today" is the visitor's today. Empty means UTC. #}
+      <input type="hidden" name="time_zone" id="demo-time-zone" value="">
+      <button type="submit">Try the demo</button>
+    </form>
+    <script>
+      try {
+        document.getElementById('demo-time-zone').value = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+      } catch (error) {}
+    </script>
+  {% endif %}
+{% endblock %}

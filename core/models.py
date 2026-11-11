@@ -237,3 +237,26 @@ class Rating(models.Model):
 
     def __str__(self):
         return f'{self.user}: {self.title} ({self.stars or "no"} stars)'
+
+
+class DemoEvent(models.Model):
+    """One thing that counts toward a limit of the public demo (core/demo.py). Only written in demo mode.
+
+    The limits are worked out by counting these rows over the last hour or the last 24 hours. A row says what
+    happened and when, and for a visitor's own limits which demo account it was. Nothing else: no email, no IP address.
+    Rows older than 24 hours are deleted when a new demo account starts.
+    """
+
+    class Kind(models.TextChoices):
+        ACCOUNT = 'account', 'New demo account'
+        SEARCH = 'search', 'Search'
+        CHANGE = 'change', 'Change'
+        TMDB = 'tmdb', 'TMDB request'
+
+    kind = models.CharField(max_length=7, choices=Kind)
+    # Only for a visitor's own limits (searches and changes). Deleting the account deletes its rows.
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.CASCADE)
+    at = models.DateTimeField(default=timezone.now, db_index=True)
+
+    def __str__(self):
+        return f'{self.get_kind_display()} at {self.at:%Y-%m-%d %H:%M}' + (f' ({self.user})' if self.user else '')

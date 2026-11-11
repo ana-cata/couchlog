@@ -1,4 +1,6 @@
+from django.conf import settings
 from django.contrib import messages
+from django.http import Http404
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils.cache import add_never_cache_headers
@@ -54,6 +56,21 @@ class CloudflareSignInMiddleware:
         # The username and password form is not used here, and someone with a token is already in.
         if request.path == reverse('login'):
             return redirect('home')
+        return self.get_response(request)
+
+
+class DemoMiddleware:
+    """In the public demo, /admin/ does not exist: every address under it is "not found", for everyone.
+
+    Outside the demo it does nothing.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if settings.DEMO_MODE and request.path.startswith(reverse('admin:index')):
+            raise Http404
         return self.get_response(request)
 
 

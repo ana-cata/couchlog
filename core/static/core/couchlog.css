@@ -963,3 +963,13 @@ button.corner-button.on-list:is(:hover, :focus-visible) {
   margin: 0.25rem 0 0;
   color: var(--pico-muted-color);
 }
+
+/* The line at the top of every page of the public demo (docs/demo.md). A small accent, so light pink. */
+.demo-banner {
+  margin: 0 0 1rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--couch-light-pink);
+  border-radius: var(--pico-border-radius);
+  color: var(--couch-light-pink);
+  font-size: 0.875rem;
+}

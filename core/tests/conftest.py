@@ -16,3 +16,9 @@ def no_real_r2(settings):
     settings.R2_ACCESS_KEY_ID = ''
     settings.R2_SECRET_ACCESS_KEY = ''
     settings.R2_BUCKET = ''
+
+
+@pytest.fixture(autouse=True)
+def no_demo_mode(settings):
+    # Whatever is in the .env of whoever runs the tests, the app is the real one. The demo tests turn it on themselves.
+    settings.DEMO_MODE = False

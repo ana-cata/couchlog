@@ -67,6 +67,27 @@ if any(_access_settings) and (
         'The team domain and the address go without https://.'
     )
 
+# The public demo (core/demo.py, docs/demo.md): throwaway accounts with sample titles, and limits. Only turned on in
+# the demo's own copy on Render. Off means the app works exactly as without it.
+DEMO_MODE = os.environ.get('DEMO_MODE', 'false').strip().lower() == 'true'
+
+# The demo's limits. Each can be changed in the demo's settings on Render, with no new deploy.
+DEMO_SEARCHES_PER_HOUR = int(os.environ.get('DEMO_SEARCHES_PER_HOUR') or 30)  # each visitor
+DEMO_CHANGES_PER_DAY = int(os.environ.get('DEMO_CHANGES_PER_DAY') or 100)  # each visitor
+DEMO_ACCOUNTS_PER_DAY = int(os.environ.get('DEMO_ACCOUNTS_PER_DAY') or 50)  # the whole demo
+DEMO_TMDB_REQUESTS_PER_HOUR = int(os.environ.get('DEMO_TMDB_REQUESTS_PER_HOUR') or 300)  # the whole demo
+
+# Where the banner on every page of the demo sends people to read the code.
+DEMO_REPO_URL = 'https://github.com/ana-cata/couchlog'
+
+# The safety catch: backup keys or the Cloudflare sign-in mean this is the real Couchlog, which must never turn into
+# the demo (that would offer accounts to anyone and erase accounts older than a day). So the app refuses to start.
+if DEMO_MODE and any((R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET, *_access_settings)):
+    raise ImproperlyConfigured(
+        'DEMO_MODE is on, but backup (R2_) or Cloudflare sign-in (CLOUDFLARE_ACCESS_) settings are set, so this looks '
+        'like the real Couchlog. The demo runs on its own copy without them. Turn DEMO_MODE off here.'
+    )
+
 
 # Application definition
 
@@ -93,6 +114,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     # After the normal login, so it can replace it on the Cloudflare address; before the check that a login exists.
     'core.middleware.CloudflareSignInMiddleware',
+    # In the demo, /admin/ does not exist. Before the check that a login exists, so it is "not found" for everyone.
+    'core.middleware.DemoMiddleware',
     # Every page needs a login unless its view is marked with @login_not_required.
     'django.contrib.auth.middleware.LoginRequiredMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -113,6 +136,8 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                # `demo_mode` and `demo_repo_url`, for the demo banner and the demo's login and About pages.
+                'core.demo.context',
             ],
         },
     },

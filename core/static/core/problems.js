@@ -14,9 +14,11 @@
     say('Couchlog did not answer. Check the Wi-Fi and try again.');
   });
 
-  // An answer, but an error (for example a crash on the server).
-  document.addEventListener('htmx:responseError', function () {
-    say('Something went wrong. Try again.');
+  // An answer, but an error (for example a crash on the server). In the public demo, a limit reached answers 429 with
+  // its own friendly words, which are shown as they are.
+  document.addEventListener('htmx:responseError', function (event) {
+    var xhr = event.detail.xhr;
+    say(xhr && xhr.status === 429 && xhr.responseText ? xhr.responseText : 'Something went wrong. Try again.');
   });
 
   document.addEventListener('htmx:afterRequest', function (event) {
