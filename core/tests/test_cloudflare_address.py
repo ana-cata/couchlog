@@ -14,7 +14,7 @@ from core.tests.test_production_settings import run_python
 
 CLOUDFLARE_HOST = 'couchlog.example.com'
 CLOUDFLARE_ORIGIN = f'https://{CLOUDFLARE_HOST}'
-HOME_HOST = '192.168.1.164:3000'
+HOME_HOST = '192.168.1.50:3000'
 PASSWORD = 'made-up-password'
 
 READ_THE_SETTING = 'from django.conf import settings; print(settings.CSRF_TRUSTED_ORIGINS)'
@@ -29,7 +29,7 @@ def user(db):
 
 @pytest.fixture
 def cloudflare_settings(settings):
-    settings.ALLOWED_HOSTS = [CLOUDFLARE_HOST, '192.168.1.164']
+    settings.ALLOWED_HOSTS = [CLOUDFLARE_HOST, '192.168.1.50']
     settings.CSRF_TRUSTED_ORIGINS = [CLOUDFLARE_ORIGIN]
 
 

@@ -19,7 +19,7 @@ from core.models import Profile, Title, Watch
 from core.tests.test_production_settings import run_python
 
 CLOUDFLARE_HOST = 'couchlog.example.com'
-HOME_HOST = '192.168.1.164:3000'
+HOME_HOST = '192.168.1.50:3000'
 TEAM_DOMAIN = 'made-up-team.cloudflareaccess.com'
 ISSUER = f'https://{TEAM_DOMAIN}'
 AUDIENCE = 'made-up-audience-tag'
@@ -44,7 +44,7 @@ def public_keys():
 
 @pytest.fixture(autouse=True)
 def cloudflare(settings, monkeypatch):
-    settings.ALLOWED_HOSTS = [CLOUDFLARE_HOST, '192.168.1.164']
+    settings.ALLOWED_HOSTS = [CLOUDFLARE_HOST, '192.168.1.50']
     settings.CSRF_TRUSTED_ORIGINS = [f'https://{CLOUDFLARE_HOST}']
     settings.CLOUDFLARE_ACCESS_TEAM_DOMAIN = TEAM_DOMAIN
     settings.CLOUDFLARE_ACCESS_AUD = AUDIENCE
