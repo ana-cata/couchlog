@@ -3,7 +3,7 @@
 ## What it does
 
 - **Two ways in, one account.** Every page needs a login, and what you see depends on the address you opened. Your history is the same either way.
-  - **At home** (`http://192.168.1.164:3000`): a username and password. Anyone who is not logged in is sent to the login page, whichever page they try to open.
+  - **At home** (`http://<pi-address>:3000`): a username and password. Anyone who is not logged in is sent to the login page, whichever page they try to open.
   - **From outside** (`https://couchlog.ana-cata.com`): only your email and the one-time code Cloudflare sends. There is no password and no Couchlog login page.
 - **No sign-up page.** The first time an email on the allow list signs in from outside, its account is created by itself, empty and with no password. Other accounts are created by hand in Django's admin page (`/admin/`), which only opens from the home address.
 - **Friends** only ever come in by email code. Each account sees only its own data.

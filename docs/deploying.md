@@ -2,7 +2,7 @@
 
 ## What it does
 
-- Couchlog runs inside a **Docker container** on the Raspberry Pi, at `http://192.168.1.164:3000` on the home network. It starts by itself when the Pi restarts.
+- Couchlog runs inside a **Docker container** on the Raspberry Pi, at `http://<pi-address>:3000` on the home network. `<pi-address>` stands for the Pi's fixed address, which the router keeps (step 1 below); the real one is left out of these docs on purpose. It starts by itself when the Pi restarts.
 - From outside the home it is at `https://couchlog.ana-cata.com`. A person types their email, and only emails on the allow list receive a one-time code and get through. That is the only sign-in there: no password, and the first time their account is created by itself. The router stays closed. `/admin/` only opens from the home address.
 - A second container, **`daily`**, refreshes the Calendar, News and new episodes by itself: once when it starts (so also after the Pi was off) and then every 24 hours. Nobody runs `refresh_calendar` by hand on the Pi.
 - The `daily` container also sends a **backup** of the database to Cloudflare R2 (private online storage) at each run, and keeps the newest 14 copies. So a copy survives the SD card, the Pi or the house having a problem. Any copy can be restored, and a restore can be undone.
@@ -35,7 +35,7 @@ Log in from the PC with `ssh ana-cata@homelab.local`. Commands below run on the 
 If the broken version changed the tables, the older code may not fit them. Restore a copy of the database made before the deploy.
 
 **First deploy** (done once, kept here in case the SD card has to be set up again):
-1. In the router, under DHCP Binding, tie the Pi's cable address (`192.168.1.164`) to its cable MAC address, so the address never changes.
+1. In the router, under DHCP Binding, tie the Pi's cable address (`<pi-address>`) to its cable MAC address, so the address never changes.
 2. Make a key used only for this repo: `ssh-keygen -t ed25519 -C "couchlog-deploy-pi" -f ~/.ssh/couchlog_deploy -N ""`.
 3. Add `~/.ssh/couchlog_deploy.pub` to the repo on GitHub, under Settings → Deploy keys, with write access **off**.
 4. Add this to `~/.ssh/config`, then run `chmod 600 ~/.ssh/config`. The test `ssh -T git@github-couchlog` should answer `Hi ana-cata/couchlog!`.
@@ -46,7 +46,7 @@ If the broken version changed the tables, the older code may not fit them. Resto
      IdentitiesOnly yes
    ```
 5. `git clone git@github-couchlog:ana-cata/couchlog.git ~/couchlog`.
-6. In `~/couchlog`, make a `.env` with `chmod 600`: a **new** `DJANGO_SECRET_KEY` (not the PC's), `TMDB_API_KEY`, and `DJANGO_ALLOWED_HOSTS=192.168.1.164,homelab.local`.
+6. In `~/couchlog`, make a `.env` with `chmod 600`: a **new** `DJANGO_SECRET_KEY` (not the PC's), `TMDB_API_KEY`, and `DJANGO_ALLOWED_HOSTS=<pi-address>,homelab.local`.
 7. Build and start it as in the deploy steps above, then `docker compose exec couchlog python manage.py createsuperuser`.
 8. Check it by restarting the Pi with `sudo reboot`: Couchlog comes back by itself.
 
@@ -56,7 +56,7 @@ To see what the app is doing: `docker compose ps` and `docker compose logs --tai
 
 ### The five-minute check
 
-Do this after every deploy, on the phone, on the home Wi-Fi, at `http://192.168.1.164:3000`. It leaves your data as it was.
+Do this after every deploy, on the phone, on the home Wi-Fi, at `http://<pi-address>:3000`. It leaves your data as it was.
 
 1. **Log in.** If you are already logged in, press **Log out** on the Profile page first. Log in with your username and password. Home opens.
 2. **Search for a title.** Press **Search** and type a title. Posters and names appear under the box. Add nothing.
@@ -122,7 +122,7 @@ Without those settings (as on the PC), the backup says what is missing and does 
 2. In the dashboard, open the tunnel and copy the token: the long text after `--token` in the command it shows. Do not paste it anywhere else.
 3. `nano .env` on the Pi and add these, with the address also added to the end of the existing `DJANGO_ALLOWED_HOSTS`:
    ```
-   DJANGO_ALLOWED_HOSTS=192.168.1.164,homelab.local,couchlog.ana-cata.com
+   DJANGO_ALLOWED_HOSTS=<pi-address>,homelab.local,couchlog.ana-cata.com
    DJANGO_CSRF_TRUSTED_ORIGINS=https://couchlog.ana-cata.com
    COMPOSE_PROFILES=tunnel
    TUNNEL_TOKEN=<the token>
@@ -131,7 +131,7 @@ Without those settings (as on the PC), the backup says what is missing and does 
 
 **Turn on the sign-in by email code** (done once, card #97). **The order matters:** if step 2 is skipped, Couchlog makes a new empty account for you.
 1. Deploy as above, with the settings below still left out. Nothing changes yet.
-2. At home, open `http://192.168.1.164:3000/admin/`, then **Users**, then your account. Fill in **Email address** with the address on the allow list, and save.
+2. At home, open `http://<pi-address>:3000/admin/`, then **Users**, then your account. Fill in **Email address** with the address on the allow list, and save.
 3. `nano .env` on the Pi and add these:
    ```
    CLOUDFLARE_ACCESS_TEAM_DOMAIN=ana-cata.cloudflareaccess.com
@@ -219,7 +219,7 @@ The demo ([demo.md](demo.md)) is a separate copy of Couchlog at `https://couchlo
 |---|---|
 | `DJANGO_DEBUG` | Always `false`; Compose sets it and it wins over `.env`. |
 | `DJANGO_SECRET_KEY` | Required. Without it the container stops with "Set DJANGO_SECRET_KEY in the .env file." |
-| `DJANGO_ALLOWED_HOSTS` | Must contain the address you open (`localhost` is the default; on the Pi it is `192.168.1.164,homelab.local,couchlog.ana-cata.com`). |
+| `DJANGO_ALLOWED_HOSTS` | Must contain the address you open (`localhost` is the default; on the Pi it is `<pi-address>,homelab.local,couchlog.ana-cata.com`). |
 | `DJANGO_CSRF_TRUSTED_ORIGINS` | Only on the Pi: `https://couchlog.ana-cata.com`. Without it, every form sent through that address is refused. Empty means none, which is all the home address needs. |
 | `DJANGO_HTTPS_ONLY` | Only on the demo (Render): `true`. The login and form cookies are then only sent over HTTPS, and browsers are told to always use HTTPS for the demo's address (HSTS, six months, that address only). Never on the Pi: the home address is plain HTTP, and its login would stop working. |
 | `COMPOSE_PROFILES` | `tunnel` on the Pi, so the tunnel starts. Left out on the PC. |
@@ -242,7 +242,7 @@ The demo ([demo.md](demo.md)) is a separate copy of Couchlog at `https://couchlo
 - **Tests**: `core/tests/test_production_settings.py` checks the database path (and its fallback to `db.sqlite3`), the power-cut settings, that debug off without a secret key refuses to start, and that the CSS, logo and htmx are served without a login. `core/tests/test_https_only.py` checks that `DJANGO_HTTPS_ONLY=true` makes both cookies HTTPS only and sends HSTS, and that without it nothing changes. `core/tests/test_run_daily.py` checks that `run_daily` refreshes at the start and a day later, survives failures, and waits for the migrations. `core/tests/test_backups.py` uses a fake R2 and a made-up database in write-ahead log mode, and checks the copy, that no key or login session is in it, that only 14 copies are left, and that restore and undo work. `core/tests/test_cloudflare_address.py` uses Django's real forged-request protection, and checks that the trusted addresses come from the setting, that a form from a trusted address is accepted and one from another address refused, and that logging in at the home address still works. `core/tests/test_cloudflare_sign_in.py` uses made-up keys and tokens, and checks every way a token can be wrong, how the account is found or created, the home address ignoring the header, `/admin/`, and Log out. The containers, the real R2 and the real Cloudflare are checked by hand with the steps above.
 
 **Known limits**
-- `homelab.local` can point to any of the Pi's addresses, including its Wi-Fi one. `192.168.1.164` is the fixed address, so use it for bookmarks.
+- `homelab.local` can point to any of the Pi's addresses, including its Wi-Fi one. `<pi-address>` is the fixed address, so use it for bookmarks.
 - A refresh that fails is only tried again 24 hours later. If the Pi's network is not ready just after a restart, that day's first refresh is lost; `docker compose restart daily` runs it again.
 - Migrations run at every start. Copying the database before a deploy that changes the tables is still a habit of mine (plan.md, section 4): `backup_db` by hand, above.
 - "14 copies" means the last 14 runs, not 14 days. Each restart of `daily` makes one, so a day with many restarts or deploys pushes older copies out sooner.

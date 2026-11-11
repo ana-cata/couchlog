@@ -26,7 +26,7 @@ Every tool runs once from Docker or `uvx` (which runs a Python tool without addi
 
 ### 3. Settings
 Run `uv run python manage.py check --deploy` three times, with `DJANGO_DEBUG=false`, a long `DJANGO_SECRET_KEY` and `DJANGO_DB_PATH=:memory:`:
-- **as the Pi:** `DJANGO_ALLOWED_HOSTS=192.168.1.164,couchlog.ana-cata.com`
+- **as the Pi:** `DJANGO_ALLOWED_HOSTS=<pi-address>,couchlog.ana-cata.com`
 - **as the Cloudflare address:** add the three `CLOUDFLARE_ACCESS_` settings with made-up values
 - **as the demo:** `DEMO_MODE=true`
 
