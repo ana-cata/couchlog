@@ -30,18 +30,6 @@ Couchlog is my personal web app for the movies and series I watch: a To Watch li
 - **The demo** is a separate copy on Render's free plan, with its own database and limits, away from the Pi and my data.
 - **Tests:** pytest with made-up TMDB answers and a fixed "today", and Playwright for tests in a real browser. GitHub Actions runs the lint and the tests on every pull request.
 
-## How I worked, and what I learned
-
-I decided what to build and when it was done; [Claude Code](https://claude.com/claude-code), an AI coding assistant, wrote the code, the tests and the docs. Everything starts from [plan.md](plan.md): each feature is a small card on the project board with a "Done when" test, built on its own branch and merged through a pull request that I review.
-
-- **Estimates were far too high.** About 10 to 12 weeks were planned up to the Pi; the first version, the polish and most extras took about a week. Cards stayed small anyway.
-- **Using the app found more than the plan did.** Many cards came from trying the app, first on the PC and then on my phone, not from the plan.
-- **One data source was not enough.** TMDB often lists only the first episode of a new season, so TVmaze became a second source for upcoming dates.
-- **Updating a page in place has side effects.** htmx changes the page without reloading it, which broke the Back button twice. Tests in a real browser catch these; tests on the server alone did not.
-- **The real phone finds what tests cannot.** My iPhone showed a frozen page on Back, and Safari's toolbar swallowing a tap near the bottom of the screen. Checking on the phone is part of every deploy.
-- **"Free" needs a limit of my own.** Cloudflare has no hard spending limit for R2, so the backups stop at 5 GB. The demo has its own limits too.
-- **Security before going public.** Before this repo became public, the code, the packages, the Docker image, the live app and the demo were checked ([docs/security-check.md](docs/security-check.md)).
-
 ## Run it yourself
 
 You need [uv](https://docs.astral.sh/uv/) and a free [TMDB API key](https://www.themoviedb.org/settings/api).
