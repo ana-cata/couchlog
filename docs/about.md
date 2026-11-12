@@ -14,5 +14,9 @@
 - The header link is in `core/templates/core/base.html`, so every page has it. Search, Movies, Series and Profile only show when you are logged in; About always shows.
 - The logo is `core/static/core/tmdb-logo.svg`, TMDB's blue square logo from their [logos and attribution page](https://www.themoviedb.org/about/logos-attribution). It is saved in the project, so the page works without internet. Do not edit the logo or change its colors.
 
+**Keeping TMDB's details**
+- TMDB's terms allow keeping what it says for at most 6 months. The daily `refresh_calendar` asks TMDB again about every saved title once its details are more than 5 months old, followed or not (see [Calendar](calendar.md)). Posters are not saved, only their addresses: the picture always comes from TMDB.
+- A title TMDB has deleted keeps its saved details, because watches point to it. This is rare, and the command says so in its log.
+
 **Known limits**
 - TVmaze asks for credit by linking back to it from the app, which is that line (its terms are on https://www.tvmaze.com/api). If other data sources are added later (for example for streaming services), their credit goes on this page too.

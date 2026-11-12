@@ -52,7 +52,7 @@ If the broken version changed the tables, the older code may not fit them. Resto
 
 To see what the app is doing: `docker compose ps` and `docker compose logs --tail 20 couchlog`.
 
-**Reading the daily task's log:** `docker compose logs daily`. Each run starts with a line like `2026-11-09 15:52 UTC Starting refresh_calendar.`, then one line per title, then `Finished refresh_calendar.` and `Next run in 24 hours.` A run with a problem says `refresh_calendar failed` and which titles could not be refreshed; the task keeps running and tries again the next day. Times are in UTC, whatever the account's time zone is.
+**Reading the daily task's log:** `docker compose logs daily`. The first run after the deploy that added `details_refreshed_at` (migration `0017`) asks TMDB about every saved title once, so it takes longer (a minute or two for a few hundred titles); after that only titles with details older than 5 months are asked again. Each run starts with a line like `2026-11-09 15:52 UTC Starting refresh_calendar.`, then one line per title, then `Finished refresh_calendar.` and `Next run in 24 hours.` A run with a problem says `refresh_calendar failed` and which titles could not be refreshed; the task keeps running and tries again the next day. Times are in UTC, whatever the account's time zone is.
 
 ### The five-minute check
 

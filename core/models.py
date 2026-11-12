@@ -60,6 +60,10 @@ class Title(models.Model):
     # turns each into a day in the account's own time zone when it is shown.
     cinema_at = models.DateTimeField(null=True, blank=True)
     streaming_at = models.DateTimeField(null=True, blank=True)
+    # When all of the title's details (name, year, poster, summary, dates or episodes) were last asked from TMDB.
+    # TMDB's terms allow keeping them for at most 6 months, so `refresh_calendar` asks again once this is older than
+    # 5 months (core/details.py). Empty for a title saved before this was kept, until the next `refresh_calendar`.
+    details_refreshed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         constraints = (

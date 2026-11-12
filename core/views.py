@@ -266,7 +266,9 @@ def _saved_title(kind, tmdb_id):
         details = tmdb.get_title(kind, tmdb_id)
         keys = ('title', 'year', 'poster_url', 'backdrop_url', 'overview', 'runtime', 'genres')
         saved = {key: details[key] for key in keys}
-        title, _ = Title.objects.get_or_create(kind=kind, tmdb_id=tmdb_id, defaults=saved)
+        # Just asked, so `refresh_calendar` leaves its details alone for 5 months (core/details.py).
+        saved['details_refreshed_at'] = timezone.now()
+        title, _ =Title.objects.get_or_create(kind=kind, tmdb_id=tmdb_id, defaults=saved)
     return title
 
 

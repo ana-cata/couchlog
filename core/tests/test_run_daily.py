@@ -46,7 +46,8 @@ def clock():
 @pytest.fixture
 def series(db):
     user = User.objects.create_user(username='made-up-user', password='made-up-password')
-    title = Title.objects.create(kind='series', tmdb_id=11, title='Made-up Series 11')
+    # Details just asked, so only the calendar step asks TMDB about it (the details step is in test_refresh_calendar.py).
+    title = Title.objects.create(kind='series', tmdb_id=11, title='Made-up Series 11', details_refreshed_at=NOW)
     ToWatchItem.objects.create(user=user, title=title)
     return title
 

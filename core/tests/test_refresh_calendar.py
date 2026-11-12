@@ -6,6 +6,7 @@ import pytest
 from django.contrib.auth.models import User
 from django.core.management import call_command
 from django.core.management.base import CommandError
+from django.utils import timezone
 
 from core.models import Episode, Title, ToWatchItem, Watch
 
@@ -51,6 +52,8 @@ def user(db):
 
 
 def make_series(tmdb_id, **fields):
+    # Details just asked, unless a test says otherwise, so only the calendar steps ask TMDB about it.
+    fields.setdefault('details_refreshed_at', timezone.now())
     return Title.objects.create(kind='series', tmdb_id=tmdb_id, title=f'Made-up Series {tmdb_id}', **fields)
 
 
@@ -60,6 +63,8 @@ def mock_series(respx_mock, tmdb_id, status='Returning Series', episodes=((1101,
 
 
 def make_movie(tmdb_id, **fields):
+    # Details just asked, unless a test says otherwise, so only the calendar steps ask TMDB about it.
+    fields.setdefault('details_refreshed_at', timezone.now())
     return Title.objects.create(kind='movie', tmdb_id=tmdb_id, title=f'Made-up Movie {tmdb_id}', **fields)
 
 

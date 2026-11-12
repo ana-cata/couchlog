@@ -114,7 +114,7 @@ For a series you want gone completely: off every list, with everything you saved
 
 `uv run python manage.py refresh_calendar` asks TMDB again for every series that is on someone's To Watch list or has a watched episode, and saves its **new episodes, new air dates, status** (ended or still running) **and typical episode runtime**. It also asks TVmaze for each series' upcoming episodes, and collects the cinema and streaming dates of the films on a To Watch list; both are described on the [Calendar](calendar.md) page. It also asks about a film you have **watched** when that film has no runtime saved yet (a film saved before runtimes were kept), so its minutes count in the time spent; once it has one, the film is left alone. (It was called `refresh_series` before the calendar card.)
 - It prints one line per series ("“Made-up Series”: Ended, 2 new episodes") and "Refreshed N series.", then the same for films. One title failing (TMDB not answering) does not stop the others: it is reported on the error output, and the command ends with an error so a scheduler can tell. Run it again later.
-- Series nobody follows are left alone.
+- Series nobody follows are left alone until their details are more than 5 months old: then TMDB is asked again for their details and episodes, because TMDB's terms allow keeping them for at most 6 months (see [Calendar](calendar.md)).
 - Running it twice changes nothing the second time.
 - On the Raspberry Pi it runs **by itself**, when the Pi starts and every 24 hours (see [Running in Docker](deploying.md)). On the PC with `runserver` you run it by hand. Opening a series page also refreshes that one series when its saved copy is over a day old.
 
