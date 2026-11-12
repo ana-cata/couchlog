@@ -4,6 +4,10 @@ name: Checks
 on:
   pull_request:
 
+# Read-only: the checks only read the code. A pull request from a copy of the repo (a fork) gets no secrets either.
+permissions:
+  contents: read
+
 jobs:
   checks:
     runs-on: ubuntu-latest

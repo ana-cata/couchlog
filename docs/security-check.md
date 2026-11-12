@@ -74,3 +74,11 @@ Expected:
 - In Render's Environment settings, check:
   - there's no `R2_*` and no `CLOUDFLARE_ACCESS_*`
   - nothing names the Pi
+
+### 8. GitHub (the repo is public)
+Set on card #100, when the repo became public. Check that they are still on:
+- **`main` is protected** (Settings → Branches): a change needs a pull request whose Checks are green, for everyone including me. No approval is required, because GitHub does not let me approve my own pull request. Force pushes and deleting `main` are blocked. The Pi only reads `main`, so it still pulls and deploys.
+- **Secret scanning and push protection** are on (Settings → Code security). A pushed key raises an alert, and a push containing one is refused.
+- **Dependabot alerts** are on: GitHub warns when a package in `uv.lock` has a known problem.
+- **Checks on a stranger's pull request** (Settings → Actions → General) need my approval for every outside contributor before they run. The Checks workflow only has read access (`permissions: contents: read`) and uses no secrets, and a pull request from a fork gets no secrets anyway.
+- Anyone can open issues and pull requests. Nothing reaches the code unless I merge it (my decision on card #100).
