@@ -120,7 +120,7 @@ A card is not done without its docs page. Write it from the code **as built**: i
 
 Two readers: the user (who does not read the code line by line) and future Claude sessions (who need accurate facts fast). Layout:
 
-- `README.md` — what Couchlog is, how to run it on the PC (install, `.env`, `runserver`, tests, migrations) and links to `docs/`. Update it whenever setup changes.
+- `README.md` — for a visitor: what Couchlog is, screenshots, the demo link, how it is built, the short way to run it, the TMDB credit and the licence. The full run steps (install, `.env`, `runserver`, tests, migrations, Docker) and where things are in the code are in `docs/running.md`. Update both whenever setup changes.
 - `docs/home.md`, `docs/films.md`, `docs/series.md`, `docs/calendar.md`, `docs/profile.md` — one page per main page of the app. Home: Up Next, News, later suggestions. Calendar: upcoming releases of the series being watched and the titles on the To Watch list. Profile: account, login, time zone, and later statistics and favorites. A feature that doesn't live on one of these gets its own page named after its screen (for example `search`). Say which page in Step 2.
 - `docs/data-model.md` — the tables and how they relate, since several pages share them (the watches table serves films, series and Up Next).
 
