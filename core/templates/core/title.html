@@ -24,7 +24,7 @@
         {% endif %}
         {# The small buttons under the poster, one under the other: every way to put the title on a list or take it off. #}
         <div class="poster-actions">
-          {# A series I started (under Watching or Finished) has no To Watch button. A dropped one still says it is dropped. #}
+          {# A series I started (under Watching or Finished) has no To Watch button. A dropped one has Bring back. #}
           {% if dropped or not started %}{% include 'core/_to_watch_button.html' with tile=item live=True %}{% endif %}
           {% if item.kind == 'series' %}
             {% if dropped %}
@@ -105,11 +105,7 @@
             {% endif %}
           </div>
         {% elif item.kind == 'series' %}
-          {% if dropped %}
-            <div class="watched-section">
-              <p><strong>You stopped watching this series.</strong> It is under Series → Dropped, and your history is kept.</p>
-            </div>
-          {% endif %}
+          {# A dropped series has no note of its own: "Bring back" under the poster is the sign. #}
           <div class="seasons">
             {% if notice %}<p role="alert">{{ notice }}</p>{% endif %}
             {% for season in seasons %}

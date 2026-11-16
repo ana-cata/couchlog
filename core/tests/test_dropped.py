@@ -370,15 +370,15 @@ def test_the_series_page_does_not_offer_stop_watching_for_a_series_you_never_tou
     assert 'Bring back' not in html
 
 
-def test_the_page_of_a_dropped_series_says_so_and_offers_bring_back(me):
+def test_the_page_of_a_dropped_series_offers_bring_back_with_no_note(me):
     drop(me)
 
     html = page(me, ADDRESS)
 
-    assert 'You stopped watching this series.' in html
+    assert 'You stopped watching this series.' not in html  # no note: Bring back is the sign
     assert 'action="/series/bring-back/"' in html and 'Bring back' in html
     assert 'Stop watching' not in html
-    # No To Watch button either, and no "In your Dropped list" link: the page already says it is dropped.
+    # No To Watch button either, and no "In your Dropped list" link.
     assert 'To Watch</span>' not in html and 'action="/to-watch/' not in html
     assert 'In your Dropped list' not in html and 'href="/series/dropped/"' not in html
 
