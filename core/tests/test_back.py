@@ -195,6 +195,7 @@ def test_one_press_of_back_is_enough_after_stopping_watching_and_bringing_a_seri
     page.get_by_role('link', name='Series', exact=True).click()
     page.get_by_role('link', name='To Watch', exact=True).click()
     open_tile(page)
+    page.locator('#season-1 > summary').click()  # every season is folded when the page opens
     expect(page.get_by_text('Made-up pilot')).to_be_visible()
     # "Stop watching" is for a series I started: mark its episode, and the page offers it when it is opened again.
     page.get_by_role('button', name='Mark episode 1 as watched').click()

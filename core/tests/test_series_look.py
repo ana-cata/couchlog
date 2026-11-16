@@ -127,6 +127,7 @@ def test_the_season_line_says_how_many_of_all_its_episodes_are_watched(opened):
     expect(line).to_contain_text('0 of 3 episodes')
     assert 'aired' not in line.inner_text()
 
+    page.locator('#season-1 > summary').click()  # every season is folded when the page opens
     page.get_by_role('button', name='Mark episode 1 as watched').click()
     expect(line).to_contain_text('1 of 3 episodes')
     expect(page.locator('#progress-series')).to_contain_text('1 of 3 episodes')

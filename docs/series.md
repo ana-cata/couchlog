@@ -3,7 +3,7 @@
 ## What it does
 
 - **The series page** (`/series/<TMDB id>/`, open it from a search result or from Series → To Watch) shows the poster with, **under it**, a small progress bar and the small buttons (To Watch, Stop watching, Bring back, Remove from all lists: only the ones that fit this series), then the title, year, description, your rating and note, and the **seasons and episodes**. The To Watch button is not there for a series you started (see "Remove from all lists" below), and "Stop watching" is only there for a series you started.
-- **Seasons** are folded away: click a season (its arrow is at the right) to open or close it. The first season is open when you arrive. **Specials** (TMDB's season 0) are listed last. Each season's first line says its name and how many of its episodes you watched, like **Season 2 · 3 of 10 episodes**, with a thin bar under it (see "Progress bars").
+- **Seasons** are folded away: click a season (its arrow is at the right) to open or close it. **Every season is folded when you arrive**, so the page is a short list of seasons with their counts, and one tap opens the one you want. After a button sends you back to the page (without JavaScript), that season is open again. **Specials** (TMDB's season 0) are listed last. Each season's first line says its name and how many of its episodes you watched, like **Season 2 · 3 of 10 episodes**, with a thin bar under it (see "Progress bars").
 - **The page never moves.** Pressing a circle changes only that episode's row, in place: no reload, no jump, and the scroll position and open seasons stay as they are, even deep in a long season.
 - **Each episode** shows its number, name and air date, and, if it has aired, a **round check button** on the right:
   - **Gray** = not watched. Press it to mark the episode as watched.
@@ -132,7 +132,7 @@ For a series you want gone completely: off every list, with everything you saved
 | `/series/bring-back/` | Bring back (button, POST only). Sends `kind`, `tmdb_id` and `next` | Yes |
 | `/series/remove-all/` | Remove from all lists (button, POST only). Sends `kind` (only `series`; a film is refused with a 400) and `tmdb_id`. It always goes back to `/series/`. The series must already be saved | Yes |
 | `/series/remove-all/undo/` | Undo it (button, POST only), within 10 seconds. Sends `kind`, `tmdb_id` and `next` | Yes |
-| `/series/<TMDB id>/` | The series page. `?season=2` opens that season instead of the first | Yes |
+| `/series/<TMDB id>/` | The series page, with every season folded. `?season=2` opens that season (the buttons send you back with it; anything else leaves all folded) | Yes |
 | `/watched/episode/add/` | Mark one episode as watched, or watch it again when it already is (round button, POST only). Sends `episode_id` (our own id for the episode) and `next`, and `only_this` when it is the pop-up's "No, only this one" (the check buttons on [Home](home.md) also send `up_next`). An episode that skips unmarked episodes answers with the pop-up question instead of marking | Yes |
 | `/watched/remove/` | Take back one watch, the undo (the "−" button, POST only). Sends `watch_id` (the episode's latest watch), `episode_id` and `next`. The same address as the movie undo | Yes |
 | `/watched/season/add/` | Mark a whole season (POST only). Sends `tmdb_id` (the series), `season` (0 = Specials) and `next` | Yes |
