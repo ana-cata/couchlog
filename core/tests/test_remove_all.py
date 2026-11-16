@@ -187,7 +187,7 @@ def test_a_dropped_series_has_the_corner_button_and_still_says_it_is_dropped(me)
     html = page(me, ADDRESS)
 
     assert 'Remove from all lists' in html
-    assert 'In your Dropped list' in html
+    assert 'In your Dropped list' not in html  # no link: the page already says it is dropped
     assert 'Bring back' in html
 
 

@@ -1,5 +1,5 @@
-"""Where to watch: on a movie's or a series' page, the streaming services that have it in my country (the country of
-my time zone), grouped, with the JustWatch credit and the link to TMDB's page. Asked from TMDB each time, never saved."""
+"""Where to watch: at the end of a movie's or a series' page, the streaming services that have it in my country (the
+country of my time zone), grouped. The JustWatch credit is on the About page. Asked from TMDB each time, never saved."""
 
 import datetime
 import os
@@ -106,9 +106,12 @@ def test_a_movie_page_loads_the_line_once_it_is_shown_and_does_not_wait_for_it(l
     assert 'hx-get="/movie/603/where-to-watch/"' in page
     assert 'Where to watch: loading…' in page
     assert not providers.called  # the page itself never asks for the services
+    # At the end of the page: after the description, the rating and the watched section.
+    assert page.index('class="where-to-watch"') > page.index('class="watched-section"')
+    assert page.index('class="where-to-watch"') > page.index('A made-up story about a movie.')
 
 
-def test_a_series_page_has_the_same_line(logged_in_client, respx_mock):
+def test_a_series_page_has_the_same_line_after_the_seasons(logged_in_client, respx_mock):
     Title.objects.create(
         kind='series', tmdb_id=1399, title='Made-up Series', year='2023', episodes_refreshed_at=NOW
     )
@@ -116,22 +119,32 @@ def test_a_series_page_has_the_same_line(logged_in_client, respx_mock):
     page = logged_in_client.get('/series/1399/').content.decode()
 
     assert 'hx-get="/series/1399/where-to-watch/"' in page
+    assert page.index('class="where-to-watch"') > page.index('id="ask"')  # the last part of the seasons block
 
 
 # --- the line ----------------------------------------------------------------------------------------
 
 
-def test_a_movie_shows_my_countrys_services_grouped_with_the_credit_and_the_tmdb_link(logged_in_client, respx_mock):
+def test_a_movie_shows_my_countrys_services_grouped(logged_in_client, respx_mock):
     respx_mock.get(MOVIE_PROVIDERS_URL).respond(json=PROVIDERS)
 
     text = line(logged_in_client)
 
     assert (
-        '<strong>Where to watch</strong> in Portugal: Stream on Netflix, Max · Rent on Apple TV · '
-        'Buy on Apple TV, Google Play Movies · Free on RTP Play, Pluto TV (with ads)'
-    ) in text
-    assert f'<a href="{PT_LINK}" target="_blank" rel="noopener">See all on TMDB</a> · {CREDIT}' in text
+        '<p class="where-to-watch"> <small> <strong>Where to watch</strong> in Portugal: Stream on Netflix, Max · '
+        'Rent on Apple TV · Buy on Apple TV, Google Play Movies · Free on RTP Play, Pluto TV (with ads) </small> </p>'
+    ) == text
     assert 'BBC iPlayer' not in text  # another country's services are left out
+
+
+def test_the_line_has_no_tmdb_link_and_no_credit_because_about_has_the_credit(logged_in_client, respx_mock):
+    respx_mock.get(MOVIE_PROVIDERS_URL).respond(json=PROVIDERS)
+
+    text = line(logged_in_client)
+
+    assert 'See all on TMDB' not in text and PT_LINK not in text and '<a ' not in text
+    assert CREDIT not in text
+    assert 'JustWatch' in logged_in_client.get('/about/').content.decode()
 
 
 def test_a_series_shows_its_services_too(logged_in_client, respx_mock):
@@ -140,7 +153,6 @@ def test_a_series_shows_its_services_too(logged_in_client, respx_mock):
     text = line(logged_in_client, 'series')
 
     assert 'in Portugal: Stream on Netflix, Max' in text
-    assert CREDIT in text
 
 
 def test_only_the_groups_that_have_a_service_show(logged_in_client, respx_mock):
@@ -149,7 +161,7 @@ def test_only_the_groups_that_have_a_service_show(logged_in_client, respx_mock):
 
     text = line(logged_in_client)
 
-    assert 'in Portugal: Rent on Apple TV<br>' in text
+    assert 'in Portugal: Rent on Apple TV </small>' in text
     assert 'Stream on' not in text and 'Buy on' not in text and 'Free on' not in text
 
 
@@ -159,7 +171,6 @@ def test_a_title_with_no_services_says_so(logged_in_client, respx_mock):
     text = line(logged_in_client)
 
     assert 'Not on any streaming service in Portugal yet.' in text
-    assert 'See all on TMDB' not in text
 
 
 def test_a_title_with_services_only_in_another_country_says_none_in_mine(logged_in_client, respx_mock):
@@ -189,15 +200,13 @@ def test_tmdb_not_answering_shows_the_usual_message(logged_in_client, respx_mock
     assert 'Could not reach TMDB.' in response.content.decode()
 
 
-def test_a_link_that_is_not_tmdbs_own_page_is_left_out(logged_in_client, respx_mock):
-    answer = {'id': 603, 'results': {'PT': {'link': 'javascript:alert(1)', 'flatrate': [provider('Netflix', 1)]}}}
+def test_a_service_name_is_shown_as_plain_text(logged_in_client, respx_mock):
+    answer = {'id': 603, 'results': {'PT': {'flatrate': [provider('<b>Odd</b> & Co', 1)]}}}
     respx_mock.get(MOVIE_PROVIDERS_URL).respond(json=answer)
 
     text = line(logged_in_client)
 
-    assert 'Stream on Netflix' in text
-    assert 'javascript:' not in text and 'See all on TMDB' not in text
-    assert CREDIT in text
+    assert 'Stream on &lt;b&gt;Odd&lt;/b&gt; &amp; Co' in text
 
 
 def test_nothing_is_saved(logged_in_client, respx_mock):
@@ -243,7 +252,7 @@ def test_on_a_phone_a_long_line_wraps_and_pushes_nothing_off_the_screen(live_ser
 
     many = [f'Made-up Streaming Service Number {number}' for number in range(1, 9)]
     groups = [{'label': label, 'names': many} for label in ('Stream', 'Rent', 'Buy', 'Free')]
-    monkeypatch.setattr(tmdb, 'get_watch_providers', lambda kind, tmdb_id, country: {'link': PT_LINK, 'groups': groups})
+    monkeypatch.setattr(tmdb, 'get_watch_providers', lambda kind, tmdb_id, country: groups)
     respx_mock.get(MOVIE_URL).respond(json=MADE_UP_MOVIE)
     user = User.objects.create_user(username='made-up-user', password='made-up-password')
     Profile.objects.create(user=user, timezone='Europe/Lisbon')
@@ -257,8 +266,7 @@ def test_on_a_phone_a_long_line_wraps_and_pushes_nothing_off_the_screen(live_ser
 
     page.goto(live_server.url + '/movie/603/')
 
-    expect(page.get_by_text('Streaming data from JustWatch')).to_be_visible()
-    expect(page.get_by_role('link', name='See all on TMDB')).to_be_visible()
+    expect(page.locator('.where-to-watch')).to_contain_text('Free on Made-up Streaming Service Number 1,')
     assert page.evaluate('document.documentElement.scrollWidth') <= 360  # nothing sticks out to the side
     line_box = page.locator('.where-to-watch').bounding_box()
     assert line_box['x'] + line_box['width'] <= 360

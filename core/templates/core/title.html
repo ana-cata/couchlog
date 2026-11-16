@@ -63,11 +63,6 @@
         {# Year, kind, status, length and genres: the parts TMDB has (core/title_line.py). #}
         <p><small>{{ line }}</small></p>
         <p>{{ item.overview|default:"TMDB has no description for this title." }}</p>
-        {# The streaming services in my country, loaded once the page is shown (_where_to_watch.html replaces this). #}
-        {# Two lines, like the answer, so the page does not jump when it arrives. #}
-        <p class="where-to-watch" hx-get="{% url 'where_to_watch' item.kind item.tmdb_id %}" hx-trigger="load" hx-swap="outerHTML">
-          <small>Where to watch: loading…<br>Streaming data from JustWatch</small>
-        </p>
 
         {% include 'core/_rating.html' %}
 
@@ -138,6 +133,11 @@
             <div id="ask">{% if ask %}{% include 'core/_ask_earlier.html' %}{% endif %}</div>
           </div>
         {% endif %}
+        {# At the end of the page: the streaming services in my country, loaded once the page is shown #}
+        {# (_where_to_watch.html replaces this line). #}
+        <p class="where-to-watch" hx-get="{% url 'where_to_watch' item.kind item.tmdb_id %}" hx-trigger="load" hx-swap="outerHTML">
+          <small>Where to watch: loading…</small>
+        </p>
       </div>
     </div>
   {% endif %}

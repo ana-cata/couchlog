@@ -378,9 +378,9 @@ def test_the_page_of_a_dropped_series_says_so_and_offers_bring_back(me):
     assert 'You stopped watching this series.' in html
     assert 'action="/series/bring-back/"' in html and 'Bring back' in html
     assert 'Stop watching' not in html
-    # No To Watch button either: the Dropped note takes its place.
+    # No To Watch button either, and no "In your Dropped list" link: the page already says it is dropped.
     assert 'To Watch</span>' not in html and 'action="/to-watch/' not in html
-    assert 'In your Dropped list' in html
+    assert 'In your Dropped list' not in html and 'href="/series/dropped/"' not in html
 
 
 def test_the_episodes_of_a_dropped_series_are_still_on_its_page(me):

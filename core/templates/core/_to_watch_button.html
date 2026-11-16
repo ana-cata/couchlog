@@ -3,7 +3,7 @@
 {# is on the list. Without it (a title's own page) it is a small button with words under the poster. The form sends #}
 {# `corner` back, so the answer to a press is drawn the same way. #}
 {# With `live` (the search page) htmx swaps just this block; without it the page reloads. #}
-{# A series I dropped has no button: it says so instead, and "Bring back" is on its page. #}
+{# A series I dropped has no button: on a tile it is a ✓ with nothing to press, and "Bring back" is on its page. #}
 {# `data-on-list` tells suggestions.js that the title is now on the list, so a suggested tile can be replaced. #}
 <div class="to-watch-action{% if corner %} to-watch-corner{% endif %}"{% if on_list and not dropped %} data-on-list{% endif %}>
   {% if corner and dropped or corner and started or corner and watched and not on_list %}
@@ -13,7 +13,7 @@
       <span class="visually-hidden">{% if dropped %}In your Dropped list{% elif started %}In your Series lists{% else %}In your History{% endif %}</span>
     </span>
   {% elif dropped %}
-    <small class="dropped-note"><a href="{% url 'series_dropped' %}">In your Dropped list</a></small>
+    {# A dropped series' own page has no button: "Bring back" is under the poster and the page says it is dropped. #}
   {% elif started %}
     {# A series I started is under Watching or Finished: no button here. "Remove from all lists" is on its page. #}
   {% else %}
