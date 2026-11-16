@@ -66,8 +66,8 @@ Priority uses MoSCoW: Must, Should, Could, Won't. The first version (the MVP) is
 |---|---|
 | **Must** (first version, the MVP) | Login and time zone · Search movies and series · To Watch lists (movies and series) · Mark a movie as watched · Mark episodes as watched (one, a whole season, or "up to here") · Up Next with progress bars · Calendar of upcoming releases from my list |
 | **Should** | Rewatch · Time spent watching · News section on the home page · Countdown in days · Dropped series · Ratings and notes · Where to watch |
-| **M7** (improving the first version, agreed 2026-11-16) | Friendlier empty lists · Welcome tutorial · Ratings on lists and a nudge to rate · Filters · My own tags · Share a title · "For you" recommendations · Taste quiz (and, later, maybe an AI layer) |
-| **Could** | Genre and network statistics · Favorites |
+| **M7** (improving the first version, agreed 2026-11-16) | Friendlier empty lists · Welcome tutorial · Ratings on lists and a nudge to rate · Filters · My own tags · Share a title · "For you" recommendations · Taste quiz · Hours watched per genre (and, later, maybe an AI layer) |
+| **Could** | Network statistics · Favorites |
 | **Won't (for now)** | Custom or shareable lists · Similar titles · Push notifications · Countdown in hours and minutes · Voting for characters · Social feed and comments · Native apps · Importing a history from another app |
 
 ### How the app is organized
@@ -157,11 +157,14 @@ Agreed on 2026-11-16, now that friends use Couchlog. The order is in [section 6]
 **22. Taste quiz.** A section on the Profile page I answer whenever I feel like it: Couchlog shows titles and I say whether I liked them (or skip). The answers count like ratings in feature 21, so they only add information. Most useful for a new account with few ratings.
 *Done when:* answering the quiz on Profile changes the "For you" list, and I can stop at any time and come back later.
 
+**23. Hours watched per genre.** On the Profile page, under Time spent watching, two bar charts: Movies by genre and Series by genre, with the hours watched in each genre, sorted from most to least. The hours are counted like Time spent (feature 9), and a watch counts fully in each genre of its title. Bars, not a pie, because a title has several genres and the parts do not add up to a whole (agreed 2026-11-16). This is the genre half of the Could feature "Genre and network statistics".
+*Done when:* Profile shows the hours per genre as bars, one chart for movies and one for series, sorted from most to least.
+
 **Later, maybe: an AI layer.** An AI model (like Claude) could explain my taste or re-order the "For you" list. It is decided only after 21 and 22 are used for a while, because it costs money per use, needs another key in `.env`, sends my history to an outside company (the privacy note on About would change), and has its own bias towards titles the internet talks about most.
 
 ### Could: later, if I still want them
 
-- **Genre and network statistics.** My most-watched genres and networks, from TMDB data, shown on the Profile page.
+- **Network statistics.** My most-watched networks, from TMDB data, shown on the Profile page. (The genre half moved to M7 as feature 23.)
 - **Favorites.** Mark movies and series as favorites and see them on the Profile page.
 
 ### Won't (for now)
@@ -390,7 +393,7 @@ First planned for after M6, then built before M5 and M6 (my decision, 2026-10-30
 4. **Where to watch (feature 14).** The credit was checked on 2026-11-16 (JustWatch, free). Moved into M7 as its first card, #115.
 5. **Ratings and notes (feature 13).** Built on card #40.
 
-The order can change if something turns out harder or more useful than expected: review it after each feature. The Could features (genre and network statistics, favorites) come after M7, and I decide then whether they are worth the work.
+The order can change if something turns out harder or more useful than expected: review it after each feature. The Could features (network statistics, favorites) come after M7, and I decide then whether they are worth the work.
 
 ### M7: Improve the first version
 
@@ -402,6 +405,7 @@ Goal: Couchlog is easier for new people to start with and gets better at knowing
 - [ ] Ratings on lists, and a nudge to rate (feature 17) (card #118)
 - [ ] My own tags (feature 19) (card #119)
 - [ ] Filters on the Movies and Series lists (feature 18) (card #120)
+- [ ] Hours watched per genre on Profile (feature 23) (card #126)
 - [ ] Share a title, its TMDB link (feature 20) (card #122)
 - [ ] "For you" recommendations from my own taste (feature 21) (card #123)
 - [ ] Taste quiz on the Profile page (feature 22) (card #124)
@@ -605,4 +609,4 @@ Sorted by when each item matters.
 | 2026-11-12 | Card #99 finished (pull requests #105, #106, #107, #108 merged, and one change made directly on `main` on my decision). The security check was run on the code, the packages, the settings, the Docker image, the real address, the demo, the Pi, Cloudflare and R2. Fixed on this card: the demo's cookies are HTTPS only and it sends HSTS (`DJANGO_HTTPS_ONLY`, set on Render); Cloudflare sends HSTS for `ana-cata.com` (6 months, without subdomains or preload) and Always Use HTTPS is on; every build uses `--pull`, so fixes to the base image reach the Pi; the Pi's home address is left out of the docs and tests (as `<pi-address>`; the git history keeps it); the Pi's system was updated. The CI installs Chromium without Ubuntu's packages, because Ubuntu's servers stopped answering and every check failed before the tests ran. Accepted on my decision: the email in the commit history (new commits use GitHub's private address, and pushes that expose it are blocked), no Content-Security-Policy, the unlimited wrong passwords at home, and a few points by design. The demo scores B (75/100) on Mozilla's HTTP Observatory; the only point lost is the CSP. The results are in a private report on my PC, outside the repo; every point in it was checked. No table change. Next: making the repo public (#100). |
 | 2026-11-12 | Card #100 built (pull request open): the repo is ready to go public. The README is rewritten for a visitor: what Couchlog is, four phone screenshots taken from the demo (sample titles only), the demo link with the note that the first visit can take about a minute, how it is built, the short way to run it, the TMDB credit and the licence. The full run steps moved to the new `docs/running.md`. New `LICENSE` (MIT; the logos, Pico CSS, htmx and the screenshots are not covered). The Checks workflow gets read-only access. The GitHub settings to turn on after the switch are in `docs/security-check.md` (section 8). Decisions on this card (mine): the name stays Couchlog; MIT; `main` needs a pull request with green Checks, for me too, and no approval; strangers can open issues and pull requests; TMDB's 6-month limit is not built (#111 closed). Still mine: reading what becomes public, the TMDB key's declared use, the TMview search, the switch itself and the check in a private window. No table change. |
 | 2026-11-12 | Card #100 finished (pull request #112 merged): **the repo is public.** The secret scanner found no leaks in the 94 commits of every branch, run right after the switch. Turned on: `main` protected (a pull request with green Checks, for me too, no approval, no force push or deletion), secret scanning with push protection, Dependabot alerts, and my approval before the Checks run on an outside contributor's pull request. Checked by me: the repo in a private window (README, screenshots, demo link) and a deploy on the Pi with the five-minute check. Issues and pull requests stay open to everyone (my decision). |
-| 2026-11-16 | Pull request #114 merged. **M7 agreed** (my decisions): improving the first version now that friends use Couchlog. New features 15 to 22 in section 3 and the order in section 6 (M7), each with its own card: Where to watch #115 (the JustWatch credit was checked: free, credit required), friendlier empty lists #116, welcome tutorial #117, ratings on lists #118, my own tags #119, filters #120, share a title's TMDB link #122, "For you" recommendations from my own taste with no popularity in the score #123, taste quiz on Profile #124. Similar titles moved to Won't; an AI layer is decided later. A fix found in use is carded too: the series page opens with every season folded (#121). Adding Couchlog to the phone's home screen is done (with the phone's "Add to Home Screen"). |
+| 2026-11-16 | Pull request #114 merged. **M7 agreed** (my decisions): improving the first version now that friends use Couchlog. New features 15 to 22 in section 3 and the order in section 6 (M7), each with its own card: Where to watch #115 (the JustWatch credit was checked: free, credit required), friendlier empty lists #116, welcome tutorial #117, ratings on lists #118, my own tags #119, filters #120, share a title's TMDB link #122, "For you" recommendations from my own taste with no popularity in the score #123, taste quiz on Profile #124, hours watched per genre on Profile as bars, movies and series apart #126 (the genre half of the Could statistics). Similar titles moved to Won't; an AI layer is decided later. A fix found in use is carded too: the series page opens with every season folded (#121). Adding Couchlog to the phone's home screen is done (with the phone's "Add to Home Screen"). |
