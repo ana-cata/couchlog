@@ -161,14 +161,48 @@ def test_the_page_lists_the_seasons_in_order_with_the_specials_last(logged_in_cl
     assert 'No air date yet' in html
 
 
-def test_the_first_season_is_open_and_a_season_in_the_address_is_opened_instead(logged_in_client, tmdb_series):
-    first = page(logged_in_client)
-    second = page(logged_in_client, SERIES_PAGE + '?season=2')
-    nonsense = page(logged_in_client, SERIES_PAGE + '?season=abc')
+def test_every_season_is_folded_when_the_series_opens(logged_in_client, tmdb_series):
+    html = page(logged_in_client)
 
-    assert '<details id="season-1" open>' in first and '<details id="season-2">' in first
-    assert '<details id="season-2" open>' in second and '<details id="season-1">' in second
-    assert '<details id="season-1" open>' in nonsense
+    for number in (0, 1, 2):
+        assert f'<details id="season-{number}">' in html
+    assert re.search(r'<details id="season-\d+" open>', html) is None
+
+
+def test_a_season_in_the_address_opens_that_season_only(logged_in_client, tmdb_series):
+    html = page(logged_in_client, SERIES_PAGE + '?season=2')
+
+    assert '<details id="season-2" open>' in html
+    assert '<details id="season-1">' in html and '<details id="season-0">' in html
+
+
+def test_a_nonsense_season_in_the_address_leaves_every_season_folded(logged_in_client, tmdb_series):
+    html = page(logged_in_client, SERIES_PAGE + '?season=abc')
+
+    assert '<details id="season-1">' in html
+    assert re.search(r'<details id="season-\d+" open>', html) is None
+
+
+def test_after_marking_without_javascript_the_page_comes_back_with_that_season_open(logged_in_client, tmdb_series):
+    html = page(logged_in_client)
+    # The address the episode's own form sends back to.
+    target = re.search(rf'name="next" value="([^"]*#episode-{episode_of(6001).id})"', html).group(1)
+
+    html = after(logged_in_client, mark(logged_in_client, 6001, next=target))
+
+    assert '<details id="season-1" open>' in html
+    assert '<details id="season-2">' in html and '<details id="season-0">' in html
+
+
+def test_a_series_with_only_specials_opens_with_the_specials_folded(logged_in_client):
+    # Saved today, so the page is built from our own table without asking TMDB.
+    series = Title.objects.create(kind='series', tmdb_id=1399, title='Made-up Series', episodes_refreshed_at=NOW)
+    Episode.objects.create(title=series, tmdb_id=6000, season_number=0, episode_number=1, name='Made-up special')
+
+    html = page(logged_in_client)
+
+    assert '<details id="season-0">' in html and 'Specials' in html
+    assert re.search(r'<details id="season-\d+" open>', html) is None
 
 
 def test_the_page_still_has_the_to_watch_button_and_no_movie_form(logged_in_client, tmdb_series):

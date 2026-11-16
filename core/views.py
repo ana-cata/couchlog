@@ -214,10 +214,11 @@ def _series_page(request, tmdb_id):
     # Specials (season 0) last.
     numbers = sorted(by_season, key=lambda number: (number == 0, number))
     seasons = [_season_info(number, by_season[number]) for number in numbers]
+    # Every season is folded, unless the address names one (where a form sent you back to).
     try:
         open_season = int(request.GET['season'])
     except (KeyError, ValueError):
-        open_season = numbers[0] if numbers else None
+        open_season = None
 
     on_list = _my_item(request, 'series', tmdb_id).filter(removed_at=None).exists()
     dropped = DroppedSeries.objects.filter(user=request.user, title=series).exists()

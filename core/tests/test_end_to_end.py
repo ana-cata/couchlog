@@ -32,6 +32,11 @@ MADE_UP_MOVIE = {
 }
 
 
+def open_season(page, number=1):
+    """Every season is folded when a series page opens: tap the season's line to open it."""
+    page.locator(f'#season-{number} > summary').click()
+
+
 def test_log_in_search_add_a_title_then_remove_it_and_undo(live_server, page, respx_mock, settings, monkeypatch):
     # A long window, so a slow machine can never run out of undo time in the middle of this test.
     monkeypatch.setattr('core.views.UNDO_WINDOW', datetime.timedelta(minutes=5))
@@ -254,6 +259,10 @@ def test_open_a_series_tick_an_episode_and_untick_it(live_server, page, respx_mo
     page.get_by_role('link', name='Series', exact=True).click()
     page.get_by_role('link', name='To Watch', exact=True).click()
     page.locator('.tile').click()
+    # The season is folded when the page opens, and one tap on its line opens it.
+    expect(page.locator('details[open]')).to_have_count(0)
+    expect(page.get_by_text('Made-up pilot')).to_be_hidden()
+    open_season(page)
     expect(page.get_by_text('Made-up pilot')).to_be_visible()
     expect(page.get_by_text('Airs 1 Jan 2999')).to_be_visible()
     expect(page.get_by_role('button', name=re.compile(r'Mark episode \d as watched'))).to_have_count(1)
@@ -262,6 +271,7 @@ def test_open_a_series_tick_an_episode_and_untick_it(live_server, page, respx_mo
     page.get_by_role('button', name='Mark episode 1 as watched').click()
     expect(page.get_by_role('button', name='Mark episode 1 as not watched')).to_be_visible()
     page.reload()
+    open_season(page)
     expect(page.get_by_role('button', name='Mark episode 1 as not watched')).to_be_visible()
 
     # Untick it: back to gray.
@@ -296,6 +306,7 @@ def test_ticking_an_episode_does_not_move_the_page(live_server, page, respx_mock
     page.get_by_role('button', name='Log in').click()
     page.goto(live_server.url + '/series/1399/')
     page.wait_for_load_state('load')  # htmx starts when the page has loaded
+    open_season(page)
 
     # Scroll to the bottom of the season and tick the last episode.
     button = page.get_by_role('button', name='Mark episode 40 as watched')
@@ -355,6 +366,7 @@ def test_the_first_mark_asks_and_the_season_button_marks_and_un_marks_a_season_w
     page.get_by_role('button', name='Log in').click()
     page.goto(live_server.url + '/series/1399/')
     page.wait_for_load_state('load')  # htmx starts when the page has loaded
+    open_season(page)
     watched = page.locator('.check.watched')
 
     # Scroll down the long season and press the circle of episode 30, the first episode marked in the series.
@@ -414,6 +426,7 @@ def test_the_first_mark_asks_and_the_season_button_marks_and_un_marks_a_season_w
     expect(watched).to_have_count(40)
     page.reload()
     expect(watched).to_have_count(40)
+    open_season(page)
     expect(page.get_by_role('button', name='Mark Season 1 as not watched')).to_be_visible()
     # Un-mark one by hand: the season is not complete any more, so the button flips back to "as watched".
     page.get_by_role('button', name='Mark episode 40 as not watched').click()
@@ -475,6 +488,7 @@ def test_a_series_found_in_search_and_marked_shows_up_under_watching(live_server
     page.get_by_role('searchbox').press_sequentially('made-up')
     page.locator('.tile').click()
     expect(page.get_by_text('2011 · Series · Ended')).to_be_visible()
+    open_season(page)
     page.get_by_role('button', name='Mark episode 1 as watched').click()
     expect(page.get_by_role('button', name='Mark episode 1 as not watched')).to_be_visible()
 
@@ -488,6 +502,7 @@ def test_a_series_found_in_search_and_marked_shows_up_under_watching(live_server
 
     # Mark the last episode too: the series ended and every episode has aired, so it is finished.
     page.locator('.tile').click()
+    open_season(page)
     page.get_by_role('button', name='Mark episode 2 as watched').click()
     expect(page.get_by_role('button', name='Mark episode 2 as not watched')).to_be_visible()
     page.get_by_role('link', name='Series', exact=True).click()
@@ -499,6 +514,7 @@ def test_a_series_found_in_search_and_marked_shows_up_under_watching(live_server
     # Un-mark one episode: back under Watching.
     page.get_by_role('link', name='Finished', exact=True).click()
     page.locator('.tile').click()
+    open_season(page)
     page.get_by_role('button', name='Mark episode 2 as not watched').click()
     expect(page.get_by_role('button', name='Mark episode 2 as watched')).to_be_visible()
     page.get_by_role('link', name='Series', exact=True).click()
@@ -549,6 +565,7 @@ def test_up_next_on_home_follows_the_check_buttons_and_the_series_page_bars(live
     page.goto(live_server.url + '/series/1399/')
     expect(page.locator('#progress-series')).to_contain_text('3 of 3 episodes')
     expect(page.locator('#progress-season-1')).to_contain_text('3 of 3 episodes')
+    open_season(page)
     page.get_by_role('button', name='Mark episode 3 as not watched').click()
     expect(page.locator('#progress-series')).to_contain_text('2 of 3 episodes')
     expect(page.locator('#progress-season-1')).to_contain_text('2 of 3 episodes')
@@ -758,6 +775,7 @@ def test_remove_a_series_from_all_lists_with_a_question_first_then_undo(live_ser
     assert DroppedSeries.objects.count() == 1
     page.get_by_role('link', name='Dropped', exact=True).click()
     page.locator('.tile').click()
+    open_season(page)
     expect(page.get_by_role('button', name='Mark episode 1 as not watched')).to_be_visible()
     expect(page.get_by_role('button', name='Mark episode 2 as not watched')).to_be_visible()
     expect(page.get_by_text('Your rating: ★★★★☆')).to_be_visible()
