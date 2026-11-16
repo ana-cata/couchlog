@@ -1,0 +1,53 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Welcome · Couchlog{% endblock %}
+
+{% block content %}
+  {# How Couchlog works, in five short steps. A new account is sent here once (FirstStepsMiddleware); About links here. #}
+  {# Skip and Start go to the same place: opening the page already counted as seen. #}
+  <p class="welcome-skip"><a href="{% url 'home' %}" role="button" class="outline secondary">Skip</a></p>
+
+  <h1>Welcome to Couchlog</h1>
+  <p>Couchlog keeps track of the movies and series you watch. Here is how it works, in five steps.</p>
+
+  <section>
+    <h2>1. Find a title</h2>
+    <p>Press <strong>Search</strong> at the top and type the name of a movie or series. Its page shows what it's about and where you can stream it.</p>
+  </section>
+
+  <section>
+    <h2>2. Keep it for later</h2>
+    <p>Press <strong>Add to To Watch</strong> on its page. Movies and series each have their own To Watch list.</p>
+  </section>
+
+  <section>
+    <h2>3. Mark what you watch</h2>
+    <p>
+      On a movie's page, pick the day and press <strong>Mark as watched</strong>. On a series' page, press the round
+      button next to an episode, or mark a whole season at once. Every watch is kept with its date, so you can watch
+      something again, and anything you mark can be taken back.
+    </p>
+  </section>
+
+  <section>
+    <h2>4. The Series tabs</h2>
+    <ul>
+      <li><strong>Watching:</strong> the series you've started.</li>
+      <li><strong>To Watch:</strong> the series you want to start.</li>
+      <li><strong>Finished:</strong> the series you've watched to the end.</li>
+      <li><strong>Dropped:</strong> the series you stopped watching. Their history is kept, and you can bring them back any time.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>5. Home and the Calendar</h2>
+    <p>
+      <strong>Home</strong> shows what comes out in the next 7 days, and <strong>Up Next</strong>: the next episode of
+      each series you're watching, ready to check off. The <strong>Calendar</strong> shows the release dates of
+      everything on your lists, further ahead.
+    </p>
+  </section>
+
+  <p><a href="{% url 'home' %}" role="button">Start using Couchlog</a></p>
+  <p><small>You can read this again any time from <a href="{% url 'about' %}">About</a>.</small></p>
+{% endblock %}

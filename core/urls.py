@@ -54,6 +54,7 @@ urlpatterns = [
     path('<kind:kind>/<int:tmdb_id>/', views.title, name='title'),
     path('<kind:kind>/<int:tmdb_id>/where-to-watch/', views.where_to_watch, name='where_to_watch'),
     path('about/', views.about, name='about'),
+    path('welcome/', views.welcome, name='welcome'),
     path('profile/', views.profile, name='profile'),
     path('login/', views.login, name='login'),
     # Only in the public demo (docs/demo.md); "not found" everywhere else.

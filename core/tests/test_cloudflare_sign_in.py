@@ -242,7 +242,7 @@ def test_the_second_visit_finds_the_same_new_account(db):
     assert User.objects.filter(email='friend@example.com').count() == 1
 
 
-def test_a_new_account_goes_through_the_time_zone_step(db):
+def test_a_new_account_goes_through_the_time_zone_step_then_the_welcome_page(db):
     friends_token = token(email='friend@example.com')
     client = Client()
 
@@ -250,13 +250,16 @@ def test_a_new_account_goes_through_the_time_zone_step(db):
     assert response.status_code == 302
     assert response['Location'] == '/profile/'
 
-    client.post(
+    response = client.post(
         '/profile/',
         {'timezone': 'Europe/Paris'},
         HTTP_HOST=CLOUDFLARE_HOST,
         HTTP_CF_ACCESS_JWT_ASSERTION=friends_token,
     )
     assert Profile.objects.get(user__username='friend@example.com').timezone == 'Europe/Paris'
+    assert response['Location'] == '/welcome/'
+    assert visit('/welcome/', friends_token, client).status_code == 200
+    # Seen once, so it never comes back by itself.
     assert visit('/about/', friends_token, client).status_code == 200
 
 

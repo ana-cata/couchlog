@@ -9,7 +9,7 @@
 - **Friends** only ever come in by email code. Each account sees only its own data.
 - **Log out** at home goes back to the login page. From outside it also ends the Cloudflare session, so the next visit asks for a new code.
 - **If you cannot get in,** a "Cannot sign in" page says why, for example a deactivated account or two accounts with the same email.
-- **Time zone.** The first time an account logs in, every page leads to the Profile page with the note "Choose your time zone to continue." The list suggests the time zone your browser reports. Nothing else opens until one is saved.
+- **Time zone.** The first time an account logs in, every page leads to the Profile page with the note "Choose your time zone to continue." The list suggests the time zone your browser reports. Nothing else opens until one is saved. Then the welcome page opens, once ([welcome.md](welcome.md)).
 - **Profile page** (`/profile/`, linked as "Profile" in the header):
   - shows the username;
   - shows **Time spent watching** (see below);
@@ -58,7 +58,7 @@
 **Time zone**
 - Saved in the `core_profile` table, one row per account, in the `timezone` column, as a name such as `Europe/Lisbon`. See [data-model.md](data-model.md).
 - The row is created when the account first opens the Profile page, and an empty time zone means "not chosen yet".
-- `TimeZoneChosenMiddleware` (`core/middleware.py`) sends a logged-in account without a time zone to `/profile/`. Only the Profile page and Log out are exempt.
+- `FirstStepsMiddleware` (`core/middleware.py`) sends a logged-in account without a time zone to `/profile/`, and then, once, to the welcome page ([welcome.md](welcome.md)). The Profile page, Log out and the welcome page are exempt. Saving the first time zone leads to the welcome page.
 - The list comes from Python's time zone data and keeps only real regions (Africa, America, Antarctica, Arctic, Asia, Atlantic, Australia, Europe, Indian, Pacific) plus `UTC`. Old aliases such as `US/Eastern` are left out. The server refuses any name not in the list.
 - The browser's time zone is pre-selected by a few lines of JavaScript on the Profile page, only when no time zone is saved yet.
 - The time zone also gives the country whose streaming services a title's page shows (Where to watch, see [search.md](search.md)).

@@ -10,6 +10,10 @@ class Profile(models.Model):
     # A name from the IANA list, for example "Europe/Lisbon". Empty until the account
     # picks one at the first login.
     timezone = models.CharField(max_length=64, blank=True)
+    # Whether the account has opened the welcome page. A row counts as seen unless it is made where a new account
+    # starts (the time zone step and Try the demo set it to False), so the accounts that existed before it count as
+    # seen too.
+    welcome_seen = models.BooleanField(default=True)
 
     def __str__(self):
         return f'{self.user} ({self.timezone or "no time zone yet"})'

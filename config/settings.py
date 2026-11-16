@@ -130,8 +130,8 @@ MIDDLEWARE = [
     # Every page needs a login unless its view is marked with @login_not_required.
     'django.contrib.auth.middleware.LoginRequiredMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
-    # Needs messages, so it comes after MessageMiddleware.
-    'core.middleware.TimeZoneChosenMiddleware',
+    # The time zone step, then the welcome page, for a new account. Needs messages, so it comes after MessageMiddleware.
+    'core.middleware.FirstStepsMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 

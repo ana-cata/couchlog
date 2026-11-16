@@ -85,10 +85,16 @@ def demo_on(settings, db, tmdb_route):
     return tmdb_route
 
 
-def start(client=None, time_zone='Europe/Lisbon'):
-    """Press Try the demo in a new browser (or `client`). Returns the browser, signed in, and the answer."""
+def start(client=None, time_zone='Europe/Lisbon', see_welcome=True):
+    """Press Try the demo in a new browser (or `client`). Returns the browser, signed in, and the answer.
+
+    A new visitor is sent to the welcome page first; the browser opens it, as a visitor would, unless `see_welcome`
+    is False.
+    """
     client = client or Client()
     response = client.post('/demo/start/', {'time_zone': time_zone})
+    if see_welcome and response.status_code == 302:
+        client.get('/welcome/')
     return client, response
 
 
@@ -243,6 +249,17 @@ def test_try_the_demo_makes_an_account_with_no_password_and_signs_in(demo_on):
     assert user.email == ''
     # The time zone is chosen, so Home opens and not the time zone step.
     assert Profile.objects.get(user=user).timezone == 'Europe/Lisbon'
+    assert visitor.get('/').status_code == 200
+
+
+def test_a_new_demo_account_sees_the_welcome_page_once(demo_on):
+    visitor, response = start(see_welcome=False)
+
+    # Try the demo leads Home, and Home leads to the welcome page the first time.
+    assert response['Location'] == '/'
+    assert visitor.get('/')['Location'] == '/welcome/'
+    assert 'Welcome to Couchlog' in visitor.get('/welcome/').content.decode()
+    assert Profile.objects.get(user=account_of(visitor)).welcome_seen
     assert visitor.get('/').status_code == 200
 
 
