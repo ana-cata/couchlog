@@ -52,6 +52,7 @@ urlpatterns = [
     path('watched/up-to/add/', views.episodes_watched_up_to, name='episodes_watched_up_to'),
     path('watched/remove/', views.watched_remove, name='watched_remove'),
     path('<kind:kind>/<int:tmdb_id>/', views.title, name='title'),
+    path('<kind:kind>/<int:tmdb_id>/where-to-watch/', views.where_to_watch, name='where_to_watch'),
     path('about/', views.about, name='about'),
     path('profile/', views.profile, name='profile'),
     path('login/', views.login, name='login'),

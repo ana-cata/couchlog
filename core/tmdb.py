@@ -204,6 +204,41 @@ def get_movie_releases(tmdb_id):
     return earliest
 
 
+# How a title's page groups the streaming services, in this order, and which of TMDB's lists go in each group.
+# TMDB's "flatrate" is a subscription; "ads" is free with ads, shown with the free ones.
+WATCH_GROUPS = (('Stream', ('flatrate',)), ('Rent', ('rent',)), ('Buy', ('buy',)), ('Free', ('free', 'ads')))
+# The only kind of link kept from the answer: TMDB's own "where to watch" page for the title.
+WATCH_LINK_START = 'https://www.themoviedb.org/'
+
+
+def get_watch_providers(kind, tmdb_id, country):
+    """The streaming services that have a movie or series in one country (a two-letter code like 'PT'). The data comes
+    from JustWatch, which must be credited wherever it shows.
+
+    Returns {'link': TMDB's page for the title in that country, or '', 'groups': [{'label': 'Stream', 'names':
+    ['Netflix', ...]}, ...]} with only the groups that have a service, or None when TMDB lists none in that country.
+    Nothing is saved: services change every month.
+    """
+    path = f'/movie/{tmdb_id}/watch/providers' if kind == 'movie' else f'/tv/{tmdb_id}/watch/providers'
+    found = (_get(path).get('results') or {}).get(country) or {}
+    groups = []
+    for label, keys in WATCH_GROUPS:
+        names = []
+        for key in keys:
+            for provider in sorted(found.get(key) or [], key=lambda provider: provider.get('display_priority', 0)):
+                name = provider.get('provider_name') or ''
+                if name and key == 'ads':
+                    name += ' (with ads)'
+                if name and name not in names:
+                    names.append(name)
+        if names:
+            groups.append({'label': label, 'names': names})
+    if not groups:
+        return None
+    link = found.get('link') or ''
+    return {'link': link if link.startswith(WATCH_LINK_START) else '', 'groups': groups}
+
+
 def get_title(kind, tmdb_id):
     """One movie or series from TMDB. Nothing is saved."""
     path = f'/movie/{tmdb_id}' if kind == 'movie' else f'/tv/{tmdb_id}'

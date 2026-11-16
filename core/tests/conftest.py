@@ -22,3 +22,13 @@ def no_real_r2(settings):
 def no_demo_mode(settings):
     # Whatever is in the .env of whoever runs the tests, the app is the real one. The demo tests turn it on themselves.
     settings.DEMO_MODE = False
+
+
+@pytest.fixture(autouse=True)
+def no_streaming_services_in_the_browser(request, monkeypatch):
+    # A title's page loads its "Where to watch" line from the browser, which asks TMDB. In a real-browser test that
+    # answer is "none found", so no browser test reaches the real TMDB. test_where_to_watch.py tests the line itself.
+    if 'live_server' in request.fixturenames:
+        from core import tmdb
+
+        monkeypatch.setattr(tmdb, 'get_watch_providers', lambda kind, tmdb_id, country: None)

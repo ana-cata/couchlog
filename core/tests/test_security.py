@@ -62,6 +62,7 @@ READS = {
     'calendar': '/calendar/',
     'to_watch_removed': '/to-watch/removed/?kind=series',
     'title': '/movie/501/',
+    'where_to_watch': '/movie/501/where-to-watch/',
 }
 
 # Addresses that change data. Each needs a login, a POST and the form code. The profile page is also a page that

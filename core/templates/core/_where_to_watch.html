@@ -1,0 +1,16 @@
+{# The "Where to watch" line of a title's page (the where_to_watch view). It replaces the "loading…" line. #}
+{# JustWatch must be credited wherever its data shows, so the credit is on every answer that comes from it. #}
+<p class="where-to-watch">
+  <small>
+    {% if error %}
+      Where to watch: {{ error }}
+    {% elif services %}
+      <strong>Where to watch</strong> in {{ country }}:
+      {% for group in services.groups %}{% if not forloop.first %} · {% endif %}{{ group.label }} on {{ group.names|join:", " }}{% endfor %}<br>
+      {% if services.link %}<a href="{{ services.link }}" target="_blank" rel="noopener">See all on TMDB</a> · {% endif %}Streaming data from JustWatch
+    {% else %}
+      Not on any streaming service in {{ country }} yet.<br>
+      Streaming data from JustWatch
+    {% endif %}
+  </small>
+</p>
