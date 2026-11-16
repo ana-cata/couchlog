@@ -66,8 +66,9 @@ Priority uses MoSCoW: Must, Should, Could, Won't. The first version (the MVP) is
 |---|---|
 | **Must** (first version, the MVP) | Login and time zone · Search movies and series · To Watch lists (movies and series) · Mark a movie as watched · Mark episodes as watched (one, a whole season, or "up to here") · Up Next with progress bars · Calendar of upcoming releases from my list |
 | **Should** | Rewatch · Time spent watching · News section on the home page · Countdown in days · Dropped series · Ratings and notes · Where to watch |
-| **Could** | Genre and network statistics · Favorites · Similar titles · Personalized recommendations (decided later, depending on the work) |
-| **Won't (for now)** | Custom or shareable lists · Push notifications · Countdown in hours and minutes · Voting for characters · Social feed and comments · Native apps · Importing a history from another app |
+| **M7** (improving the first version, agreed 2026-11-16) | Friendlier empty lists · Welcome tutorial · Ratings on lists and a nudge to rate · Filters · My own tags · Share a title · "For you" recommendations · Taste quiz · Hours watched per genre (and, later, maybe an AI layer) |
+| **Could** | Network statistics · Favorites |
+| **Won't (for now)** | Custom or shareable lists · Similar titles · Push notifications · Countdown in hours and minutes · Voting for characters · Social feed and comments · Native apps · Importing a history from another app |
 
 ### How the app is organized
 
@@ -125,21 +126,53 @@ The header has **Search**, **Movies**, **Series**, **Calendar** and **Profile** 
 **13. Ratings and notes.** A star rating (1 to 5 whole stars) and a short note (up to 500 characters) for each movie or series, shown on its page. One Save button saves both; "No rating" removes the stars and an empty note removes the note, each without touching the other. It works for any title, watched or not, and each account sees only its own. What is saved shows as text, and the form opens from an edit icon (a pencil over a square) that is always there, so there is no Undo button and no time limit: editing again is the way back (decided on review of card #40, 2026-11-01; the first version had a 10-second Undo like To Watch). Not included: rating single episodes or seasons, and showing ratings on tiles or lists.
 *Done when:* both are saved and shown on the title's page, I can change or remove either one with the edit icon, and I can put them back by editing again.
 
-**14. Where to watch.** On a title's page, the streaming services that have it in my country (taken from my time zone, feature 1), from TMDB. TMDB's API is free for non-commercial use. This data probably needs a JustWatch credit, which I check before building it. If it turns out to need a paid service, this feature is removed from the plan.
+**14. Where to watch.** On a title's page, the streaming services that have it in my country, from TMDB, with a link to TMDB's own "where to watch" page for the title. TMDB's API is free for non-commercial use. Checked on 2026-11-16: the data is free, and TMDB requires a credit to **JustWatch** ("you must attribute the source of the data as JustWatch"), so the list and the About page credit JustWatch. Card #115.
 *Done when:* the page shows the services for my country, or says none were found.
+
+### M7: improving the first version
+
+Agreed on 2026-11-16, now that friends use Couchlog. The order is in [section 6](#m7-improve-the-first-version). Each feature gets its own card, and the details are decided on the card.
+
+**15. Friendlier empty lists.** The messages on an empty list (no movies, no series, nothing coming up) speak to someone using the app, not to a developer: what the list is for and the next step, like "Search for a film you want to see and add it here."
+*Done when:* every empty list says what it is for and what to do next, with no technical words.
+
+**16. Welcome tutorial.** A short welcome page with 4 or 5 steps (search, add to To Watch, mark as watched, the Series tabs, the Calendar). It opens once, the first time a new account signs in, and About links to it so it can be read again. A simple page, not a pop-up tour that points at buttons.
+*Done when:* a new account sees the welcome page once, an existing account does not, and About opens it at any time.
+
+**17. Ratings on lists, and a nudge to rate.** My stars show on the tiles of my lists, and right after "Mark as watched" (a movie, or the last episode of a series) Couchlog offers the rating box. Rating stays optional. More ratings make the filters (18) and the recommendations (21) better.
+*Done when:* a rated title shows its stars on my lists, and marking a movie as watched offers to rate it without forcing it.
+
+**18. Filters on the Movies and Series lists.** Filter by genre, by my rating and by my tags (19), and sort by release year (newest or oldest first). The data is already saved (genres on each title, ratings from feature 13).
+*Done when:* each list can be filtered by genre, rating and tag, and sorted by year, and clearing the filter shows the whole list again.
+
+**19. My own tags.** On the Profile page I create, rename and delete my own tags (like "comfort", "with family", "to show a friend"). On a title's page I add or remove my tags on that title. Each account has its own tags. Tags are labels on titles, not separate lists.
+*Done when:* I create a tag on Profile, add it to a title on its page, see it on that title, and deleting a tag can be undone.
+
+**20. Share a title.** A Share button on a title's page opens the phone's own share menu (WhatsApp, Messages and so on) with the link to that title's **TMDB page**, so a friend can open it without a Couchlog account. On a computer without a share menu, the button copies the link.
+*Done when:* Share on a title's page sends that title's TMDB link, on the phone and on the PC.
+
+**21. "For you" recommendations.** A list of suggestions built from my own taste: what my well-rated titles have in common (genres, themes, directors, actors, decade, country, from TMDB), scored by how closely a new title matches. **Popularity and trending are not part of the score**, so what studios promote does not push a title up. Each suggestion says why it is there ("because you gave *Dark* 5 stars") and has an "Add to To Watch" button. Not a trained machine-learning model: one account's history is too small for that. A little bias stays, because TMDB has more data on popular titles (accepted, my decision). Not based on TMDB's "similar titles" (my decision, 2026-11-16).
+*Done when:* the list changes when my ratings change, never lists a title I have watched or have on a list, and each suggestion says why.
+
+**22. Taste quiz.** A section on the Profile page I answer whenever I feel like it: Couchlog shows titles and I say whether I liked them (or skip). The answers count like ratings in feature 21, so they only add information. Most useful for a new account with few ratings.
+*Done when:* answering the quiz on Profile changes the "For you" list, and I can stop at any time and come back later.
+
+**23. Hours watched per genre.** On the Profile page, under Time spent watching, two bar charts: Movies by genre and Series by genre, with the hours watched in each genre, sorted from most to least. The hours are counted like Time spent (feature 9), and a watch counts fully in each genre of its title. Bars, not a pie, because a title has several genres and the parts do not add up to a whole (agreed 2026-11-16). This is the genre half of the Could feature "Genre and network statistics".
+*Done when:* Profile shows the hours per genre as bars, one chart for movies and one for series, sorted from most to least.
+
+**Later, maybe: an AI layer.** An AI model (like Claude) could explain my taste or re-order the "For you" list. It is decided only after 21 and 22 are used for a while, because it costs money per use, needs another key in `.env`, sends my history to an outside company (the privacy note on About would change), and has its own bias towards titles the internet talks about most.
 
 ### Could: later, if I still want them
 
-- **Genre and network statistics.** My most-watched genres and networks, from TMDB data, shown on the Profile page.
+- **Network statistics.** My most-watched networks, from TMDB data, shown on the Profile page. (The genre half moved to M7 as feature 23.)
 - **Favorites.** Mark movies and series as favorites and see them on the Profile page.
-- **Similar titles.** On a title's page, a list of similar titles from TMDB, each with an "add to To Watch" button.
-- **Personalized recommendations.** A "for you" list built from my ratings and watch history, with an "add to To Watch" button on each suggestion. Kept as a wish: I decide later whether it is worth the work. "Similar titles" is the simple first step towards it.
 
 ### Won't (for now)
 
 | Feature | Why |
 |---|---|
-| Custom or shareable lists | Removed. The To Watch and Watched lists stay, as Must features. |
+| Custom or shareable lists | Removed. The To Watch and Watched lists stay, as Must features. My own tags (feature 19) are labels on titles, not separate lists. |
+| Similar titles | My decision, 2026-11-16: recommendations come from my own taste (feature 21), not from TMDB's list of similar titles. |
 | Push notifications | Replaced by the News section. They would also need a secure (HTTPS) address, which we do not have before Stage 2. |
 | Countdown in hours and minutes | Not needed. Only the day of the release matters. |
 | Voting for characters | A social feature, with nobody to vote against. |
@@ -357,10 +390,32 @@ First planned for after M6, then built before M5 and M6 (my decision, 2026-10-30
 1. **Dropped series (feature 12).** Small, and it keeps series I gave up on out of Up Next while I enter my old history. Built on card #37.
 2. **News and Countdown in days (features 10 and 11).** Built together, since they share the same "in 3 days" label. They replace notifications and reuse the calendar data. Built on card #38.
 3. **Rewatch and Time spent (features 8 and 9).** They belong together, and the watches table already supports them. Built as two sub-issues of card #39: #43 Rewatch first, then #44 Time spent.
-4. **Where to watch (feature 14).** First check whether TMDB requires a credit for this data.
+4. **Where to watch (feature 14).** The credit was checked on 2026-11-16 (JustWatch, free). Moved into M7 as its first card, #115.
 5. **Ratings and notes (feature 13).** Built on card #40.
 
-The order can change if something turns out harder or more useful than expected: review it after each feature. The Could features (genre and network statistics, similar titles, personalized recommendations) come after these, and I decide then whether they are worth the work.
+The order can change if something turns out harder or more useful than expected: review it after each feature. The Could features (network statistics, favorites) come after M7, and I decide then whether they are worth the work.
+
+### M7: Improve the first version
+
+Goal: Couchlog is easier for new people to start with and gets better at knowing my taste, now that friends use it (agreed on 2026-11-16). The features are described in [section 3](#m7-improving-the-first-version). The idea behind the order: help new people first, then collect ratings, then use them.
+
+- [ ] Where to watch (feature 14) (card #115)
+- [ ] Friendlier empty lists (feature 15) (card #116)
+- [ ] Welcome tutorial (feature 16) (card #117)
+- [ ] Ratings on lists, and a nudge to rate (feature 17) (card #118)
+- [ ] My own tags (feature 19) (card #119)
+- [ ] Filters on the Movies and Series lists (feature 18) (card #120)
+- [ ] Hours watched per genre on Profile (feature 23) (card #126)
+- [ ] Share a title, its TMDB link (feature 20) (card #122)
+- [ ] "For you" recommendations from my own taste (feature 21) (card #123)
+- [ ] Taste quiz on the Profile page (feature 22) (card #124)
+- [ ] Decide about an AI layer, after 21 and 22 have been used for a while (no card yet)
+
+Not features, but on the board too: the Cloudflare login page (card #113) and the series page opening with every season folded (card #121, a fix found in use). They can go in between when it suits me.
+
+Done when: the boxes above are ticked, each feature checked on my phone after its deploy, and I have decided about the AI layer.
+
+As with the Should features, the order can change: review it after each card.
 
 ## 7. Testing approach
 
@@ -434,7 +489,7 @@ Public demo (separate): anyone -> Cloudflare -> Render (its own copy of the app 
 - **Address.** `https://couchlog.ana-cata.com`, through Cloudflare Tunnel and Cloudflare Access (card #96, `docs/deploying.md`). The tunnel is a third container on the Pi and comes back by itself when the Pi restarts. The home address keeps working.
 - **Who gets in.** Only emails on my allow list receive a one-time code. Cloudflare checks this before anything reaches the Pi, and the tunnel refuses a request that skipped it.
 - **Friends** install nothing. They type their email and the code and are in Couchlog, with no password. The first time, their account is created by itself (card #97, `docs/deploying.md`). `/admin/` only opens from the home address.
-- Adding the app to the phone's home screen as a real app (a web manifest, which needs HTTPS) is now possible through this address. It is not built.
+- Adding the app to the phone's home screen works through this address: done by me with the phone's "Add to Home Screen", which shows the icon from card #77 (noted on 2026-11-16). A web manifest (its own name and no browser bar) is not in the code.
 
 ### If other people use it
 
@@ -459,7 +514,9 @@ Sorted by when each item matters.
 | Always | TMDB terms if the app is ever commercial | Read TMDB's commercial terms before charging for anything. |
 | Accepted | Release dates are used as TMDB gives them, so a day can be off by one for a show from another country | Accepted: the calendar only needs to give an idea. If it bothers me later, revisit it (for example with a second source of air times). |
 | Accepted | A movie's release dates are midnight UTC and are turned into my time zone, so it shows a day early for a time zone west of UTC (the Americas) | Accepted on card #12 (my decision). If the calendar feels wrong, show TMDB's day as given (no conversion). |
-| Before "Where to watch" | The streaming data (from JustWatch, through TMDB) may need its own credit, and it must be free to use | Check TMDB's documentation before building feature 14. If it turns out to need a paid service, the feature is removed from the plan. |
+| Before "Where to watch" | The streaming data (from JustWatch, through TMDB) may need its own credit, and it must be free to use | Checked on 2026-11-16: free, and TMDB requires a JustWatch credit or it revokes access to the API. The credit is part of card #115. |
+| M7 | The "For you" list (feature 21) needs more TMDB details per title and more TMDB calls, which could make the Pi slow or reach TMDB's limits | Work it out once a day in the daily task and save it, so a page only reads it (decided on card #123). |
+| M7 | New data about me (tags, quiz answers) changes what the privacy note on About must say | Each card that stores something new updates the note in the same pull request. |
 | M5 | Problems with the Pi only show up at the end, because I deploy only after the MVP | Done: the Docker files were written and tested on the PC in M5 (card #69), and the app runs in Docker with the production settings. The ARM build was checked on the Pi on card #79 and works. Keep avoiding anything that only works on Windows. |
 | M6 | Building the app on the Pi may be slow or fail | The Pi has 4 GB RAM, a 64-bit OS and Docker, and SSH from my PC works, so it should work but will be slow the first time. Done on card #79: it builds on the Pi. The build failed at first on looking up the Python packages' site, so it now uses the Pi's own network (`network: host`), with its own build command (`docker buildx bake --allow=network.host`, pull request #85). |
 | M6 | The Pi has to download the code from my private GitHub repo | Done on card #79: the Pi has a deploy key (a key that only allows reading this one repo). |
@@ -468,7 +525,7 @@ Sorted by when each item matters.
 | Stage 2 | The app has a public address now, so a wrong setting could open it to anyone | Card #96: the Access application names the exact address, the policy lists full emails only, the route was made after the Access application, and the tunnel refuses requests that skipped the email step. The real address was checked on card #99 (2026-11-11): without the email step, with a made-up token and at `/admin/`, every request is refused by Cloudflare. |
 | Stage 2 | Cloudflare sits in the middle of the connection and could technically see what passes through | Accepted (card #96). The privacy note on the About page says so. |
 | Stage 2 | Friends would see Couchlog's username and password form after the email code | Done on card #97: the email code is the only sign-in on the Cloudflare address. |
-| Stage 2 | Installing the app on a phone needs a secure (HTTPS) address, which a plain home-network address does not have | The Cloudflare address is HTTPS, so it is possible now. Not built; the phone's browser and the home screen bookmark are enough for now. |
+| Stage 2 | Installing the app on a phone needs a secure (HTTPS) address, which a plain home-network address does not have | The Cloudflare address is HTTPS, so it is possible now. Done on 2026-11-16 with the phone's "Add to Home Screen" and the icon from card #77; no web manifest in the code. |
 | If it happens | Someone whose time zone is not in the country of their streaming services (for example living abroad) | Rare. If it happens, add a separate country setting later. |
 
 ## 10. Status log
@@ -552,3 +609,4 @@ Sorted by when each item matters.
 | 2026-11-12 | Card #99 finished (pull requests #105, #106, #107, #108 merged, and one change made directly on `main` on my decision). The security check was run on the code, the packages, the settings, the Docker image, the real address, the demo, the Pi, Cloudflare and R2. Fixed on this card: the demo's cookies are HTTPS only and it sends HSTS (`DJANGO_HTTPS_ONLY`, set on Render); Cloudflare sends HSTS for `ana-cata.com` (6 months, without subdomains or preload) and Always Use HTTPS is on; every build uses `--pull`, so fixes to the base image reach the Pi; the Pi's home address is left out of the docs and tests (as `<pi-address>`; the git history keeps it); the Pi's system was updated. The CI installs Chromium without Ubuntu's packages, because Ubuntu's servers stopped answering and every check failed before the tests ran. Accepted on my decision: the email in the commit history (new commits use GitHub's private address, and pushes that expose it are blocked), no Content-Security-Policy, the unlimited wrong passwords at home, and a few points by design. The demo scores B (75/100) on Mozilla's HTTP Observatory; the only point lost is the CSP. The results are in a private report on my PC, outside the repo; every point in it was checked. No table change. Next: making the repo public (#100). |
 | 2026-11-12 | Card #100 built (pull request open): the repo is ready to go public. The README is rewritten for a visitor: what Couchlog is, four phone screenshots taken from the demo (sample titles only), the demo link with the note that the first visit can take about a minute, how it is built, the short way to run it, the TMDB credit and the licence. The full run steps moved to the new `docs/running.md`. New `LICENSE` (MIT; the logos, Pico CSS, htmx and the screenshots are not covered). The Checks workflow gets read-only access. The GitHub settings to turn on after the switch are in `docs/security-check.md` (section 8). Decisions on this card (mine): the name stays Couchlog; MIT; `main` needs a pull request with green Checks, for me too, and no approval; strangers can open issues and pull requests; TMDB's 6-month limit is not built (#111 closed). Still mine: reading what becomes public, the TMDB key's declared use, the TMview search, the switch itself and the check in a private window. No table change. |
 | 2026-11-12 | Card #100 finished (pull request #112 merged): **the repo is public.** The secret scanner found no leaks in the 94 commits of every branch, run right after the switch. Turned on: `main` protected (a pull request with green Checks, for me too, no approval, no force push or deletion), secret scanning with push protection, Dependabot alerts, and my approval before the Checks run on an outside contributor's pull request. Checked by me: the repo in a private window (README, screenshots, demo link) and a deploy on the Pi with the five-minute check. Issues and pull requests stay open to everyone (my decision). |
+| 2026-11-16 | Pull request #114 merged. **M7 agreed** (my decisions): improving the first version now that friends use Couchlog. New features 15 to 22 in section 3 and the order in section 6 (M7), each with its own card: Where to watch #115 (the JustWatch credit was checked: free, credit required), friendlier empty lists #116, welcome tutorial #117, ratings on lists #118, my own tags #119, filters #120, share a title's TMDB link #122, "For you" recommendations from my own taste with no popularity in the score #123, taste quiz on Profile #124, hours watched per genre on Profile as bars, movies and series apart #126 (the genre half of the Could statistics). Similar titles moved to Won't; an AI layer is decided later. A fix found in use is carded too: the series page opens with every season folded (#121). Adding Couchlog to the phone's home screen is done (with the phone's "Add to Home Screen"). |
