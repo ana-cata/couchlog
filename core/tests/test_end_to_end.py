@@ -780,7 +780,7 @@ def test_a_dropped_series_can_also_be_removed_from_all_lists(live_server, page):
     page.get_by_role('link', name='Series', exact=True).click()
     page.get_by_role('link', name='Dropped', exact=True).click()
     page.locator('.tile').click()
-    expect(page.get_by_text('You stopped watching this series.')).to_be_visible()
+    expect(page.get_by_role('button', name='Bring back')).to_be_visible()
     page.get_by_role('button', name='Remove from all lists').click()
 
     expect(page.get_by_text('Removed “Made-up Series” from all your lists, with its history.')).to_be_visible()

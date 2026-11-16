@@ -416,7 +416,8 @@ def test_the_page_has_no_undo_button_but_always_has_the_edit_icon(logged_in_clie
         page = logged_in_client.get(MOVIE_PAGE).content.decode()
         assert 'Undo' not in page
         assert '/rating/undo/' not in page
-        assert 'hx-get' not in page
+        # Nothing on the page asks the server again by itself, except the Where to watch line once it is shown.
+        assert re.findall(r'hx-get="([^"]*)"', page) == ['/movie/603/where-to-watch/']
         # The way to change or remove is the pencil icon, not words: its name is only for screen readers and the tooltip.
         summary = re.search(r'<summary class="rating-edit"[^>]*>(.*?)</summary>', page, re.DOTALL)
         assert summary

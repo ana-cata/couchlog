@@ -354,11 +354,9 @@ button.corner-button.on-list:is(:hover, :focus-visible) {
   white-space: nowrap;
 }
 
-/* A dropped series has this note where the button would be. */
-.dropped-note {
-  display: block;
-  margin-top: 0.5rem;
-  text-align: center;
+/* "Where to watch", the last line of a title's page, a little apart from the watches or the seasons above it. */
+.where-to-watch {
+  margin-top: 1.5rem;
 }
 
 /* The seasons, under the description and the rating. */

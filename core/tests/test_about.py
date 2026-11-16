@@ -43,3 +43,18 @@ def test_the_header_links_to_about_on_every_page(client):
     client.force_login(user)
     for url in ['/', '/profile/', '/search/']:
         assert 'href="/about/"' in client.get(url).content.decode()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize('demo', [False, True])
+def test_the_about_page_credits_justwatch_for_the_streaming_services(client, settings, demo):
+    # TMDB requires it for "Where to watch" on a title's page, in the demo too. The TMDB credit stays.
+    settings.DEMO_MODE = demo
+    page = ' '.join(client.get('/about/').content.decode().split())
+
+    assert NOTICE in page
+    assert 'tmdb-logo.svg' in page
+    assert (
+        'The streaming services on a title\'s page come from '
+        '<a href="https://www.justwatch.com/" target="_blank" rel="noopener">JustWatch</a>, through TMDB.'
+    ) in page

@@ -59,6 +59,7 @@ from .releases import news, refresh_movie, refresh_upcoming, upcoming
 from .suggestions import suggest
 from .time_spent import describe, minutes_watched
 from .title_line import title_line
+from .where_to_watch import country_of
 
 # How old our saved episodes may get before opening a series page asks TMDB again.
 EPISODES_REFRESH_AFTER = timedelta(days=1)
@@ -248,10 +249,26 @@ def _series_page(request, tmdb_id):
     return render(request, 'core/title.html', context)
 
 
+def where_to_watch(request, kind, tmdb_id):
+    """The "Where to watch" line of a title's page, as a piece of page that htmx loads once the page is shown, so the
+    page never waits for TMDB and a TMDB problem only shows here. Asked from TMDB each time and never saved."""
+    code, country = country_of(_zone_name(request))
+    context = {'country': country}
+    try:
+        context['services'] = tmdb.get_watch_providers(kind, tmdb_id, code)
+    except tmdb.TmdbError as problem:
+        context['error'] = str(problem)
+    return render(request, 'core/_where_to_watch.html', context)
+
+
+def _zone_name(request):
+    """The name of the account's own time zone, like 'Europe/Lisbon', or empty when none was chosen."""
+    return Profile.objects.filter(user=request.user).values_list('timezone', flat=True).first() or ''
+
+
 def _zone(request):
     """The account's own time zone."""
-    name = Profile.objects.filter(user=request.user).values_list('timezone', flat=True).first()
-    return ZoneInfo(name or 'UTC')
+    return ZoneInfo(_zone_name(request) or 'UTC')
 
 
 def _today(request):

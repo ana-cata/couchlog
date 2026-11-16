@@ -129,20 +129,29 @@ def _day(text):
         return None
 
 
+# TMDB adds at most 20 extra parts to one answer (append_to_response), so up to 20 seasons come in one call.
+SEASONS_PER_CALL = 20
+
+
 def get_series_episodes(tmdb_id):
     """A series' status, IMDb id, banner, genres and every one of its episodes, specials included. Nothing is saved.
 
-    One call gives the status, the IMDb id, the banner and the genres and lists the seasons, then there is one call
-    per season, so a long series takes a moment.
+    One call gives the status, the IMDb id, the banner and the genres and lists the seasons. Then the seasons come up
+    to 20 at a time, added to the series' own answer (`append_to_response=season/1,season/2,...`), so most series take
+    two calls in all instead of one call per season.
     """
     series = _get(f'/tv/{tmdb_id}', {'append_to_response': 'external_ids'})
+    numbers = [season['season_number'] for season in series.get('seasons', [])]
+    seasons = {}
+    for start in range(0, len(numbers), SEASONS_PER_CALL):
+        batch = numbers[start:start + SEASONS_PER_CALL]
+        data = _get(f'/tv/{tmdb_id}', {'append_to_response': ','.join(f'season/{number}' for number in batch)})
+        for number in batch:
+            # A season TMDB lists but has no details for is left out of the answer: skip it, keep the others.
+            if data.get(f'season/{number}'):
+                seasons[number] = data[f'season/{number}']
     episodes = []
-    for season in series.get('seasons', []):
-        number = season['season_number']
-        try:
-            data = _get(f'/tv/{tmdb_id}/season/{number}')
-        except TmdbNotFound:
-            continue  # TMDB lists a season it has no details for: skip it, do not lose the others
+    for number, data in seasons.items():
         for raw in data.get('episodes', []):
             episodes.append({
                 'tmdb_id': raw['id'],
@@ -202,6 +211,35 @@ def get_movie_releases(tmdb_id):
             if earliest[name] is None or moment < earliest[name]:
                 earliest[name] = moment
     return earliest
+
+
+# How a title's page groups the streaming services, in this order, and which of TMDB's lists go in each group.
+# TMDB's "flatrate" is a subscription; "ads" is free with ads, shown with the free ones.
+WATCH_GROUPS = (('Stream', ('flatrate',)), ('Rent', ('rent',)), ('Buy', ('buy',)), ('Free', ('free', 'ads')))
+
+
+def get_watch_providers(kind, tmdb_id, country):
+    """The streaming services that have a movie or series in one country (a two-letter code like 'PT'). The data comes
+    from JustWatch, which must be credited (the About page does).
+
+    Returns [{'label': 'Stream', 'names': ['Netflix', ...]}, ...] with only the groups that have a service, or None
+    when TMDB lists none in that country. Nothing is saved: services change every month.
+    """
+    path = f'/movie/{tmdb_id}/watch/providers' if kind == 'movie' else f'/tv/{tmdb_id}/watch/providers'
+    found = (_get(path).get('results') or {}).get(country) or {}
+    groups = []
+    for label, keys in WATCH_GROUPS:
+        names = []
+        for key in keys:
+            for provider in sorted(found.get(key) or [], key=lambda provider: provider.get('display_priority', 0)):
+                name = provider.get('provider_name') or ''
+                if name and key == 'ads':
+                    name += ' (with ads)'
+                if name and name not in names:
+                    names.append(name)
+        if names:
+            groups.append({'label': label, 'names': names})
+    return groups or None
 
 
 def get_title(kind, tmdb_id):

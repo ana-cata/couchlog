@@ -61,6 +61,7 @@
 - `TimeZoneChosenMiddleware` (`core/middleware.py`) sends a logged-in account without a time zone to `/profile/`. Only the Profile page and Log out are exempt.
 - The list comes from Python's time zone data and keeps only real regions (Africa, America, Antarctica, Arctic, Asia, Atlantic, Australia, Europe, Indian, Pacific) plus `UTC`. Old aliases such as `US/Eastern` are left out. The server refuses any name not in the list.
 - The browser's time zone is pre-selected by a few lines of JavaScript on the Profile page, only when no time zone is saved yet.
+- The time zone also gives the country whose streaming services a title's page shows (Where to watch, see [search.md](search.md)).
 
 **Time spent watching** (`core/time_spent.py`, shown by `profile` in `core/views.py`)
 - **Nothing is stored for the total.** `minutes_watched(user)` works it out from your watches each time the page is built, in two database sums: your movie watches add the movie's `runtime`, and your episode watches add the episode's own `runtime` or else its series' `runtime` or else 0 (`Coalesce`). It returns `(movies, series)`, and the page adds them for the Total. It never asks TMDB (design rule 6): it reads the runtimes that were saved.

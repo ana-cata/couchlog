@@ -49,6 +49,8 @@ This product uses the TMDB API but is not endorsed or certified by TMDB. Movie a
 
 Upcoming episode dates also come from [TVmaze](https://www.tvmaze.com/), whose data is licensed [CC BY-SA](https://creativecommons.org/licenses/by-sa/4.0/).
 
+The streaming services on a title's page (Where to watch) come from [JustWatch](https://www.justwatch.com/), through TMDB.
+
 ## Licence
 
 The code is under the [MIT licence](LICENSE). It does not cover:
