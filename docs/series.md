@@ -155,7 +155,7 @@ For a series you want gone completely: off every list, with everything you saved
 
 **Opening a series** (`_series_page` in `core/views.py`)
 1. The series is saved from TMDB if our table does not have it yet (the same `_saved_title` the To Watch button uses, design rule 6).
-2. If its episodes were never saved, or were saved more than a day ago (`EPISODES_REFRESH_AFTER`), they are refreshed (`refresh_episodes` in `core/episodes.py`, the same code the `refresh_calendar` command uses): TMDB is asked for the status and the list of seasons (`GET /tv/<id>`), then for each season (`GET /tv/<id>/season/<n>`), so a long series takes a few seconds the first time. Only after all of that answered are the rows saved, in one database step, so a failure saves nothing.
+2. If its episodes were never saved, or were saved more than a day ago (`EPISODES_REFRESH_AFTER`), they are refreshed (`refresh_episodes` in `core/episodes.py`, the same code the `refresh_calendar` command uses): TMDB is asked for the status and the list of seasons (`GET /tv/<id>`), then for its seasons, **up to 20 in one call** added to the series' own answer (`GET /tv/<id>?append_to_response=season/1,season/2,...`, `SEASONS_PER_CALL` in `core/tmdb.py`). So most series take two calls, and one with 21 to 40 seasons three; before card #115 it was one call per season, and a long series took a few seconds. A season TMDB lists but leaves out of the answer (it has no details for it) is skipped. Tests: `core/tests/test_series_speed.py` (the real calls; the other tests describe seasons as season pages, which a helper in `core/tests/conftest.py` puts together). Only after all of that answered are the rows saved, in one database step, so a failure saves nothing.
 3. The page is built from our own table. A season that TMDB lists but cannot find (404) is skipped and the others are kept.
 
 **The progress bars** (`_series_bar.html`, `_season_line.html`, `_series_progress` and `_season_info` in `core/views.py`)
@@ -217,7 +217,7 @@ For a series you want gone completely: off every list, with everything you saved
 - A series that TMDB has not yet marked as ended stays in Watching even when you have watched everything, until a refresh picks up the change.
 - How the tabs are worked out (`series_tabs` in `core/episodes.py`) looks at every series you have started each time a tab opens; that is fine for dozens of series.
 - The series' own details (poster, description) are saved once and not refreshed.
-- A very long series is slow to open the first time (one TMDB call per season).
+- Opening a series the first time still waits for TMDB: three calls in a row (the details, the series, its seasons), more for a series with over 20 seasons. The same happens when its saved copy is over a day old.
 - "Remove from all lists" cannot be undone after 10 seconds: that is the point of it. The copy of the history is kept in the database until the window is over and something deletes it (the next removal, a visit to Series → To Watch, or the block's own recheck), so it can sit there a little longer if you never come back.
 - There is no confirmation on the server: the question is the browser's. Without JavaScript the button removes straight away.
 - A double click on an episode's circle adds two watches (the second counts as a rewatch); the "−" takes them back one at a time. A season button, "Watch Season N again" or a "Yes" pressed twice at once does the same: an extra watch or season rewatch that the "−" buttons take back.
