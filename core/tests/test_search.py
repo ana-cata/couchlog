@@ -79,7 +79,7 @@ def test_says_so_when_nothing_matches(logged_in_client, respx_mock):
 
     page = logged_in_client.get('/search/', {'q': 'zzzz'}).content.decode()
 
-    assert 'No movies or series match' in page
+    assert 'Nothing found for' in page
 
 
 @pytest.mark.parametrize('query', ['', '   '])

@@ -217,7 +217,7 @@ def test_a_series_with_no_episodes_says_so(logged_in_client, respx_mock):
 
     html = page(logged_in_client)
 
-    assert 'TMDB has no episodes for this series yet.' in html
+    assert 'No episodes announced yet.' in html
     assert Episode.objects.count() == 0
 
 

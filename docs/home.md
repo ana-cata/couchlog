@@ -11,7 +11,7 @@
 - **One banner for each title,** on its nearest day: several episodes of a series on the same day, episodes on two different days, or a film with both a cinema and a streaming date in the window are still one banner. The nearest day comes first.
 - **Your day:** "today" is your day in your time zone (Profile). The same episode can be "tomorrow" in Lisbon and "today" in Auckland, and the label changes at your midnight. A film's date is turned into your day like on the Calendar.
 - **A title with no banner saved** (saved before banners were kept, or TMDB has none) shows a plain box with its name, so it can still be told apart. Run `uv run python manage.py refresh_calendar` once to give the older titles their banners.
-- **Nothing coming up:** "Nothing coming out in the next 7 days."
+- **Nothing coming up:** "Nothing from your lists comes out in the next 7 days. The Calendar shows what's further ahead." with a link to the Calendar.
 - **Undo:** News only reads what is saved and changes nothing, so there is nothing to undo.
 
 **Up Next**
@@ -22,7 +22,7 @@
 - **Nothing left to watch:** when you check off the last episode that has aired, the card goes. The series stays in Watching; it comes back on Home by itself when a new episode airs (or `refresh_calendar` brings one in).
 - **A finished series** (TMDB says it ended and you watched everything that has aired) is not on Home. A series on your To Watch list that you have not started is not on Home either.
 - **Order:** the series you watched most recently come first. A rewatch is a watch too, so a series you watch again moves to the top; nothing else about its card changes.
-- **Empty:** "Nothing to watch next." shows whenever the list has no card, also right after you check off the last one.
+- **Empty:** "Up Next shows the next episode of each series you're watching. Find a series and mark an episode as watched to start." (with a link to Search) shows whenever the list has no card, also right after you check off the last one.
 - **Undo:** there is no Undo button on Home. To take a check-off back, open the series and press the "−" next to the episode's green circle; that brings the episode and the bar back (see [Series](series.md)). On Home the card is back after a reload.
 - **Progress bars** are also on the series page: one for the whole series and one for each season (see [Series](series.md)).
 - **Your own Up Next:** each account sees only its own series and watches.
@@ -34,7 +34,7 @@
 
 - **Nothing is stored for News.** `news(user, today, zone)` in `core/releases.py` takes the Calendar's own list (`upcoming()`, which is not changed), keeps the days from `today` up to but not including `today` + `NEWS_DAYS`, and keeps each title once, on its nearest day. It returns `title`, `day` and `label` for each.
 - **The label** is `countdown_label(day, today)` in the same file: "today" (0 days), "tomorrow" (1) or "in N days". It is the only place the words are made.
-- **The window** is `NEWS_DAYS = 7` at the top of `core/releases.py`. It is the one place to change it; the code and the "Nothing coming out in the next 7 days." line both read it.
+- **The window** is `NEWS_DAYS = 7` at the top of `core/releases.py`. It is the one place to change it; the code and the "Nothing from your lists comes out in the next 7 days." line both read it.
 - **The banner** is `core_title.backdrop_url` (see [data model](data-model.md)), TMDB's `backdrop_path` at width 780 (`BACKDROP_BASE_URL` in `core/tmdb.py`). The browser loads the picture straight from TMDB's image server, like posters, with no key. It is saved when a title is saved (search result or `GET /movie|tv/<id>`), and refreshed with the dates: a series by `refresh_episodes` (the same `/tv/<id>` call) and a film by `refresh_movie` (`GET /movie/<id>?append_to_response=release_dates`, one call for the dates and the banner). If TMDB does not answer, the saved banner is kept; if TMDB has none, it is emptied.
 - **Home never asks TMDB or TVmaze.** It reads what is saved, like the Calendar.
 - **The template** is `home.html`; the styles are `.news`, `.banner`, `.no-banner` and `.news-days` in `couchlog.css`.

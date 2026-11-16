@@ -123,7 +123,7 @@
                 </ul>
               </details>
             {% empty %}
-              {% if not notice %}<p>TMDB has no episodes for this series yet.</p>{% endif %}
+              {% if not notice %}<p>No episodes announced yet. They'll show up here once they are.</p>{% endif %}
             {% endfor %}
             {# The pop-up question after the first episode marked in a series. Empty until then. #}
             <div id="ask">{% if ask %}{% include 'core/_ask_earlier.html' %}{% endif %}</div>

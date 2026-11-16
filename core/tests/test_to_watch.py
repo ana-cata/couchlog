@@ -227,7 +227,7 @@ def test_a_removed_title_leaves_the_list_and_stays_gone_after_reloading(logged_i
 
     assert response.status_code == 302
     page = to_watch_page(logged_in_client)
-    assert 'No movies on your To Watch list yet' in page
+    assert 'Keep the movies you want to see here' in page
     assert page.count('class="tile"') == 0
 
 
@@ -641,8 +641,8 @@ def test_each_section_lists_only_its_own_kind(logged_in_client, respx_mock):
 
 
 def test_an_empty_section_says_which_kind_is_missing(logged_in_client):
-    assert 'No movies on your To Watch list yet' in to_watch_page(logged_in_client, 'movie')
-    assert 'No series on your To Watch list yet' in to_watch_page(logged_in_client, 'series')
+    assert 'Keep the movies you want to see here' in to_watch_page(logged_in_client, 'movie')
+    assert 'Keep the series you want to see here' in to_watch_page(logged_in_client, 'series')
 
 
 def test_the_movies_section_has_the_tabs_to_watch_and_history(logged_in_client):

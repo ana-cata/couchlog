@@ -208,10 +208,10 @@ def test_the_banners_come_nearest_day_first(client):
 def test_nothing_coming_up_says_so(client, monkeypatch):
     coming_series(client, 10)
 
-    assert 'Nothing coming out in the next 7 days.' in home_page(client)
+    assert 'Nothing from your lists comes out in the next 7 days.' in home_page(client)
 
     monkeypatch.setattr('core.releases.NEWS_DAYS', 1)
-    assert 'Nothing coming out in the next 1 day.' in home_page(client)
+    assert 'Nothing from your lists comes out in the next 1 day.' in home_page(client)
 
 
 # --- the same titles as the Calendar -------------------------------------------------------------------

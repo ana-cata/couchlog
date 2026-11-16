@@ -143,7 +143,7 @@ def test_back_shows_the_list_as_it_is_now_after_a_button_on_the_title_page(
     page.get_by_role('link', name=BACK, exact=True).click()
 
     expect(page).to_have_url(live_server.url + '/movies/')
-    expect(page.get_by_text('No movies on your To Watch list yet.')).to_be_visible()
+    expect(page.get_by_text('Keep the movies you want to see here.')).to_be_visible()
     expect(page.locator('.tile')).to_have_count(0)
 
 

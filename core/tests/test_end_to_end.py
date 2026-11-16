@@ -78,7 +78,7 @@ def test_log_in_search_add_a_title_then_remove_it_and_undo(live_server, page, re
     expect(page.locator('.tile')).to_have_count(1)
     page.get_by_role('link', name='Series', exact=True).click()
     page.get_by_role('link', name='To Watch', exact=True).click()
-    expect(page.get_by_text('No series on your To Watch list yet')).to_be_visible()
+    expect(page.get_by_text('Keep the series you want to see here')).to_be_visible()
     expect(page.locator('.tile')).to_have_count(0)
     page.get_by_role('link', name='Movies', exact=True).click()
 
@@ -184,7 +184,7 @@ def test_a_page_left_open_stops_offering_undo_when_time_is_up(live_server, page,
     expect(page.locator('.tile')).to_have_count(0)
     page.reload()
     expect(page.get_by_role('heading', name='Recently removed')).to_have_count(0)
-    expect(page.get_by_text('No series on your To Watch list yet')).to_be_visible()
+    expect(page.get_by_text('Keep the series you want to see here')).to_be_visible()
 
 
 def test_mark_a_movie_as_watched_see_it_in_history_then_undo(live_server, page, respx_mock, settings):
@@ -227,7 +227,7 @@ def test_mark_a_movie_as_watched_see_it_in_history_then_undo(live_server, page, 
     # Then it has left History and is back on To Watch.
     page.get_by_role('link', name='Movies', exact=True).click()
     page.get_by_role('link', name='History', exact=True).click()
-    expect(page.get_by_text('Nothing in your history yet')).to_be_visible()
+    expect(page.get_by_text('Every movie you mark as watched is kept here')).to_be_visible()
     page.get_by_role('link', name='To Watch', exact=True).click()
     expect(page.locator('.tile')).to_contain_text('Made-up Movie')
 
@@ -509,7 +509,7 @@ def test_a_series_found_in_search_and_marked_shows_up_under_watching(live_server
     page.get_by_role('link', name='Finished', exact=True).click()
     expect(page.locator('.tile')).to_contain_text('Made-up Series')
     page.get_by_role('link', name='Watching', exact=True).click()
-    expect(page.get_by_text('No series in Watching yet')).to_be_visible()
+    expect(page.get_by_text('A series shows up here once you mark one of its episodes as watched')).to_be_visible()
 
     # Un-mark one episode: back under Watching.
     page.get_by_role('link', name='Finished', exact=True).click()
@@ -559,7 +559,7 @@ def test_up_next_on_home_follows_the_check_buttons_and_the_series_page_bars(live
     # Checking off the last one: nothing is left, so the card goes and the note takes its place.
     page.get_by_role('button', name='Mark S1E3 of Made-up Series as watched').click()
     expect(card).to_have_count(0)
-    expect(page.get_by_text('Nothing to watch next')).to_be_visible()
+    expect(page.get_by_text('Up Next shows the next episode of each series')).to_be_visible()
 
     # The series page shows the bars full. Undoing an episode there moves both bars back in place.
     page.goto(live_server.url + '/series/1399/')
@@ -765,7 +765,7 @@ def test_remove_a_series_from_all_lists_with_a_question_first_then_undo(live_ser
     expect(page.get_by_role('button', name='Undo')).to_be_visible()
     assert (Watch.objects.count(), ToWatchItem.objects.count(), Rating.objects.count()) == (0, 0, 0)
     page.get_by_role('link', name='Watching', exact=True).click()
-    expect(page.get_by_text('No series in Watching yet')).to_be_visible()
+    expect(page.get_by_text('A series shows up here once you mark one of its episodes as watched')).to_be_visible()
 
     # Undo: everything is back, down to the ticks on its episodes and the stars. It is dropped again, as it was.
     page.get_by_role('link', name='To Watch', exact=True).click()
@@ -803,4 +803,4 @@ def test_a_dropped_series_can_also_be_removed_from_all_lists(live_server, page):
 
     expect(page.get_by_text('Removed “Made-up Series” from all your lists, with its history.')).to_be_visible()
     page.get_by_role('link', name='Dropped', exact=True).click()
-    expect(page.get_by_text('No dropped series')).to_be_visible()
+    expect(page.get_by_text('A series you stop watching moves here')).to_be_visible()

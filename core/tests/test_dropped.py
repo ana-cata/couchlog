@@ -190,7 +190,7 @@ def test_the_dropped_tab_is_marked_and_says_so_when_empty(me):
     html = page(me, '/series/dropped/')
 
     assert 'href="/series/dropped/" aria-current="page">Dropped</a>' in html
-    assert 'No dropped series' in html
+    assert 'A series you stop watching moves here' in html
     assert 'href="/series/finished/">Finished</a>' in html  # the other tabs link to it too
 
 
@@ -213,7 +213,7 @@ def test_a_dropped_series_is_not_in_up_next(me):
     drop(me)
     html = page(me, '/')
     assert LINK not in html
-    assert 'Nothing to watch next.' in html
+    assert 'Up Next shows the next episode of each series' in html
 
     bring_back(me)
     assert LINK in page(me, '/')

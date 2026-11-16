@@ -433,7 +433,7 @@ def test_two_days_of_one_month_share_the_month_heading(client):
 def test_the_page_says_so_when_nothing_is_coming_up(client):
     page = client.get('/calendar/').content.decode()
 
-    assert 'Nothing coming up' in page and 'refresh_calendar' in page
+    assert 'Nothing coming up' in page and 'refresh_calendar' not in page
 
 
 def test_the_page_only_reads_what_is_saved_and_never_asks_tmdb(client, respx_mock, tmdb_key):

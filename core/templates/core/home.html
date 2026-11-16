@@ -22,7 +22,10 @@
       {% endfor %}
     </ul>
   {% else %}
-    <p class="news-empty">Nothing coming out in the next {{ news_days }} day{{ news_days|pluralize }}.</p>
+    <p class="news-empty">
+      Nothing from your lists comes out in the next {{ news_days }} day{{ news_days|pluralize }}.
+      The <a href="{% url 'calendar' %}">Calendar</a> shows what's further ahead.
+    </p>
   {% endif %}
 
   <h1>Up Next</h1>
@@ -35,7 +38,7 @@
   </ul>
   {# Shown only while the list has no card, so it also appears when the last card is checked off. #}
   <p class="up-next-empty">
-    Nothing to watch next. Mark an episode of a series as watched and its next episode shows up here. When you are
-    caught up, a series waits until a new episode airs. Use Search in the header to find a series.
+    Up Next shows the next episode of each series you're watching. <a href="{% url 'search' %}">Find a series</a>
+    and mark an episode as watched to start.
   </p>
 {% endblock %}
