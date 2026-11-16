@@ -1,7 +1,7 @@
 {% if error %}
   <p role="alert">{{ error }}</p>
 {% elif query and not results %}
-  <p>No movies or series match “{{ query }}”.</p>
+  <p>Nothing found for “{{ query }}”. Check the spelling, or try fewer words or the original title.</p>
 {% elif results %}
   <ul class="results">
     {% for result in results %}

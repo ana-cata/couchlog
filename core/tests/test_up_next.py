@@ -363,7 +363,7 @@ def test_home_has_no_cards_before_anything_is_watched(client):
     html = home(client)
 
     assert cards(html) == []
-    assert 'Nothing to watch next' in html
+    assert 'Up Next shows the next episode of each series' in html
 
 
 def test_checking_off_a_card_marks_the_episode_and_the_next_one_appears(two_series):

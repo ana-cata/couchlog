@@ -21,7 +21,7 @@
   - TMDB cannot be reached for the episodes only: the series is shown with a message, and the episodes appear the next time TMDB answers.
   - TMDB cannot be reached on a later visit (when a refresh was due): the page shows the episodes saved earlier, with a note.
   - A series TMDB does not have: the normal "page not found" screen.
-  - TMDB has the series but no episodes: "TMDB has no episodes for this series yet."
+  - TMDB has the series but no episodes: "No episodes announced yet. They'll show up here once they are."
 
 ## Marking a whole season, or the episodes you skipped
 
@@ -78,7 +78,7 @@ Series has four tabs, in this order: **Watching, To Watch, Finished, Dropped**. 
 - **Specials** (season 0) do not have to be watched to finish a series. Episodes that have not aired yet, or have no air date, do not count either. "Aired" follows your time zone.
 - If TMDB has not given a status yet (it is empty until the first refresh), the series cannot be finished: it stays in Watching.
 - A rewatch of an episode counts once: an episode is watched if it has at least one watch (design rule 2).
-- Watching, Finished and Dropped show plain tiles (poster, name, year) with no To Watch button. Watching and Finished list the newest-marked series first, Dropped the one dropped last first. Each says so when empty.
+- Watching, Finished and Dropped show plain tiles (poster, name, year) with no To Watch button. Watching and Finished list the newest-marked series first, Dropped the one dropped last first. Each says what it is for when empty, with a link: Watching to Search, Finished and Dropped to Watching (see [Messages](messages.md)).
 - Marking an episode does not touch your To Watch list: the entry stays, only hidden from the To Watch tab while the series is being watched. If you un-mark every episode of a series that is on your list, it is back under To Watch.
 
 ## Dropped series

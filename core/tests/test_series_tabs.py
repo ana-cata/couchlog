@@ -299,8 +299,8 @@ def test_the_tabs_show_plain_tiles_without_a_to_watch_button(client_with_series)
 def test_the_watching_and_finished_tabs_say_so_when_empty(client_with_series):
     client = client_with_series
 
-    assert 'No series in Watching yet' in page(client, '/series/watching/')
-    assert 'No finished series yet' in page(client, '/series/finished/')
+    assert 'A series shows up here once you mark one of its episodes as watched' in page(client, '/series/watching/')
+    assert 'watched to the end land here' in page(client, '/series/finished/')
 
 
 def test_the_current_tab_is_marked(client_with_series):

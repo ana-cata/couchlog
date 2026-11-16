@@ -450,7 +450,7 @@ def test_history_lists_the_newest_watch_first_and_unknown_dates_last(logged_in_c
 def test_an_empty_history_says_so(logged_in_client):
     html = page(logged_in_client, '/movies/history/')
 
-    assert 'Nothing in your history yet' in html
+    assert 'Every movie you mark as watched is kept here' in html
     assert tiles(html) == []
 
 
@@ -556,7 +556,7 @@ def test_the_history_screen_has_no_buttons_and_the_undo_is_on_the_film_page(logg
     response = unmark(logged_in_client, watch_id, next='/movie/603/')
 
     assert response['Location'] == '/movie/603/'
-    assert 'Nothing in your history yet' in page(logged_in_client, '/movies/history/')
+    assert 'Every movie you mark as watched is kept here' in page(logged_in_client, '/movies/history/')
 
 
 def test_a_movie_can_be_marked_again_after_an_undo(logged_in_client, movie_route):

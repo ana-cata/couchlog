@@ -38,7 +38,7 @@
 - **Searching saves nothing**, and neither do the suggestions. Search results and suggestions are read from TMDB each time, and so is the page of a movie that is not saved. A saved movie that has its length and genres uses the saved copy, so its page does not wait for TMDB after every button (a saved movie without them still reads TMDB). Only a title you add to your To Watch list (or rate) is saved, and a series is also saved the first time you open its page (with its episodes, see [Series](series.md)).
 - **If something goes wrong** you see a message instead of a crash:
   - TMDB cannot be reached, or does not accept the key: a short message under the box. For the suggestions, the message takes the place of the movies (or the series) that could not be loaded, and the other block still shows.
-  - Nothing matches: "No movies or series match ...".
+  - Nothing matches: "Nothing found for “...”. Check the spelling, or try fewer words or the original title."
   - A title that TMDB does not have: the normal "page not found" screen.
   - Couchlog itself does not answer a search or a button (no Wi-Fi, the PC or Pi off), or answers with an error: a line under the header bar says so (see [Messages](messages.md)).
 - A result with no poster shows "No poster", and one with no date shows "Year unknown".

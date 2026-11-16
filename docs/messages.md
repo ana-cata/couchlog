@@ -6,16 +6,20 @@ Couchlog never leaves you with an empty page or a button that does nothing: an e
 
 **Empty lists**
 
+Each one speaks to someone using Couchlog for the first time: what the list is for, and the next step, with a link (**bold** below). No command names and no "TMDB" (card #116, M7).
+
 | Where | What it says |
 |---|---|
-| Home, News | "Nothing coming out in the next 7 days." |
-| Home, Up Next | "Nothing to watch next. Mark an episode of a series as watched…" (also when the last card is checked off) |
-| Movies or Series → To Watch | "No movies on your To Watch list yet. Search for a movie and add it." (or series) |
-| Movies → History | "Nothing in your history yet. Open a movie and press "Mark as watched"…" |
-| Series → Watching, Finished, Dropped | One line each on how a series gets there (mark an episode; watch every aired episode of an ended series; press "Stop watching") |
-| Calendar | "Nothing coming up." and which titles the calendar shows |
-| Search | "No movies or series match …" |
-| A series page | "TMDB has no episodes for this series yet." |
+| Home, News | "Nothing from your lists comes out in the next 7 days. The **Calendar** shows what's further ahead." |
+| Home, Up Next | "Up Next shows the next episode of each series you're watching. **Find a series** and mark an episode as watched to start." (also when the last card is checked off) |
+| Movies or Series → To Watch | "Keep the movies you want to see here. **Search** for one and add it to your To Watch list." (or series) |
+| Movies → History | "Every movie you mark as watched is kept here, with its date. **Search** for one you've seen." |
+| Series → Watching | "A series shows up here once you mark one of its episodes as watched. **Search** for one you're watching." |
+| Series → Finished | "Series you've watched to the end land here. See what you're **Watching**." |
+| Series → Dropped | "A series you stop watching moves here. Its history is kept, and you can bring it back any time. See what you're **Watching**." |
+| Calendar | "Nothing coming up. The Calendar shows the release dates of the movies and series on your lists. **Search** for something to add." |
+| Search | "Nothing found for “…”. Check the spelling, or try fewer words or the original title." (no link: the box is right there) |
+| A series page | "No episodes announced yet. They'll show up here once they are." (no link: there is nothing to do but wait) |
 
 **Waiting**
 
@@ -38,7 +42,7 @@ Couchlog never leaves you with an empty page or a button that does nothing: an e
 
 ## How it works
 
-- **Empty lists:** each list template has its own text for an empty list (`{% else %}` or `{% empty %}`). Up Next's text is always on the page and CSS shows it only while the list has no card, so it also appears when htmx takes away the last card.
+- **Empty lists:** each list template has its own text for an empty list (`{% else %}` or `{% empty %}`). Up Next's text is always on the page and CSS shows it only while the list has no card, so it also appears when htmx takes away the last card. `core/tests/test_empty_lists.py` opens every empty list and checks its text, its link, and that no code word (`refresh_calendar`, "command", `<code>`, "TMDB") is on the page.
 - **"Searching…"** (`search.html`, `couchlog.css`): a `<p id="searching" aria-busy="true">` under the box. The box has `hx-indicator="#searching"`, so htmx gives the line the class `htmx-request` while a search is on its way, and the CSS shows the line only with that class (`display: none` otherwise, so it takes no space). `aria-busy` is what makes Pico draw the spinner. Without JavaScript it never shows (the whole page loads instead).
 - **TMDB problems** are caught on the server: `core/tmdb.py` turns any failure into `TmdbError` with a message that is fine to show, and each view puts that message on the page (see [Search and title pages](search.md), [To Watch](to-watch.md), [Series](series.md)).
 - **Couchlog does not answer** (`core/static/core/problems.js`, loaded on every page, and the `<p id="problem" role="alert" hidden>` in the header of `base.html`). Every button and search that updates the page in place goes through htmx, which fires an event when a request fails:
