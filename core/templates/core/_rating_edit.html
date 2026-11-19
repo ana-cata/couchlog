@@ -13,22 +13,5 @@
       Rate it or add a note
     </summary>
   {% endif %}
-  <form method="post" action="{% url 'rating_save' %}" hx-boost="true" hx-push-url="false">
-    {% csrf_token %}
-    <input type="hidden" name="kind" value="{{ item.kind }}">
-    <input type="hidden" name="tmdb_id" value="{{ item.tmdb_id }}">
-    <input type="hidden" name="next" value="{{ next }}">
-    <fieldset class="rating-choices">
-      <legend>Stars</legend>
-      <label><input type="radio" name="stars" value=""{% if not rating.stars %} checked{% endif %}> No rating</label>
-      {% for number, text in star_choices %}
-        <label><input type="radio" name="stars" value="{{ number }}" aria-label="{{ number }} out of 5 stars"{% if rating.stars == number %} checked{% endif %}> {{ text }}</label>
-      {% endfor %}
-    </fieldset>
-    <label>
-      Note
-      <textarea name="note" rows="3" maxlength="{{ note_max }}" placeholder="A short note, up to {{ note_max }} characters">{{ rating.note }}</textarea>
-    </label>
-    <button type="submit">Save</button>
-  </form>
+  {% include 'core/_rating_form.html' %}
 </details>

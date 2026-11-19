@@ -8,3 +8,5 @@
   {% include 'core/_season_line.html' with oob=True %}
 {% endfor %}
 {% include 'core/_series_bar.html' with oob=True watched=progress.watched total=progress.total %}
+{# After the mark that watched every aired episode of a series with no stars: the offer to rate it, as a pop-up. #}
+{% if offer %}<div id="rate-offer" hx-swap-oob="true">{% include 'core/_rate_offer.html' %}</div>{% endif %}

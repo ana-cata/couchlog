@@ -251,7 +251,7 @@ form[role="search"]:has(input:not(:placeholder-shown)) ~ #results .suggestions {
 }
 
 /* Hovering a tile (or tabbing to it) underlines its title and year, so the choice is easy to see. */
-.tile:is(:hover, :focus-visible) :is(strong, small) {
+.tile:is(:hover, :focus-visible) :is(strong, small):not(.tile-stars) {
   text-decoration: underline;
   text-underline-offset: 0.2rem;
 }
@@ -954,6 +954,23 @@ button.corner-button.on-list:is(:hover, :focus-visible) {
   margin: 0;
   padding: 0.25rem 0.6rem;
   font-size: 0.8rem;
+}
+
+/* My stars on a tile of my lists, under the year: small and light pink, like the stars on the title's page. One line
+   that never wraps, so a rated tile is only this line taller and the grid keeps its columns on a phone. */
+.tile .tile-stars {
+  color: var(--couch-light-pink);
+  letter-spacing: 0.06em;
+}
+
+/* The pop-up offering to rate right after watching ("How was it?"). The form keeps the width it has in the rating box. */
+.rate-offer form {
+  max-width: 20rem;
+}
+
+.rate-offer-later {
+  margin: 0.5rem 0 0;
+  font-size: 0.9rem;
 }
 
 /* The date under a tile in History. */

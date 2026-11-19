@@ -35,6 +35,7 @@ from .episodes import (
     dropped_series,
     dropped_tab,
     mark_episodes,
+    progress_by_series,
     refresh_episodes,
     rewatch_episodes,
     series_tabs,
@@ -172,6 +173,7 @@ def title(request, kind, tmdb_id):
             )
         )
         context['today'] = _today(request)
+    context['offer'] = _offered(request, kind, tmdb_id, context['rating'])
     return render(request, 'core/title.html', context)
 
 
@@ -223,6 +225,7 @@ def _series_page(request, tmdb_id):
     on_list = _my_item(request, 'series', tmdb_id).filter(removed_at=None).exists()
     dropped = DroppedSeries.objects.filter(user=request.user, title=series).exists()
     asked = series.episodes.filter(id=request.session.pop('ask_earlier', 0)).first()
+    rating_box = _rating_box(request, 'series', tmdb_id)
     context = {
         'item': series,
         'line': title_line('series', series.year, series.status, series.runtime, series.genres),
@@ -238,7 +241,9 @@ def _series_page(request, tmdb_id):
         'watch_total': sum(count for _, count in watches.values()),
         'undo_seconds': _undo_seconds(),
         'next': request.get_full_path(),
-        **_rating_box(request, 'series', tmdb_id),
+        **rating_box,
+        # Without htmx, the offer to rate after the last episode comes back here and is shown once.
+        'offer': _offered(request, 'series', tmdb_id, rating_box['rating']),
         'notice': notice,
         'seasons': seasons,
         'open_season': open_season,
@@ -337,6 +342,8 @@ def _to_watch_screen(request, kind):
         # Its entry on the list is untouched, so un-marking the episode brings it back here.
         # A dropped series is under Dropped only, and bringing it back returns it to the list the same way.
         items = items.exclude(title__in=started_series(request.user)).exclude(title__in=dropped_series(request.user))
+    items = list(items)
+    _with_my_rating(request.user, [item.title for item in items])
     context = {'items': items, 'section': SECTION_OF_KIND[kind], **_recently_removed(request, kind)}
     return render(request, 'core/to_watch.html', context)
 
@@ -355,6 +362,7 @@ def _series_tab(request, tab):
     else:
         watching, finished = series_tabs(request.user, _today(request))
         titles = watching if tab == 'watching' else finished
+    _with_my_rating(request.user, titles)
     return render(request, 'core/series_tab.html', {'titles': titles, 'section': 'series', 'tab': tab})
 
 
@@ -631,6 +639,56 @@ def _rating_box(request, kind, tmdb_id):
     return {'rating': _my_rating(request, kind, tmdb_id), 'star_choices': STAR_CHOICES, 'note_max': NOTE_MAX_LENGTH}
 
 
+def _has_stars(user, title):
+    """Whether this account gave the title stars. A note alone does not count: such a title is still offered."""
+    return Rating.objects.filter(user=user, title=title, stars__isnull=False).exists()
+
+
+def _remember_offer(request, title):
+    """Ask the title's page to show the offer to rate it, once, after the redirect (when the page is not swapped by
+    htmx: a movie's page always, a series' page without JavaScript)."""
+    request.session['rate_offer'] = [title.kind, title.tmdb_id]
+
+
+def _offered(request, kind, tmdb_id, rating):
+    """Whether a title's page shows the offer to rate it: a mark just asked for it (`_remember_offer`) and the title
+    still has no stars. The request is forgotten as soon as any title's page is shown, so it is shown only once."""
+    asked = request.session.pop('rate_offer', None)
+    return asked == [kind, tmdb_id] and not (rating and rating.stars)
+
+
+def _offer_for_series(request, series, marked):
+    """Whether to offer to rate a series after a mark on its page. `marked` are the episodes the press newly marked.
+
+    Yes when one of them is an aired episode of a season (not a special), every aired episode is now watched (specials
+    aside, as for Finished) and the series has no stars. So it is the mark that finished what has aired. Watching an
+    episode again never offers: it marks nothing new."""
+    today = _today(request)
+    if not any(episode.season_number > 0 and _has_aired(episode, today) for episode in marked):
+        return False
+    if _has_stars(request.user, series):
+        return False
+    watched, aired = progress_by_series(request.user, [series.id], today)[series.id]
+    return watched == aired
+
+
+def _offer_context(request, series, season_number):
+    """What the offer's pop-up needs in an htmx answer: the rating form, coming back to the season after Save."""
+    page = reverse('title', args=['series', series.tmdb_id])
+    return {'offer': True, 'next': f'{page}?season={season_number}', **_rating_box(request, 'series', series.tmdb_id)}
+
+
+def _with_my_rating(user, titles):
+    """Give each title on a list its `my_rating` (this account's rating with stars, or None), for the stars on its
+    tile. One query for the whole list."""
+    ratings = {
+        rating.title_id: rating for rating in Rating.objects.filter(user=user, title__in=titles, stars__isnull=False)
+    }
+    for title in titles:
+        title.my_rating = ratings.get(title.id)
+    return titles
+
+
 @require_POST
 def rating_save(request):
     """Save, change or remove the stars and the note of a title, all in one Save.
@@ -693,6 +751,7 @@ def history(request):
         else:
             watch.times = 1
             shown[watch.title_id] = watch
+    _with_my_rating(request.user, [watch.title for watch in shown.values()])
     return render(
         request, 'core/history.html', {'watches': list(shown.values()), 'section': 'movies', 'next': reverse('history')}
     )
@@ -727,6 +786,9 @@ def watched_add(request):
         ToWatchItem.objects.filter(user=request.user, title=title, removed_at=None).update(
             removed_at=timezone.now(), removed_by_watch=watch
         )
+    # Right after watching, the page offers to rate it, unless it already has stars.
+    if not _has_stars(request.user, title):
+        _remember_offer(request, title)
     text = f'Added another watch of “{title.title}”.' if again else f'Marked “{title.title}” as watched.'
     return _redirect_back(request, text, True, 'history')
 
@@ -810,9 +872,10 @@ def _season_infos(request, series, episodes):
     return [_season_info(number, by_season[number]) for number in sorted(by_season)]
 
 
-def _episode_row(request, episode):
+def _episode_row(request, episode, offer=False):
     """One episode's row in its current state, which htmx swaps in place so the page does not move.
-    Its season's button comes with it, because this episode may have just completed (or broken) the season."""
+    Its season's button comes with it, because this episode may have just completed (or broken) the season.
+    With `offer`, the offer to rate the series comes too, as a pop-up."""
     _with_state(request, [episode])
     context = {
         'episode': episode,
@@ -820,6 +883,8 @@ def _episode_row(request, episode):
         'seasons': _season_infos(request, episode.title, [episode]),
         'progress': _series_progress(request, episode.title),
     }
+    if offer:
+        context.update(_offer_context(request, episode.title, episode.season_number))
     return render(request, 'core/_episode_answer.html', context)
 
 
@@ -851,7 +916,7 @@ def _up_next_card(request, series):
     return render(request, 'core/_up_next_card.html', {'entry': entry} if entry else {})
 
 
-def _answer_episode(request, episode, text='', ok=True):
+def _answer_episode(request, episode, text='', ok=True, offer=False):
     """Reply to an episode button. With htmx: just the row, as it is now (the colour says what happened).
     Without htmx: a redirect back to the page the button was on, with a message (unless `text` is empty).
 
@@ -859,13 +924,17 @@ def _answer_episode(request, episode, text='', ok=True):
     series' card as it is now: the next episode, or nothing.
 
     When the button was "No, only this one" on the question, the question is on the page and has to go away
-    too, so the answer is the one `_answer_changed` gives (the changed row, and the question taken off)."""
+    too, so the answer is the one `_answer_changed` gives (the changed row, and the question taken off).
+
+    With `offer`, the answer also offers to rate the series (`_offer_for_series`)."""
     if request.headers.get('HX-Request'):
         if request.POST.get('up_next'):
             return _up_next_card(request, episode.title)
         if request.POST.get('only_this'):
-            return _answer_changed(request, episode.title, [episode])
-        return _episode_row(request, episode)
+            return _answer_changed(request, episode.title, [episode], offer=offer)
+        return _episode_row(request, episode, offer)
+    if offer:
+        _remember_offer(request, episode.title)
     return _redirect_back(request, text, ok, 'series')
 
 
@@ -918,9 +987,12 @@ def episode_watched_add(request):
             return _ask_earlier(request, question)
 
     Watch.objects.create(user=request.user, title=episode.title, episode=episode, watched_on=today)
+    # The last aired episode, marked on the series' page, offers to rate the series. Home has no place for it.
+    from_home = request.POST.get('up_next')
+    offer = not watched_before and not from_home and _offer_for_series(request, episode.title, [episode])
     # On the Home page the card changing to the next episode is feedback for the browser with htmx.
     # Without htmx the page reloads, so it says what happened.
-    return _answer_episode(request, episode, f'Marked {name} as watched.' if request.POST.get('up_next') else '')
+    return _answer_episode(request, episode, f'Marked {name} as watched.' if from_home else '', offer=offer)
 
 
 @require_POST
@@ -972,13 +1044,14 @@ def watched_remove(request):
     return _redirect_back(request, text, True, 'history')
 
 
-def _answer_changed(request, series, episodes, text='', ok=True):
+def _answer_changed(request, series, episodes, text='', ok=True, offer=False):
     """Reply to the season buttons and to the question's "Yes" and "No". `episodes` are the ones that changed.
 
     With htmx: just those rows and the buttons of their seasons, which htmx puts where they are on the page
     (the form says `hx-swap="none"`, so nothing else is touched), and the question taken off the page if it
     was open. The page does not move and the open seasons stay open.
     Without htmx: a redirect back to the series page, with `text` as a message (unless it is empty).
+    With `offer` (only after marking), the answer also offers to rate the series (`_offer_for_series`).
     """
     if request.headers.get('HX-Request'):
         context = {
@@ -987,7 +1060,11 @@ def _answer_changed(request, series, episodes, text='', ok=True):
             'seasons': _season_infos(request, series, episodes),
             'progress': _series_progress(request, series),
         }
+        if offer:
+            context.update(_offer_context(request, series, episodes[-1].season_number))
         return render(request, 'core/_bulk_result.html', context)
+    if offer:
+        _remember_offer(request, series)
     return _redirect_back(request, text, ok, 'series')
 
 
@@ -1016,7 +1093,7 @@ def season_watched_add(request):
     """
     series, _, episodes = _posted_season(request)
     marked = mark_episodes(request.user, episodes, _today(request))
-    return _answer_changed(request, series, marked)
+    return _answer_changed(request, series, marked, offer=_offer_for_series(request, series, marked))
 
 
 @require_POST
@@ -1071,7 +1148,7 @@ def episodes_watched_up_to(request):
         return _answer_changed(request, episode.title, [], text, ok=False)
     _, skipped = skipped_episodes(request.user, episode, _today(request))
     marked = mark_episodes(request.user, [*skipped, episode], _today(request))
-    return _answer_changed(request, episode.title, marked)
+    return _answer_changed(request, episode.title, marked, offer=_offer_for_series(request, episode.title, marked))
 
 
 # Nothing private on this page, and the TMDB credit should be visible to everyone.

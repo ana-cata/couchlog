@@ -1,0 +1,18 @@
+{# The offer to rate a title right after watching it: a pop-up with "How was it?", the stars, the note and Save, and #}
+{# "Not now". The same for a movie (after "Mark as watched" or "Watch again") and a series (after the mark that #}
+{# watches every aired episode). Only for a title with no stars yet (core/views.py, `_offered` and #}
+{# `_offer_for_series`). Pico shows a <dialog open> as a pop-up over the page, as for the question about earlier #}
+{# episodes, so the page under it does not move. Nothing is saved until Save is pressed. "Not now" takes the pop-up #}
+{# off the page; without JavaScript it reloads the page, which no longer offers. #}
+<dialog open class="rate-offer" aria-labelledby="rate-offer-title">
+  <article>
+    <h3 id="rate-offer-title">How was it?</h3>
+    {% if item.kind == 'series' %}
+      <p>You've watched every episode of {{ item.title }} so far.</p>
+    {% else %}
+      <p>You've just watched {{ item.title }}.</p>
+    {% endif %}
+    {% include 'core/_rating_form.html' %}
+    <p class="rate-offer-later"><a href="{{ next }}" onclick="this.closest('.rate-offer').remove(); return false">Not now</a></p>
+  </article>
+</dialog>

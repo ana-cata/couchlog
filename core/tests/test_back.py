@@ -139,6 +139,10 @@ def test_back_shows_the_list_as_it_is_now_after_a_button_on_the_title_page(
     open_tile(page)
     page.get_by_role('button', name=button, exact=True).click()
     expect(page.get_by_role('button', name=then_visible, exact=True)).to_be_visible()
+    # After "Mark as watched" the film (no stars) offers "How was it?" in a pop-up over the page: close it first.
+    not_now = page.get_by_role('link', name='Not now')
+    if not_now.count():
+        not_now.click()
 
     page.get_by_role('link', name=BACK, exact=True).click()
 
@@ -161,11 +165,14 @@ def test_one_press_of_back_is_enough_after_marking_watching_again_and_rating(liv
     # Each of these used to reload the page and add a history entry. Now the page changes in place.
     page.get_by_role('button', name='Mark as watched').click()
     expect(page.get_by_text('Marked “Made-up Movie” as watched.')).to_be_visible()
+    # The film has no stars, so "How was it?" pops up after each watch. "Not now" closes it without asking the server.
+    page.get_by_role('link', name='Not now').click()
     page.get_by_role('button', name='Watch again').click()
     expect(page.get_by_text('Watched 2 times')).to_be_visible()
-    page.get_by_text('Rate it or add a note').click()
-    page.get_by_label('4 out of 5 stars').check()
-    page.get_by_role('button', name='Save', exact=True).click()
+    # Asked again after Watch again: rating from the pop-up is one more change in place.
+    offer = page.locator('.rate-offer')
+    offer.get_by_label('4 out of 5 stars').check()
+    offer.get_by_role('button', name='Save', exact=True).click()
     expect(page.get_by_text('Your rating: ★★★★☆')).to_be_visible()
     page.get_by_role('button', name='Remove this watch').first.click()
     expect(page.get_by_role('button', name='Mark as not watched')).to_be_visible()
