@@ -4,55 +4,114 @@
 {% block title %}Welcome · Couchlog{% endblock %}
 
 {% block content %}
-  {# How Couchlog works, in five short steps. A new account is sent here once (FirstStepsMiddleware); About links here. #}
+  {# How Couchlog works, in eight short steps. A new account is sent here once (FirstStepsMiddleware); About links here. #}
   {# Skip and Start go to the same place: opening the page already counted as seen. The pictures come from the demo's #}
-  {# sample titles; scripts/welcome_screenshots.py takes them again (docs/welcome.md). #}
+  {# sample titles, with numbered red arrows that match the numbered list under each one. #}
+  {# scripts/welcome_screenshots.py takes them again (docs/welcome.md). #}
   <p class="welcome-skip"><a href="{% url 'home' %}" role="button" class="outline secondary">Skip</a></p>
 
   <h1>Welcome to Couchlog</h1>
-  <p>Couchlog keeps track of the movies and series you watch. Here is how it works, in five steps.</p>
+  <p>
+    Couchlog keeps track of the movies and series you watch. Here is how it works, in eight steps. The red numbers in
+    each picture show where to press.
+  </p>
 
   <section>
     <h2>1. Find a title</h2>
-    <p>Press <strong>Search</strong> at the top and type the name of a movie or series. Its page shows what it's about and where you can stream it.</p>
-    <img class="welcome-picture" src="{% static 'core/welcome/1-search.jpg' %}" width="390" height="422" alt="Search with “Dune” typed in the box, and two results with their posters" loading="lazy">
+    <img width="390" height="477" class="welcome-picture" src="{% static 'core/welcome/1-search.jpg' %}" alt="Search with “Dune” typed in the box: arrow 1 on the box, 2 on the plus button of the first result, 3 on its name" loading="lazy">
+    <ol>
+      <li><strong>Search</strong> (at the top of every page): type the name of a movie or series.</li>
+      <li>The <strong>+</strong> on a poster adds it to your To Watch list straight away.</li>
+      <li>The name or the poster opens its page.</li>
+    </ol>
   </section>
 
   <section>
     <h2>2. Keep it for later</h2>
-    <p>Press <strong>Add to To Watch</strong> on its page. Movies and series each have their own To Watch list.</p>
-    <img class="welcome-picture" src="{% static 'core/welcome/2-to-watch.jpg' %}" width="390" height="414" alt="A movie's page: its poster with the Add to To Watch button under it" loading="lazy">
+    <img width="390" height="414" class="welcome-picture" src="{% static 'core/welcome/2-to-watch.jpg' %}" alt="A movie's page: arrow 1 on the Add to To Watch button under the poster" loading="lazy">
+    <ol>
+      <li><strong>Add to To Watch</strong> puts it on your To Watch list. Movies and series each have their own. Press it again (<strong>Remove from To Watch</strong>) to take it off.</li>
+    </ol>
   </section>
 
   <section>
-    <h2>3. Mark what you watch</h2>
+    <h2>3. A movie's page</h2>
+    <img width="390" height="268" class="welcome-picture" src="{% static 'core/welcome/3-movie.jpg' %}" alt="A watched movie's page: arrow 1 on Rate it or add a note, 2 on the date, 3 on Watch again, 4 on Date unknown, 5 on Mark as not watched" loading="lazy">
+    <ol>
+      <li><strong>Rate it or add a note:</strong> give it stars and write a note for yourself.</li>
+      <li>The day you watched it. It is today unless you change it.</li>
+      <li><strong>Mark as watched</strong> saves the watch with its date. After the first time it says <strong>Watch again</strong>, for each time you see it again.</li>
+      <li><strong>Date unknown</strong>, when you don't remember the day.</li>
+      <li><strong>Mark as not watched</strong> takes a watch back. With several watches, each has its own <strong>Remove this watch</strong>.</li>
+    </ol>
+    <p>At the bottom of the page, <strong>Where to watch</strong> lists the streaming services that have it in your country.</p>
+  </section>
+
+  <section>
+    <h2>4. A series' page</h2>
+    <img width="390" height="94" class="welcome-picture" src="{% static 'core/welcome/4-series-top.jpg' %}" alt="Under a series' poster: its progress bar, 4 of 19 episodes, and arrow 1 on Stop watching" loading="lazy">
+    <ol>
+      <li>
+        <strong>Stop watching</strong> moves the series to Dropped, with its history kept. There the button is
+        <strong>Bring back</strong>, next to <strong>Remove from all lists</strong>, which you can undo for a few seconds.
+        Before you start a series, this is where <strong>Add to To Watch</strong> is. The bar above shows how many
+        episodes you've watched.
+      </li>
+    </ol>
+    <img width="390" height="529" class="welcome-picture" src="{% static 'core/welcome/5-series-seasons.jpg' %}" alt="A series' seasons: arrow 2 on the Season 1 line, 3 on Mark Season 1 as watched, 4 on an episode's grey round button, 5 on the minus next to a watched episode" loading="lazy">
+    <ol start="2">
+      <li>A season: press it to open or fold its episodes.</li>
+      <li><strong>Mark Season 1 as watched</strong> marks every episode that has aired. Once they all are, it becomes <strong>Mark Season 1 as not watched</strong>, and <strong>Watch Season 1 again</strong> appears for a rewatch.</li>
+      <li>The <strong>round button</strong> marks one episode as watched and turns green. If you skipped earlier episodes, Couchlog asks whether you watched them too. Pressing a green one again counts another watch.</li>
+      <li>The <strong>−</strong> takes back the latest watch of that episode.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>5. Your lists</h2>
+    <img width="390" height="489" class="welcome-picture" src="{% static 'core/welcome/6-lists.jpg' %}" alt="The Series page: arrow 1 on its tabs Watching, To Watch, Finished and Dropped, arrow 2 on a series' name" loading="lazy">
+    <ol>
+      <li>
+        The tabs. <strong>Series</strong>: <strong>Watching</strong> (the series you've started), <strong>To Watch</strong>
+        (the ones you want to start), <strong>Finished</strong> (watched to the end) and <strong>Dropped</strong> (the ones
+        you stopped). <strong>Movies</strong>: <strong>To Watch</strong> and <strong>History</strong> (every movie you've
+        watched, with its date).
+      </li>
+      <li>A name or a poster opens its page.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>6. Home</h2>
+    <img width="390" height="405" class="welcome-picture" src="{% static 'core/welcome/7-home.jpg' %}" alt="Home: arrow 1 on a News banner that says tomorrow, 2 on the series' name in an Up Next card, 3 on its round button" loading="lazy">
+    <ol>
+      <li><strong>News:</strong> what comes out in the next 7 days from your lists. A banner opens its page.</li>
+      <li><strong>Up Next:</strong> the next episode of each series you're watching. The name opens the series.</li>
+      <li>The <strong>round button</strong> marks that episode as watched, and the card moves on to the next one.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>7. Calendar</h2>
     <p>
-      On a movie's page, pick the day and press <strong>Mark as watched</strong>. On a series' page, press the round
-      button next to an episode, or mark a whole season at once. Every watch is kept with its date, so you can watch
-      something again, and anything you mark can be taken back.
+      The <strong>Calendar</strong> shows what comes out further ahead, day by day: new episodes of the series you're
+      watching, and the cinema and streaming dates of everything on your To Watch lists.
     </p>
-    <img class="welcome-picture" src="{% static 'core/welcome/3-watched.jpg' %}" width="390" height="417" alt="Season 1 of a series: the Mark Season 1 as watched button, and episodes with green round buttons for watched and a grey one for the next" loading="lazy">
+    <img width="390" height="395" class="welcome-picture" src="{% static 'core/welcome/8-calendar.jpg' %}" alt="The Calendar, day by day: arrow 1 on the name of a series with a new episode" loading="lazy">
+    <ol>
+      <li>A name opens its page.</li>
+    </ol>
   </section>
 
   <section>
-    <h2>4. The Series tabs</h2>
-    <ul>
-      <li><strong>Watching:</strong> the series you've started.</li>
-      <li><strong>To Watch:</strong> the series you want to start.</li>
-      <li><strong>Finished:</strong> the series you've watched to the end.</li>
-      <li><strong>Dropped:</strong> the series you stopped watching. Their history is kept, and you can bring them back any time.</li>
-    </ul>
-    <img class="welcome-picture" src="{% static 'core/welcome/4-series-tabs.jpg' %}" width="390" height="488" alt="The Series page with its tabs Watching, To Watch, Finished and Dropped, and two series in Watching" loading="lazy">
-  </section>
-
-  <section>
-    <h2>5. Home and the Calendar</h2>
-    <p>
-      <strong>Home</strong> shows what comes out in the next 7 days, and <strong>Up Next</strong>: the next episode of
-      each series you're watching, ready to check off. The <strong>Calendar</strong> shows the release dates of
-      everything on your lists, further ahead.
-    </p>
-    <img class="welcome-picture" src="{% static 'core/welcome/5-home.jpg' %}" width="390" height="405" alt="Home: News with two banners, “tomorrow” and “in 6 days”, and an Up Next card with the next episode and its round button" loading="lazy">
+    <h2>8. Profile</h2>
+    <p><strong>Time spent watching</strong> adds up every watch: movies, series and the total, rewatches too.</p>
+    <img width="390" height="400" class="welcome-picture" src="{% static 'core/welcome/9-profile.jpg' %}" alt="The Profile page: time spent watching, arrow 1 on the time zone, 2 on Save time zone, 3 on Log out" loading="lazy">
+    <ol>
+      <li>Your <strong>time zone</strong>, so “today” and the release days are your own.</li>
+      <li><strong>Save time zone</strong> after choosing a new one.</li>
+      <li><strong>Log out</strong>.</li>
+    </ol>
   </section>
 
   <p><a href="{% url 'home' %}" role="button">Start using Couchlog</a></p>

@@ -9,8 +9,27 @@ from django.db.migrations.executor import MigrationExecutor
 from core.models import Profile
 
 PAGES = ['/', '/search/', '/movies/', '/series/watching/', '/calendar/', '/about/']
-PICTURES = ['1-search.jpg', '2-to-watch.jpg', '3-watched.jpg', '4-series-tabs.jpg', '5-home.jpg']
-STEPS = ['1. Find a title', '2. Keep it for later', '3. Mark what you watch', '4. The Series tabs', '5. Home and the Calendar']
+PICTURES = [
+    '1-search.jpg',
+    '2-to-watch.jpg',
+    '3-movie.jpg',
+    '4-series-top.jpg',
+    '5-series-seasons.jpg',
+    '6-lists.jpg',
+    '7-home.jpg',
+    '8-calendar.jpg',
+    '9-profile.jpg',
+]
+STEPS = [
+    '1. Find a title',
+    '2. Keep it for later',
+    "3. A movie's page",
+    "4. A series' page",
+    '5. Your lists',
+    '6. Home',
+    '7. Calendar',
+    '8. Profile',
+]
 
 
 @pytest.fixture
@@ -110,6 +129,8 @@ def test_each_step_has_its_picture_with_words_for_screen_readers(client, db):
         assert f'src="/static/core/welcome/{picture}"' in page
     assert page.count('class="welcome-picture"') == len(PICTURES)
     assert 'alt=""' not in page
+    # Each picture has its size, so the page keeps room for it while it loads.
+    assert page.count('<img width="390" height="') == len(PICTURES)
 
 
 def test_the_tmdb_credit_stays_on_about(client, db):
