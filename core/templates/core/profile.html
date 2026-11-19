@@ -15,6 +15,47 @@
   </dl>
   <p><small>Every watch counts, rewatches too, and only what you register in Couchlog.</small></p>
 
+  {# My tags (as sketched on review): the New tag box first, then a plain list, one tag per line, each with a small ⊗ #}
+  {# just after its name (delete for good, no Undo) and a small pencil (rename: it opens a box under the name, with #}
+  {# Save). The forms swap the page in place (hx-boost), so it does not move; without JavaScript they reload it. #}
+  <h2>My tags</h2>
+  <div class="tags-section tags-profile">
+    <form method="post" action="{% url 'tag_create' %}" class="tag-new" hx-boost="true" hx-push-url="false" hx-disabled-elt="find button">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{% url 'profile' %}">
+      <input type="text" name="name" maxlength="{{ tag_max }}" required placeholder="New tag" aria-label="New tag">
+      <button type="submit" class="outline secondary">Add tag</button>
+    </form>
+    {% include 'core/_tag_problems.html' %}
+    {% if tags %}
+      <ul class="tag-list">
+        {% for tag in tags %}
+          <li>
+            <span class="tag-list-name">{{ tag.name }}</span>
+            <form method="post" action="{% url 'tag_delete' %}" class="tag-list-delete" hx-boost="true" hx-push-url="false" hx-disabled-elt="find button">
+              {% csrf_token %}
+              <input type="hidden" name="tag_id" value="{{ tag.id }}">
+              <input type="hidden" name="next" value="{% url 'profile' %}">
+              <button type="submit" class="tag-x" aria-label="Delete the tag {{ tag.name }}" title="Delete the tag"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg></button>
+            </form>
+            <details class="tag-list-edit">
+              <summary aria-label="Rename the tag {{ tag.name }}" title="Rename the tag">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m8 16 .8-3 5.4-5.4a1.5 1.5 0 0 1 2.2 2.2L11 15.2z"/></svg>
+              </summary>
+            </details>
+            <form method="post" action="{% url 'tag_rename' %}" class="tag-new tag-rename" hx-boost="true" hx-push-url="false" hx-disabled-elt="find button">
+              {% csrf_token %}
+              <input type="hidden" name="tag_id" value="{{ tag.id }}">
+              <input type="hidden" name="next" value="{% url 'profile' %}">
+              <input type="text" name="name" value="{{ tag.name }}" maxlength="{{ tag_max }}" required aria-label="New name for {{ tag.name }}">
+              <button type="submit" class="outline secondary">Save</button>
+            </form>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </div>
+
   <form method="post">
     {% csrf_token %}
     <label>

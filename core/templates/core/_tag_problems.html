@@ -1,0 +1,6 @@
+{# A problem with a tag button (a name already used, too long, TMDB not answering), shown next to the tags. The tag forms #}
+{# swap the page in place without scrolling, so a message at the top of the page would not be seen. base.html leaves #}
+{# these out. #}
+{% for message in messages %}
+  {% if 'tag-problem' in message.tags %}<p role="alert" class="tag-problem">{{ message }}</p>{% endif %}
+{% endfor %}

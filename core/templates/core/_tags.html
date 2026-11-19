@@ -1,0 +1,40 @@
+{# "My tags" on a movie's or a series' page, under the buttons below the poster: my tags on this title as chips, each #}
+{# with a small × in its corner that takes it off (no Undo: tapping it again under "add" puts it back), then my other #}
+{# tags as "+ name" chips to add. Tags are only made, renamed and deleted on Profile (my decision on review), so with #}
+{# none yet there is a link there. Every account sees only its own tags. The forms swap the page in place (hx-boost), #}
+{# like the rest of the page. #}
+<div class="tags-section">
+  <p class="tags-label"><small>My tags</small></p>
+  {% if tags_on or tags_off %}
+    <ul class="tag-chips">
+      {% for tag in tags_on %}
+        <li class="tag-chip">
+          <span>{{ tag.name }}</span>
+          <form method="post" action="{% url 'tag_remove' %}" class="tag-chip-corner" hx-boost="true" hx-push-url="false" hx-disabled-elt="find button">
+            {% csrf_token %}
+            <input type="hidden" name="tag_id" value="{{ tag.id }}">
+            <input type="hidden" name="kind" value="{{ item.kind }}">
+            <input type="hidden" name="tmdb_id" value="{{ item.tmdb_id }}">
+            <input type="hidden" name="next" value="{{ next }}">
+            <button type="submit" class="tag-chip-remove" aria-label="Remove the tag {{ tag.name }}" title="Remove the tag"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg></button>
+          </form>
+        </li>
+      {% endfor %}
+      {% for tag in tags_off %}
+        <li>
+          <form method="post" action="{% url 'tag_add' %}" hx-boost="true" hx-push-url="false" hx-disabled-elt="find button">
+            {% csrf_token %}
+            <input type="hidden" name="tag_id" value="{{ tag.id }}">
+            <input type="hidden" name="kind" value="{{ item.kind }}">
+            <input type="hidden" name="tmdb_id" value="{{ item.tmdb_id }}">
+            <input type="hidden" name="next" value="{{ next }}">
+            <button type="submit" class="tag-chip-add" aria-label="Add the tag {{ tag.name }}">+ {{ tag.name }}</button>
+          </form>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="tags-none"><small>Make your own tags on your <a href="{% url 'profile' %}">Profile</a>, then add them here.</small></p>
+  {% endif %}
+  {% include 'core/_tag_problems.html' %}
+</div>

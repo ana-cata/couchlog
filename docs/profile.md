@@ -13,6 +13,7 @@
 - **Profile page** (`/profile/`, linked as "Profile" in the header):
   - shows the username;
   - shows **Time spent watching** (see below);
+  - has **My tags** (see below);
   - shows the time zone and lets you change it;
   - has the Log out button.
   - The time zone box and the two buttons (**Save time zone**, light pink, and **Log out**, a quiet outline) are only as wide as what they say, on the left, not across the whole page.
@@ -21,6 +22,13 @@
   - **An episode with no runtime** uses its series' typical episode runtime. Anything TMDB has no runtime for counts as 0 minutes.
   - **Undo:** it follows every undo by itself. Taking a watch back (Remove this watch, the "−", Mark as not watched) takes its minutes off again. There is nothing to undo on the page itself.
   - **Only your own watches count:** each account sees its own total.
+- **My tags** (card #119): your own labels for movies and series, like "comfort" or "with family". Only you see them. They go on a title from its page ([Search and title pages](search.md)). The section is kept very simple, as I sketched it on review: the **New tag** box with **Add tag** first, then the list.
+  - **Make one:** type a name in the **New tag** box and press **Add tag**. This is the only place where tags are made (my decision on review). The new tag appears in the list; there is no message. A name has 1 to 30 characters; spaces at the ends are dropped. Two tags cannot have the same name, whatever the capital letters ("Comfort" and "comfort" are the same).
+  - **Your tags** are a plain list, by name, one per line with a dot before it: the name, a **small round ×** just after it and a little higher, and a **small round pencil** a little further on (drawn like the ×, the same size). No count of titles (my decision on review).
+    - **The pencil** (rename) opens a box under the name, with the name filled in, and **Save**; the pencil again closes it. There is no Save until then. The tag stays on its titles, there is no message, and changing only the capital letters is allowed. Undo: rename it back.
+    - **The ×** (delete) deletes the tag for good and takes it off all its titles at once. **There is no Undo** (my decision on review, a departure from design rule 5): to get it back, make it again and put it back on its titles. Its name can be used again at once.
+  - **The page does not move** when you make, rename or delete a tag: it changes in place. A problem (a name you already have, an empty or too long name) shows just under the New tag box, not at the top of the page.
+  - Undo for making a tag: delete it.
 - **Time zone undo:** to undo a time zone change, choose the old one again. There is no separate undo button.
 - Later cards add to this page: favorites.
 
@@ -73,6 +81,14 @@
   - each episode's own runtime was already saved with the episode.
 - **The words** come from `describe(minutes)` in the same file: years, months, days, hours and minutes, with a year as 365 days and a month as 30 days (it only has to give an idea). Units that are zero are left out.
 - **Titles saved before this card** have no runtime until `uv run python manage.py refresh_calendar` has run once (it now also asks about films you have watched that have no runtime saved). Until then they count as 0 minutes.
+
+**My tags** (in `core/views.py`: `profile`, `tag_create`, `tag_rename`, `tag_delete`; templates `profile.html` and `_tag_problems.html`; form `TagForm` in `core/forms.py`; tables `core_tag` and `core_titletag`, see [data-model.md](data-model.md))
+- Forms with `hx-boost="true" hx-push-url="false"`, like the buttons on a title's page: htmx sends them in the background and swaps the new page in place without scrolling (`scrollIntoViewOnBoost` is off in `base.html`); without JavaScript they reload the page. `/tags/create/` (`name`), `/tags/rename/` (`tag_id`, `name`) and `/tags/delete/` (`tag_id`). `TagForm` cleans the name (spaces at the ends dropped, runs of spaces made one) and refuses an empty one or one over 30 characters. "Same name" is checked with `iexact`, and the table also refuses it (`one_tag_per_name`, on the lower-case name).
+- **Delete** deletes the `core_tag` row, and its `core_titletag` rows go with it. Nothing is kept.
+- **Problems** go through `_back_to_tags`: a message with the extra tag `tag-problem`, which `base.html` leaves out at the top and `_tag_problems.html` shows next to the tags (on Profile and on a title's page). Everything that works shows no message: the chips say it.
+- The list is `ul.tag-list` (`couchlog.css`). The × (`.tag-x`) is a drawn icon, a thin circle with a cross (16 px, raised a little), and the pencil the same: a thin circle with a small pencil inside, 16 px; each sits in a 1.5rem (24 px) square that can be tapped. The pencil is a `<details>` that holds only its `<summary>`; the rename form is the row's last child, and `couchlog.css` shows it under the name while the details is open (`li:has(.tag-list-edit[open])`). No JavaScript. The New tag box and its button are small (2.25rem high), here and on a title's page.
+- A tag is only found among the account's own, so another account's tag id is "not found" (404). In the demo, making a tag counts as a change; renaming and deleting do not.
+- Tests: `core/tests/test_tags.py` (make, the name rules, rename, delete for good, problems next to the tags, other accounts, the demo) and `test_tags_on_phone.py` (Profile: the New tag box first, then one tag per line, with the small × right after the name and a little higher, then the pencil; no Save until the pencil; make, rename and delete in a real browser without the page moving).
 
 **Creating an account**
 1. `uv run python manage.py createsuperuser` makes the first account (you choose the username and password in the terminal).

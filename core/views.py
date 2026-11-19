@@ -11,6 +11,7 @@ from django.core import serializers
 from django.core.exceptions import BadRequest
 from django.db import transaction
 from django.db.models import F, Q
+from django.db.models.functions import Lower
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -45,14 +46,24 @@ from .episodes import (
     unmark_episodes,
     up_next,
 )
-from .forms import NOTE_MAX_LENGTH, STAR_CHOICES, RatingForm, TimeZoneForm, WatchedForm
+from .forms import (
+    NOTE_MAX_LENGTH,
+    STAR_CHOICES,
+    RatingForm,
+    TagForm,
+    TimeZoneForm,
+    WatchedForm,
+)
 from .models import (
+    TAG_NAME_MAX_LENGTH,
     DroppedSeries,
     Episode,
     Profile,
     Rating,
     RemovedSeries,
+    Tag,
     Title,
+    TitleTag,
     ToWatchItem,
     Watch,
 )
@@ -163,6 +174,7 @@ def title(request, kind, tmdb_id):
         'on_list': on_list,
         'next': request.get_full_path(),
         **_rating_box(request, kind, tmdb_id),
+        **_tags_box(request, kind, tmdb_id),
     }
     if kind == 'movie':
         # Series are marked episode by episode, so only movies get this section. Every watch of the film is
@@ -242,6 +254,7 @@ def _series_page(request, tmdb_id):
         'undo_seconds': _undo_seconds(),
         'next': request.get_full_path(),
         **rating_box,
+        **_tags_box(request, 'series', tmdb_id),
         # Without htmx, the offer to rate after the last episode comes back here and is shown once.
         'offer': _offered(request, 'series', tmdb_id, rating_box['rating']),
         'notice': notice,
@@ -733,6 +746,119 @@ def rating_save(request):
     return _redirect_back(request, ' and '.join(said).capitalize() + '.', True, 'search')
 
 
+def _my_tags(user):
+    """This account's tags, by name."""
+    return Tag.objects.filter(user=user).order_by(Lower('name'), 'id')
+
+
+def _tag_named(user, name, but=None):
+    """This account's tag with this name, whatever the capital letters, or None. `but` is left out (a tag being renamed
+    may change only its capital letters)."""
+    tags = _my_tags(user).filter(name__iexact=name)
+    if but is not None:
+        tags = tags.exclude(id=but.id)
+    return tags.first()
+
+
+def _posted_tag_name(request):
+    """The name typed for a tag, cleaned, and the problem with it ('' when there is none)."""
+    form = TagForm(request.POST)
+    if form.is_valid():
+        return form.cleaned_data['name'], ''
+    return None, ' '.join(error for errors in form.errors.values() for error in errors)
+
+
+def _posted_tag(request):
+    """The tag a button was pressed for. Another account's tag is "not found"."""
+    try:
+        tag_id = int(request.POST.get('tag_id', ''))
+    except ValueError:
+        raise BadRequest from None
+    return get_object_or_404(Tag, id=tag_id, user=request.user)
+
+
+def _back_to_tags(request, problem, fallback):
+    """Go back to the page the tag button was on. The page is swapped in place without scrolling, so a problem is shown
+    next to the tags (with the tag `tag-problem`), not at the top of the page where it would not be seen."""
+    if problem:
+        messages.error(request, problem, extra_tags='tag-problem')
+    return _redirect_back(request, '', True, fallback)
+
+
+def _tags_box(request, kind, tmdb_id):
+    """What the "My tags" part of a title's page shows: this account's tags on the title, and its other tags to add."""
+    mine = list(_my_tags(request.user))
+    on_title = set(
+        TitleTag.objects.filter(tag__in=mine, title__kind=kind, title__tmdb_id=tmdb_id).values_list('tag_id', flat=True)
+    )
+    return {
+        'tags_on': [tag for tag in mine if tag.id in on_title],
+        'tags_off': [tag for tag in mine if tag.id not in on_title],
+        'tag_max': TAG_NAME_MAX_LENGTH,
+    }
+
+
+@require_POST
+@counts_as_change
+def tag_create(request):
+    """Make a new tag. Only on Profile (my decision on review): a title's page only adds and removes my tags. No message
+    when it works: the new tag in the list says it."""
+    name, problem = _posted_tag_name(request)
+    if problem:
+        return _back_to_tags(request, problem, 'profile')
+    if existing := _tag_named(request.user, name):
+        return _back_to_tags(request, f'You already have a tag called “{existing.name}”.', 'profile')
+    Tag.objects.create(user=request.user, name=name)
+    return _back_to_tags(request, '', 'profile')
+
+
+@require_POST
+def tag_rename(request):
+    """Rename a tag. It stays on its titles. Not counted in the demo: renaming it back is the undo, as for a rating."""
+    tag = _posted_tag(request)
+    name, problem = _posted_tag_name(request)
+    if problem:
+        return _back_to_tags(request, problem, 'profile')
+    if other := _tag_named(request.user, name, but=tag):
+        return _back_to_tags(request, f'You already have a tag called “{other.name}”.', 'profile')
+    if name != tag.name:
+        tag.name = name
+        tag.save(update_fields=['name'])
+    return _back_to_tags(request, '', 'profile')
+
+
+@require_POST
+def tag_delete(request):
+    """Delete a tag for good, which takes it off all its titles. There is no Undo (my decision on card #119)."""
+    _posted_tag(request).delete()
+    return _back_to_tags(request, '', 'profile')
+
+
+@require_POST
+@counts_as_change
+def tag_add(request):
+    """Put one of my tags on a title. A title not saved yet is saved from TMDB first (design rule 6)."""
+    tag = _posted_tag(request)
+    kind, tmdb_id = _posted_title(request)
+    try:
+        title = _saved_title(kind, tmdb_id)
+    except tmdb.TmdbNotFound:
+        raise Http404 from None
+    except tmdb.TmdbError as problem:
+        return _back_to_tags(request, str(problem), 'search')
+    TitleTag.objects.get_or_create(tag=tag, title=title)
+    return _back_to_tags(request, '', 'search')
+
+
+@require_POST
+def tag_remove(request):
+    """Take one of my tags off a title. There is no Undo button: adding the tag again is the way back."""
+    tag = _posted_tag(request)
+    kind, tmdb_id = _posted_title(request)
+    TitleTag.objects.filter(tag=tag, title__kind=kind, title__tmdb_id=tmdb_id).delete()
+    return _back_to_tags(request, '', 'search')
+
+
 def history(request):
     # Newest watch first. Watches with an unknown date go last, newest saved first among themselves.
     # History is the Movies section's tab, so it lists films only.
@@ -1216,4 +1342,11 @@ def profile(request):
         form = TimeZoneForm(initial={'timezone': profile.timezone})
     movies, series = minutes_watched(request.user)
     time_spent = {'movies': describe(movies), 'series': describe(series), 'total': describe(movies + series)}
-    return render(request, 'core/profile.html', {'form': form, 'profile': profile, 'time_spent': time_spent})
+    context = {
+        'form': form,
+        'profile': profile,
+        'time_spent': time_spent,
+        'tags': _my_tags(request.user),
+        'tag_max': TAG_NAME_MAX_LENGTH,
+    }
+    return render(request, 'core/profile.html', context)

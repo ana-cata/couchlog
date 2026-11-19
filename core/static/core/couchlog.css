@@ -1023,3 +1023,268 @@ select.fit {
 select.fit {
   display: block;
 }
+
+/* My tags (_tags.html on a title's page, and Profile): small chips that wrap onto the next line on a phone. A tag is
+   off-white in a thin rounded outline, with a small round × on its top-right corner (to take it off a title, or on
+   Profile to delete it); my other tags on a title's page are softened, with a dashed outline and a "+", to add. Pink
+   only under the mouse (Identity/identity.md). The chips and the "+" are at least 2.5rem (40 px) high; the × is drawn
+   small but its button is 1.75rem (28 px) square, so it can still be tapped. */
+.tags-section {
+  margin-top: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.tags-label {
+  margin-bottom: 0.4rem;
+  color: var(--pico-muted-color);
+}
+
+/* Room above and at the right for the corner ×, and between the lines for the × of the chips below. */
+.tag-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem 0.75rem;
+  margin: 0 0 0.75rem;
+  padding: 0.5rem 0.5rem 0 0;
+  list-style: none;
+}
+
+.tag-chips li {
+  margin: 0;
+  list-style: none;
+}
+
+.tag-chips form {
+  margin: 0;
+}
+
+.tag-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.5rem;
+  padding: 0 0.85rem;
+  border: 1px solid var(--couch-soft);
+  border-radius: 999px;
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.tag-chips button {
+  width: auto;
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.2;
+}
+
+/* The × on the chip's top-right corner. */
+.tag-chip-corner {
+  position: absolute;
+  top: -0.85rem;
+  right: -0.85rem;
+}
+
+.tag-chip .tag-chip-remove {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+/* The × is a drawn icon (a circle with a cross, the same line style as the pencil), so it is sharp and centred
+   whatever the font. On a chip's corner its circle is filled with navy, so the chip's outline does not show through. */
+.tag-chip-remove svg,
+.tag-x svg {
+  display: block;
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.tag-chip-remove svg {
+  color: var(--pico-muted-color);
+}
+
+/* On Profile it is the pencil's size. */
+.tag-x svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.tag-chip-remove svg circle {
+  fill: var(--couch-navy);
+}
+
+.tag-chip .tag-chip-remove:is(:hover, :focus-visible) {
+  background: transparent;
+  box-shadow: none;
+}
+
+.tag-chip-remove:is(:hover, :focus-visible) svg {
+  color: var(--couch-pink);
+}
+
+.tag-chip-add {
+  min-height: 2.5rem;
+  padding: 0.35rem 0.85rem;
+  border: 1px dashed var(--couch-soft);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--pico-muted-color);
+}
+
+.tag-chip-add:is(:hover, :focus-visible) {
+  border-color: var(--couch-pink);
+  color: var(--couch-pink);
+}
+
+/* A problem with a tag button, next to the tags (the page does not move, so it would not be seen at the top). */
+.tag-problem {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+}
+
+/* The box to make a new tag, with its button at the right: on a title's page and on Profile. */
+.tag-new {
+  display: flex;
+  gap: 0.5rem;
+  max-width: 20rem;
+  margin: 0;
+}
+
+.tag-new input[type="text"] {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+}
+
+.tag-new button {
+  width: auto;
+  margin: 0;
+  white-space: nowrap;
+}
+
+/* The New tag box and its button are small, on a title's page and on Profile. */
+.tag-new :is(input[type="text"], button) {
+  height: 2.25rem;
+  padding: 0.25rem 0.7rem;
+  font-size: 0.9rem;
+}
+
+/* My tags on Profile (as sketched on review): the New tag box, then a plain list with a dot before each tag. After the
+   name, a small round × raised a little (delete), then a small pencil a little further on (rename), both softened and
+   hot pink under the mouse. The pencil opens the rename box under the name. */
+.tags-profile {
+  margin-top: 0;
+}
+
+.tag-list {
+  margin: 0.75rem 0 0;
+  padding-inline-start: 1.25rem;
+}
+
+.tag-list li {
+  margin: 0.15rem 0;
+  list-style: disc;
+  overflow-wrap: anywhere;
+}
+
+.tag-list-delete,
+.tag-list-edit {
+  display: inline-block;
+  margin: 0;
+  vertical-align: middle;
+}
+
+/* The × and the pencil: drawn small, each in a 1.5rem (24 px) square that can be tapped. */
+.tag-list .tag-x,
+.tag-list-edit summary {
+  display: inline-grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--pico-muted-color);
+  cursor: pointer;
+}
+
+/* The × sits a little higher than the name, next to its end. */
+.tag-list .tag-x {
+  position: relative;
+  top: -0.45rem;
+}
+
+
+.tag-list .tag-x:is(:hover, :focus-visible),
+.tag-list-edit summary:is(:hover, :focus-visible),
+.tag-list-edit[open] summary {
+  background: transparent;
+  box-shadow: none;
+  color: var(--couch-pink);
+}
+
+.tag-list-edit {
+  margin-inline-start: 0.75rem;
+}
+
+.tag-list-edit summary::after,
+.tag-list-edit summary::-webkit-details-marker {
+  display: none;
+}
+
+.tag-list-edit[open] > summary {
+  margin-bottom: 0;
+}
+
+.tag-list .tag-rename {
+  display: none;
+  margin: 0.4rem 0 0.5rem;
+}
+
+.tag-list li:has(.tag-list-edit[open]) .tag-rename {
+  display: flex;
+}
+
+/* The pencil is drawn like the ×: a thin circle with a small pencil inside, the same size. */
+.tag-list-edit summary svg {
+  display: block;
+  width: 1rem;
+  height: 1rem;
+}
+
+/* On a title's page the tags sit in the narrow column under the poster, after its small buttons (which never wrap and
+   use a smaller font). The chips keep their own look there: a long name wraps inside its chip. */
+.title-poster .tags-section {
+  margin: 1rem 0 0;
+}
+
+.title-poster .tag-chips {
+  gap: 0.75rem 0.6rem;
+}
+
+.title-poster .tag-chip {
+  min-height: 2.25rem;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.85rem;
+}
+
+.title-poster .tag-chips .tag-chip-add {
+  min-height: 2.25rem;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.85rem;
+  white-space: normal;
+  text-align: start;
+}
+
+.title-poster .tag-chip .tag-chip-remove {
+  padding: 0;
+}
+
+.tags-none {
+  margin: 0;
+}

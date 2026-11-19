@@ -54,7 +54,8 @@
       </p>
     {% endif %}
     {% for message in messages %}
-      <p role="status">{{ message }}</p>
+      {# A problem with a tag is shown next to the tags instead (_tag_problems.html). #}
+      {% if 'tag-problem' not in message.tags %}<p role="status">{{ message }}</p>{% endif %}
     {% endfor %}
     {% block content %}{% endblock %}
   </main>

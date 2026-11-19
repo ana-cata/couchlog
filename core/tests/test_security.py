@@ -27,7 +27,9 @@ from core.models import (
     Profile,
     Rating,
     RemovedSeries,
+    Tag,
     Title,
+    TitleTag,
     ToWatchItem,
     Watch,
 )
@@ -79,6 +81,11 @@ CHANGES = {
     'to_watch_remove': '/to-watch/remove/',
     'to_watch_undo': '/to-watch/undo/',
     'rating_save': '/rating/save/',
+    'tag_create': '/tags/create/',
+    'tag_rename': '/tags/rename/',
+    'tag_delete': '/tags/delete/',
+    'tag_add': '/tags/add/',
+    'tag_remove': '/tags/remove/',
     'watched_add': '/watched/add/',
     'episode_watched_add': '/watched/episode/add/',
     'season_watched_add': '/watched/season/add/',
@@ -144,15 +151,20 @@ def other(db):
     item = ToWatchItem.objects.create(user=account, title=gone)
     RemovedSeries.objects.create(user=account, title=gone, rows=serializers.serialize('json', [item]))
     item.delete()
+    # A tag on the film.
+    tag = Tag.objects.create(user=account, name='Secret tag')
+    TitleTag.objects.create(tag=tag, title=film)
 
-    account.film_watch, account.second_episode = watch, second
+    account.film_watch, account.second_episode, account.tag = watch, second, tag
     return account
 
 
 def everything_of(account):
     """All of an account's own rows, as they are now."""
-    tables = (Profile, Watch, ToWatchItem, DroppedSeries, RemovedSeries, Rating)
-    return {table.__name__: list(table.objects.filter(user=account).order_by('id').values()) for table in tables}
+    tables = (Profile, Watch, ToWatchItem, DroppedSeries, RemovedSeries, Rating, Tag)
+    rows = {table.__name__: list(table.objects.filter(user=account).order_by('id').values()) for table in tables}
+    rows['TitleTag'] = list(TitleTag.objects.filter(tag__user=account).order_by('id').values())
+    return rows
 
 
 def form_aimed_at(other, name):
@@ -170,6 +182,11 @@ def form_aimed_at(other, name):
         'to_watch_remove': {'kind': 'movie', 'tmdb_id': 503},
         'to_watch_undo': {'kind': 'movie', 'tmdb_id': 502},
         'rating_save': {**film, 'stars': '1', 'note': 'Written by someone else'},
+        'tag_create': {**film, 'name': 'Secret tag'},
+        'tag_rename': {'tag_id': other.tag.id, 'name': 'Renamed by someone else'},
+        'tag_delete': {'tag_id': other.tag.id},
+        'tag_add': {**film, 'tag_id': other.tag.id},
+        'tag_remove': {**film, 'tag_id': other.tag.id},
         'watched_add': {**film, 'watched_on': EARLIER.isoformat()},
         'episode_watched_add': {'episode_id': other.second_episode.id, 'only_this': '1'},
         'season_watched_add': season,
@@ -265,7 +282,8 @@ def test_one_account_cannot_change_another_accounts_data(other, name):
 
     response = me.post(CHANGES[name], form_aimed_at(other, name))
 
-    assert response.status_code in (200, 204, 302)
+    # A tag is only ever found among my own, so another account's tag is "not found" (404).
+    assert response.status_code in (200, 204, 302, 404)
     assert everything_of(other) == before
 
 
@@ -278,6 +296,7 @@ def test_one_account_cannot_read_another_accounts_data(other, address, respx_moc
     page = me.get(address).content.decode()
 
     assert SECRET_NOTE not in page
+    assert 'Secret tag' not in page
     assert 'other-account' not in page
     if address != '/movie/501/':  # the film's own page shows its name to anyone who opens it
         assert OTHER_FILM not in page

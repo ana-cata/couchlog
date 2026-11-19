@@ -29,6 +29,12 @@
   - **On your lists:** a title with stars shows them on its tile in Movies (To Watch, History) and the Series tabs, not on Search or Home tiles (see [To Watch](to-watch.md)).
   - **"How was it?"** Right after **Mark as watched** or **Watch again** on a movie with no stars, the same form opens **in a pop-up** over the page ("How was it? You've just watched …") with a **Not now** link. Save works as above. **Not now** closes it and saves nothing. It shows once (reloading closes it too). A movie with stars is never asked; one with only a note is, with the note filled in. The page under the pop-up does not move. For a series, the same pop-up comes after its last aired episode (see [Series](series.md)).
   - Episodes and seasons cannot be rated (later, if wanted).
+- **My tags** (movies and series, card #119). In the column under the poster, **below its buttons** (Add to To Watch, Stop watching...), a small "My tags" label, then **chips**: your tags on this title (off-white, in a thin rounded outline, each with a small round **×** on its top-right corner that takes it off) and, after them, your other tags as dashed **"+ name"** chips you tap to add. **Tags are only made, renamed and deleted on [Profile](profile.md)** (my decision on review): a title's page only adds and removes them. With no tags yet it says "Make your own tags on your Profile, then add them here.", with a link.
+  - **Any title:** it does not have to be watched or on a list. A title not saved yet is saved from TMDB first; if TMDB does not answer, the usual message shows and nothing is saved.
+  - **The page does not move** when you add or remove a tag. A problem (TMDB not answering) shows under the chips, not at the top of the page.
+  - **Undo:** removing a tag from a title has no Undo button (my decision on the card): tap its "+ name" chip to put it back. Adding is undone with the ×.
+  - **On a phone** the chips wrap onto new lines, and every "+" chip is at least 36 px high and a long name wraps inside its chip, and the corner × can be tapped in a 28 px square around it, so it stays easy to tap.
+  - **Only yours:** each account sees and changes only its own tags. Tags have no colours of their own (all chips look the same, `Identity/identity.md`), and they are not shown on tiles or used by filters yet (#120).
 - **How the suggestions are picked**, for movies and for series separately:
   1. Your **3 most common genres** among the titles you have watched (a movie watched, or a series with at least one episode watched) or have on your To Watch list. Each title counts once for each of its genres, however often you watched it. On a tie the lower TMDB genre number goes first.
   2. The **most popular** titles of that kind in any of those genres, from TMDB.
@@ -118,6 +124,13 @@
 - Everything is looked up by the logged-in account, so one account never sees or changes another's rating. No JavaScript is needed to save, change or remove.
 - **The offer after watching** (`_rate_offer.html`, a `<dialog open>` that Pico shows as a pop-up, the same for movies and series; on a movie page it is in the watched section). `watched_add` keeps `rate_offer` (kind and TMDB id) in the session when the movie has no stars (`_has_stars`). The title page takes it out of the session whatever title is shown (`_offered`) and shows the offer only for that title and only if it still has no stars, so it shows once. The form is `_rating_form.html`, the same one the rating box uses. "Not now" is a link to the page: its `onclick` takes the pop-up off the page without asking the server, and without JavaScript it reloads the page, which no longer offers. The offer changes no data, so it has no undo of its own. Tests: `core/tests/test_rating_nudge.py`, and `test_rating_nudge_on_phone.py` in a real browser (the button does not move, Not now closes it).
 
+**My tags on a title** (`core/templates/core/_tags.html`; the tables are `core_tag` and `core_titletag`, see [Data model](data-model.md))
+- `_tags_box` in `core/views.py` gives the page the account's tags in use (`tags_on`, those on this title; `tags_off`, the rest), sorted by name. One query for the tags and one for the links.
+- Each chip is a small form with `hx-boost="true" hx-push-url="false"` like the other forms of the page: `/tags/add/` (`tag_add`) and `/tags/remove/` (`tag_remove`) with `tag_id`, `kind` and `tmdb_id`. `_tags.html` is included in `title.html` inside `.title-poster`, after `.poster-actions`; `couchlog.css` keeps the chips' own look there (the poster's small buttons never wrap, the chips do). Each answers with a redirect to the page and no message (the chips say it); a problem (TMDB) comes back as a message with the extra tag `tag-problem`, shown next to the tags by `_tag_problems.html` (and left out at the top by `base.html`), because the page is swapped without scrolling.
+- `tag_add` saves the title with `_saved_title` first (design rule 6). Adding a tag that is already there makes no second row.
+- A tag is only found among the account's own tags, so another account's tag id is "not found" (404). In the demo, `tag_add` counts as a change; `tag_remove` does not.
+- Tests: `core/tests/test_tags.py` (under the poster's buttons, no New tag box, add, remove, a title not saved yet, TMDB not answering, other accounts), and `test_tags_on_phone.py` in a real browser at phone width (the tags are under the poster's buttons and inside its column, the chips wrap and are easy to tap, the × is on the corner; a tap adds and removes without the page moving).
+
 **Known limits**
 - Only the first 20 results; there is no "more results" button.
 - Suggestions use only the first page of each TMDB list. An account that has already watched or saved most of what is popular in its genres gets fewer than 10 (trending fills what it can). They are asked from TMDB at every load, and nothing is kept between loads.
@@ -131,6 +144,7 @@
 - Country names are the time zone data's own short names: the UK is "Britain (UK)".
 - A refused save (for example a note that is too long) comes back with a message but not with the text you typed, so the form shows what was saved before.
 - A removed rating and note cannot be brought back with one button: the form has to be filled in again.
+- With many tags, all the "+ name" chips show on every title's page; there is no search among them.
 - A series saved before genres were kept shows its line without genres until its episodes are refreshed: when its page is opened after the saved copy is over a day old, or by `refresh_calendar`.
 - A watched movie that TMDB has no genres (or no runtime) for is asked about again at every `refresh_calendar` run. That is one cheap call, and the movie page itself is not affected.
 - If you open a title's address while logged out, log in, and land on it, ← Back goes to the login page (the page before it), not to Search.
