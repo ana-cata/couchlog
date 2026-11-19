@@ -1,0 +1,20 @@
+{# Tags deleted a few seconds ago on Profile, each with an Undo that brings it back on all its titles. While there are #}
+{# any, this block asks the server again just after the oldest one runs out of time, so it empties by itself. #}
+<div id="tags-deleted"{% if deleted_tags %} hx-get="{% url 'tags_deleted' %}" hx-trigger="load delay:{{ tags_recheck_seconds }}s" hx-swap="outerHTML"{% endif %}>
+  {% if deleted_tags %}
+    <p><small>You can undo deleting a tag for {{ undo_seconds }} seconds.</small></p>
+    <ul class="removed">
+      {% for tag in deleted_tags %}
+        <li>
+          <span>Deleted “{{ tag.name }}” <small>{% if tag.title_count %}from {{ tag.title_count }} title{{ tag.title_count|pluralize }}{% else %}on no titles{% endif %}</small></span>
+          <form method="post" action="{% url 'tag_undo' %}">
+            {% csrf_token %}
+            <input type="hidden" name="tag_id" value="{{ tag.id }}">
+            <input type="hidden" name="next" value="{% url 'profile' %}">
+            <button type="submit" class="outline secondary">Undo</button>
+          </form>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+</div>

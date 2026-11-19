@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.db.models.functions import Lower
 from django.utils import timezone
 
 
@@ -241,6 +242,53 @@ class Rating(models.Model):
 
     def __str__(self):
         return f'{self.user}: {self.title} ({self.stars or "no"} stars)'
+
+
+TAG_NAME_MAX_LENGTH = 30
+
+
+class Tag(models.Model):
+    """One of an account's own tags, a label it can put on any of its titles (like "comfort" or "with family").
+
+    Deleting a tag only fills in `deleted_at`, and its titles stay linked, so Undo brings it back on all of them. Once
+    the Undo window is over, the row is deleted for good with its links.
+    """
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    name = models.CharField(max_length=TAG_NAME_MAX_LENGTH)
+    created_at = models.DateTimeField(default=timezone.now)
+    # Empty while the tag is in use.
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = (
+            # Two tags of one account never have the same name, whatever the capital letters. A deleted tag waiting for
+            # its Undo does not count, so its name can be used again at once.
+            models.UniqueConstraint(
+                Lower('name'), 'user', condition=models.Q(deleted_at=None), name='one_tag_per_name'
+            ),
+        )
+
+    def __str__(self):
+        return f'{self.user}: {self.name}' + (' (deleted)' if self.deleted_at else '')
+
+
+class TitleTag(models.Model):
+    """One of an account's tags on one title. Removing the tag from the title deletes the row; adding it again is the
+    way back. The account is the tag's."""
+
+    tag = models.ForeignKey(Tag, on_delete=models.CASCADE, related_name='links')
+    title = models.ForeignKey(Title, on_delete=models.CASCADE)
+    added_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        constraints = (
+            # Adding the same tag to a title twice never makes a second row.
+            models.UniqueConstraint(fields=['tag', 'title'], name='one_link_per_tag_and_title'),
+        )
+
+    def __str__(self):
+        return f'{self.tag.name} on {self.title}'
 
 
 class DemoEvent(models.Model):

@@ -1,0 +1,387 @@
+"""My own tags (card #119): made, renamed and deleted on Profile, added to and removed from a title on its page.
+
+Deleting a tag can be undone for 10 seconds and brings it back on all its titles. Removing a tag from a title has no
+Undo button: adding it again is the way back. Each account sees and changes only its own tags."""
+
+import datetime
+
+import httpx
+import pytest
+import time_machine
+from django.contrib.auth.models import User
+from django.test import Client
+
+from core.models import DemoEvent, Profile, Tag, Title, TitleTag
+
+MOVIE_URL = 'https://api.themoviedb.org/3/movie/603'
+MOVIE_PAGE = '/movie/603/'
+SERIES_PAGE = '/series/1399/'
+
+# Made-up TMDB answer. The tests never call the real TMDB.
+MADE_UP_MOVIE = {
+    'id': 603,
+    'title': 'Made-up Movie',
+    'release_date': '1999-03-31',
+    'poster_path': '/made-up-movie.jpg',
+    'overview': 'A made-up story about a movie.',
+}
+
+# The fixed "now" for every test here (so a saved series' episodes count as fresh and its page does not ask TMDB).
+NOW = datetime.datetime(2026, 11, 1, 20, 0, tzinfo=datetime.UTC)
+
+
+@pytest.fixture(autouse=True)
+def tmdb_key(settings):
+    settings.TMDB_API_KEY = 'made-up-secret-key'
+
+
+@pytest.fixture(autouse=True)
+def clock():
+    with time_machine.travel(NOW, tick=False) as traveller:
+        yield traveller
+
+
+def make_client(name):
+    """A browser logged in as a new account (with a time zone chosen, so no redirect to Profile)."""
+    user = User.objects.create_user(username=name, password='made-up-password')
+    Profile.objects.create(user=user, timezone='Europe/Lisbon')
+    client = Client()
+    client.force_login(user)
+    client.user = user
+    return client
+
+
+@pytest.fixture
+def me(db):
+    return make_client('made-up-user')
+
+
+@pytest.fixture
+def movie(db):
+    """A movie already saved, with its length and genres, so its page never asks TMDB."""
+    return Title.objects.create(
+        kind='movie', tmdb_id=603, title='Made-up Movie', runtime=136, genres=[{'id': 18, 'name': 'Drama'}]
+    )
+
+
+@pytest.fixture
+def series(db):
+    """A series already saved (with its episodes marked as fresh, so opening its page does not ask TMDB)."""
+    return Title.objects.create(kind='series', tmdb_id=1399, title='Made-up Series', episodes_refreshed_at=NOW)
+
+
+def create(client, name, next_page='/profile/', **title):
+    """The "Add tag" button on Profile, or (with `kind` and `tmdb_id`) the "New tag" box on a title's page."""
+    return client.post('/tags/create/', {'name': name, 'next': next_page, **title})
+
+
+def page_after(client, response):
+    """The page the button sent the browser back to, as the browser shows it."""
+    return client.get(response['Location']).content.decode()
+
+
+def names(client):
+    """This account's tags in use, by name."""
+    return sorted(Tag.objects.filter(user=client.user, deleted_at=None).values_list('name', flat=True))
+
+
+def tags_on(client, title):
+    """The names of this account's tags on a title."""
+    return sorted(
+        TitleTag.objects.filter(tag__user=client.user, tag__deleted_at=None, title=title).values_list('tag__name', flat=True)
+    )
+
+
+def everything(client):
+    """All of the account's tag rows, to check that something put everything back as it was."""
+    return (
+        list(Tag.objects.filter(user=client.user).order_by('id').values()),
+        list(TitleTag.objects.filter(tag__user=client.user).order_by('id').values()),
+    )
+
+
+# --- Profile: create, rename, delete ----------------------------------------------------------
+
+
+def test_profile_has_my_tags_with_a_box_to_make_one(me):
+    page = me.get('/profile/').content.decode()
+
+    assert 'My tags' in page
+    assert 'action="/tags/create/"' in page
+    assert 'Only you see them' in page
+
+
+def test_making_a_tag_on_profile_shows_it_there(me):
+    response = create(me, '  comfort   food ')
+
+    assert response['Location'] == '/profile/'
+    page = page_after(me, response)
+    assert 'Made the tag “comfort food”.' in page
+    assert names(me) == ['comfort food']
+    assert '0 titles' in page
+
+
+def test_a_tag_needs_a_name_and_at_most_30_characters(me):
+    empty = page_after(me, create(me, '   '))
+    long = page_after(me, create(me, 'x' * 31))
+    create(me, 'y' * 30)
+
+    assert 'Give the tag a name. Nothing was saved.' in empty
+    assert 'A tag can be at most 30 characters, and yours has 31. Nothing was saved.' in long
+    assert names(me) == ['y' * 30]
+
+
+def test_two_tags_never_have_the_same_name_whatever_the_capital_letters(me):
+    create(me, 'Comfort')
+
+    page = page_after(me, create(me, 'comfort'))
+
+    assert 'You already have a tag called “Comfort”.' in page
+    assert names(me) == ['Comfort']
+
+
+def test_renaming_a_tag_keeps_it_on_its_titles(me, movie):
+    tag = Tag.objects.create(user=me.user, name='comfort')
+    TitleTag.objects.create(tag=tag, title=movie)
+
+    page = page_after(me, me.post('/tags/rename/', {'tag_id': tag.id, 'name': 'cosy', 'next': '/profile/'}))
+
+    assert 'Renamed “comfort” to “cosy”.' in page
+    assert tags_on(me, movie) == ['cosy']
+    # Renaming it back is the undo.
+    me.post('/tags/rename/', {'tag_id': tag.id, 'name': 'comfort'})
+    assert tags_on(me, movie) == ['comfort']
+
+
+def test_renaming_to_another_tags_name_is_refused_but_capital_letters_can_change(me):
+    comfort = Tag.objects.create(user=me.user, name='comfort')
+    Tag.objects.create(user=me.user, name='family')
+
+    refused = page_after(me, me.post('/tags/rename/', {'tag_id': comfort.id, 'name': 'Family'}))
+    same = page_after(me, me.post('/tags/rename/', {'tag_id': comfort.id, 'name': 'comfort'}))
+    me.post('/tags/rename/', {'tag_id': comfort.id, 'name': 'Comfort'})
+
+    assert 'You already have a tag called “family”.' in refused
+    assert 'Nothing changed, so nothing was saved.' in same
+    assert names(me) == ['Comfort', 'family']
+
+
+def test_deleting_a_tag_takes_it_off_its_titles_and_undo_brings_it_back_on_all_of_them(me, movie, series):
+    tag = Tag.objects.create(user=me.user, name='comfort')
+    TitleTag.objects.create(tag=tag, title=movie)
+    TitleTag.objects.create(tag=tag, title=series)
+    before = everything(me)
+
+    page = page_after(me, me.post('/tags/delete/', {'tag_id': tag.id, 'next': '/profile/'}))
+
+    assert names(me) == []
+    assert tags_on(me, movie) == [] and tags_on(me, series) == []
+    assert 'Deleted “comfort”' in page and 'from 2 titles' in page
+    assert 'action="/tags/undo/"' in page
+    assert 'comfort' not in me.get(MOVIE_PAGE).content.decode()
+
+    page = page_after(me, me.post('/tags/undo/', {'tag_id': tag.id, 'next': '/profile/'}))
+
+    assert 'Brought back the tag “comfort”.' in page
+    assert everything(me) == before
+    assert tags_on(me, movie) == ['comfort'] and tags_on(me, series) == ['comfort']
+
+
+def test_after_10_seconds_a_deleted_tag_is_gone_for_good(me, movie, clock):
+    tag = Tag.objects.create(user=me.user, name='comfort')
+    TitleTag.objects.create(tag=tag, title=movie)
+    me.post('/tags/delete/', {'tag_id': tag.id})
+    clock.shift(datetime.timedelta(seconds=11))
+
+    page = page_after(me, me.post('/tags/undo/', {'tag_id': tag.id, 'next': '/profile/'}))
+
+    assert 'It is too late to undo deleting “comfort”.' in page
+    assert everything(me) == ([], [])
+    assert Title.objects.filter(id=movie.id).exists()  # the title itself is never touched
+
+
+def test_the_recently_deleted_block_empties_by_itself(me, clock):
+    tag = Tag.objects.create(user=me.user, name='comfort')
+    me.post('/tags/delete/', {'tag_id': tag.id})
+
+    block = me.get('/tags/deleted/').content.decode()
+    assert 'Deleted “comfort”' in block and 'hx-trigger="load delay:11s"' in block
+
+    clock.shift(datetime.timedelta(seconds=11))
+    assert 'comfort' not in me.get('/tags/deleted/').content.decode()
+    me.get('/profile/')  # opening Profile deletes it for good
+    assert everything(me) == ([], [])
+
+
+def test_a_deleted_tags_name_can_be_used_again_and_its_undo_then_says_so(me):
+    old = Tag.objects.create(user=me.user, name='comfort')
+    me.post('/tags/delete/', {'tag_id': old.id})
+    create(me, 'Comfort')
+
+    page = page_after(me, me.post('/tags/undo/', {'tag_id': old.id, 'next': '/profile/'}))
+
+    assert 'You have made a new tag called “Comfort” since, so the old one was not brought back.' in page
+    assert names(me) == ['Comfort']
+
+
+# --- a title's page: add, remove, new tag ---------------------------------------------------------
+
+
+def test_a_titles_page_has_my_tags_and_a_box_for_a_new_one(me, movie):
+    Tag.objects.create(user=me.user, name='comfort')
+
+    page = me.get(MOVIE_PAGE).content.decode()
+
+    assert 'My tags' in page
+    assert '+ comfort' in page
+    assert 'aria-label="New tag for this title"' in page
+
+
+def test_adding_a_tag_to_a_title_shows_it_as_a_chip_and_removing_it_takes_it_off(me, movie):
+    tag = Tag.objects.create(user=me.user, name='comfort')
+    form = {'tag_id': tag.id, 'kind': 'movie', 'tmdb_id': 603, 'next': MOVIE_PAGE}
+
+    page = page_after(me, me.post('/tags/add/', form))
+
+    assert tags_on(me, movie) == ['comfort']
+    assert 'aria-label="Remove the tag comfort"' in page
+    assert '+ comfort' not in page
+
+    page = page_after(me, me.post('/tags/remove/', form))
+
+    assert tags_on(me, movie) == []
+    assert '+ comfort' in page
+    assert names(me) == ['comfort']  # the tag itself stays
+
+    # Adding it again is the way back.
+    me.post('/tags/add/', form)
+    assert tags_on(me, movie) == ['comfort']
+
+
+def test_adding_the_same_tag_twice_makes_one_link(me, movie):
+    tag = Tag.objects.create(user=me.user, name='comfort')
+    form = {'tag_id': tag.id, 'kind': 'movie', 'tmdb_id': 603}
+
+    me.post('/tags/add/', form)
+    me.post('/tags/add/', form)
+
+    assert TitleTag.objects.count() == 1
+
+
+def test_tags_work_on_a_series_page_too(me, series):
+    tag = Tag.objects.create(user=me.user, name='with family')
+
+    page = page_after(me, me.post('/tags/add/', {'tag_id': tag.id, 'kind': 'series', 'tmdb_id': 1399, 'next': SERIES_PAGE}))
+
+    assert tags_on(me, series) == ['with family']
+    assert 'aria-label="Remove the tag with family"' in page
+
+
+def test_a_new_tag_on_a_titles_page_is_made_and_put_on_the_title(me, movie):
+    response = create(me, 'comfort', next_page=MOVIE_PAGE, kind='movie', tmdb_id=603)
+
+    assert response['Location'] == MOVIE_PAGE
+    assert names(me) == ['comfort']
+    assert tags_on(me, movie) == ['comfort']
+
+
+def test_a_new_tag_with_the_name_of_one_i_have_puts_that_one_on_the_title(me, movie):
+    Tag.objects.create(user=me.user, name='comfort')
+
+    create(me, 'Comfort', next_page=MOVIE_PAGE, kind='movie', tmdb_id=603)
+
+    assert names(me) == ['comfort']
+    assert tags_on(me, movie) == ['comfort']
+
+
+def test_tagging_a_title_not_saved_yet_saves_it_from_tmdb_first(me, respx_mock):
+    route = respx_mock.get(MOVIE_URL).respond(json=MADE_UP_MOVIE)
+    tag = Tag.objects.create(user=me.user, name='comfort')
+
+    me.post('/tags/add/', {'tag_id': tag.id, 'kind': 'movie', 'tmdb_id': 603, 'next': MOVIE_PAGE})
+    create(me, 'to show a friend', next_page=MOVIE_PAGE, kind='movie', tmdb_id=603)
+
+    movie = Title.objects.get(kind='movie', tmdb_id=603)
+    assert movie.title == 'Made-up Movie'
+    assert tags_on(me, movie) == ['comfort', 'to show a friend']
+    assert route.call_count == 1  # saved once, then used from our own table
+
+
+def test_when_tmdb_does_not_answer_nothing_is_saved_and_a_friendly_message_shows(me, respx_mock):
+    respx_mock.get(MOVIE_URL).mock(side_effect=httpx.ConnectError('no network'))
+    tag = Tag.objects.create(user=me.user, name='comfort')
+
+    response = me.post('/tags/add/', {'tag_id': tag.id, 'kind': 'movie', 'tmdb_id': 603, 'next': '/profile/'})
+    create(me, 'new one', kind='movie', tmdb_id=603)
+
+    assert 'Could not reach TMDB' in page_after(me, response)
+    assert not Title.objects.exists()
+    assert not TitleTag.objects.exists()
+    assert names(me) == ['comfort']  # the new tag was not made either
+
+
+# --- each account has its own ---------------------------------------------------------------------
+
+
+def test_another_account_never_sees_my_tags(me, movie):
+    tag = Tag.objects.create(user=me.user, name='my secret label')
+    TitleTag.objects.create(tag=tag, title=movie)
+    friend = make_client('friend')
+
+    assert 'my secret label' not in friend.get('/profile/').content.decode()
+    assert 'my secret label' not in friend.get(MOVIE_PAGE).content.decode()
+    # And the same name is free for them.
+    create(friend, 'my secret label')
+    assert names(friend) == ['my secret label']
+
+
+def test_another_account_cannot_touch_my_tags(me, movie):
+    tag = Tag.objects.create(user=me.user, name='comfort')
+    TitleTag.objects.create(tag=tag, title=movie)
+    before = everything(me)
+    friend = make_client('friend')
+    title = {'kind': 'movie', 'tmdb_id': 603}
+
+    answers = [
+        friend.post('/tags/rename/', {'tag_id': tag.id, 'name': 'stolen'}),
+        friend.post('/tags/remove/', {'tag_id': tag.id, **title}),
+        friend.post('/tags/add/', {'tag_id': tag.id, **title}),
+        friend.post('/tags/delete/', {'tag_id': tag.id}),
+    ]
+
+    assert [answer.status_code for answer in answers] == [404] * 4
+    assert everything(me) == before
+
+
+def test_another_account_cannot_undo_deleting_my_tag(me):
+    tag = Tag.objects.create(user=me.user, name='comfort')
+    me.post('/tags/delete/', {'tag_id': tag.id})
+    friend = make_client('friend')
+
+    page = page_after(friend, friend.post('/tags/undo/', {'tag_id': tag.id, 'next': '/profile/'}))
+
+    assert 'There is nothing to undo for that tag.' in page
+    assert names(me) == []
+
+
+# --- the demo -------------------------------------------------------------------------------------
+
+
+def test_in_the_demo_only_making_and_adding_a_tag_count_as_changes(me, movie, settings):
+    settings.DEMO_MODE = True
+    settings.DEMO_CHANGES_PER_DAY = 2
+    create(me, 'comfort')
+    tag = Tag.objects.get(user=me.user)
+    title = {'tag_id': tag.id, 'kind': 'movie', 'tmdb_id': 603}
+    me.post('/tags/add/', title)
+
+    # The limit is reached, but renaming, removing, deleting and its Undo still work and are not counted.
+    create(me, 'refused')
+    me.post('/tags/rename/', {'tag_id': tag.id, 'name': 'cosy'})
+    me.post('/tags/remove/', title)
+    me.post('/tags/delete/', {'tag_id': tag.id})
+    me.post('/tags/undo/', {'tag_id': tag.id})
+
+    assert names(me) == ['cosy']
+    assert tags_on(me, movie) == []
+    assert DemoEvent.objects.filter(kind=DemoEvent.Kind.CHANGE, user=me.user).count() == 2

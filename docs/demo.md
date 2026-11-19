@@ -22,8 +22,8 @@
 | New accounts, whole demo | 50 a day (then the button says the demo is full, try again tomorrow) | `DEMO_ACCOUNTS_PER_DAY` |
 | TMDB requests, whole demo | 300 an hour | `DEMO_TMDB_REQUESTS_PER_HOUR` |
 
-- **A change** is a press that adds something: Add to To Watch, Mark as watched (a movie, an episode, a season, "up to here", Watch again), Drop and Remove from all lists.
-- **Never counted and never blocked:** Undo, Remove from To Watch, Mark as not watched, the − buttons and Bring back, so everything can still be undone at the limit (design rule 5). Ratings, notes and the time zone are not counted either: each holds one entry per title, and saving again is their undo.
+- **A change** is a press that adds something: Add to To Watch, Mark as watched (a movie, an episode, a season, "up to here", Watch again), Drop, Remove from all lists, making a tag and adding a tag to a title.
+- **Never counted and never blocked:** Undo, Remove from To Watch, Mark as not watched, the − buttons and Bring back, so everything can still be undone at the limit (design rule 5). Ratings, notes and the time zone are not counted either: each holds one entry per title, and saving again is their undo. Renaming a tag, taking one off a title and deleting one are not counted either.
 - "An hour" and "a day" are the last 60 minutes and the last 24 hours, not the clock's hour or day.
 - **To change a limit:** on Render, open the service, **Environment**, add or change the setting, and save. Render restarts the demo with it (which also empties it). No new deploy is needed.
 

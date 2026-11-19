@@ -408,7 +408,7 @@ def test_a_change_past_the_limit_is_refused_with_a_friendly_message_and_saves_no
 @pytest.mark.parametrize(
     'address',
     ['/to-watch/add/', '/watched/add/', '/watched/episode/add/', '/watched/season/add/', '/watched/season/again/',
-     '/watched/up-to/add/', '/series/drop/', '/series/remove-all/'],
+     '/watched/up-to/add/', '/series/drop/', '/series/remove-all/', '/tags/create/', '/tags/add/'],
 )
 def test_every_button_that_adds_something_counts_as_a_change(demo_on, settings, address):
     settings.DEMO_CHANGES_PER_DAY = 0

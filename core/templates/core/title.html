@@ -65,6 +65,7 @@
         <p>{{ item.overview|default:"TMDB has no description for this title." }}</p>
 
         {% include 'core/_rating.html' %}
+        {% include 'core/_tags.html' %}
 
         {% if item.kind == 'movie' %}
           <div class="watched-section">

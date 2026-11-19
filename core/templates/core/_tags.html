@@ -1,0 +1,44 @@
+{# "My tags" on a movie's or a series' page: my tags on this title as chips, each with an × that takes it off (no Undo #}
+{# button: tapping it again under "add" puts it back), then my other tags as "+ name" chips to add, and a box to make a #}
+{# new tag that goes on this title at once. Every account sees only its own tags. The forms swap the page in place #}
+{# (hx-boost), like the rest of the page. Renaming and deleting a tag are on Profile. #}
+<div class="tags-section">
+  <p class="tags-label"><small>My tags</small></p>
+  {% if tags_on or tags_off %}
+    <ul class="tag-chips">
+      {% for tag in tags_on %}
+        <li class="tag-chip">
+          <span>{{ tag.name }}</span>
+          <form method="post" action="{% url 'tag_remove' %}" hx-boost="true" hx-push-url="false" hx-disabled-elt="find button">
+            {% csrf_token %}
+            <input type="hidden" name="tag_id" value="{{ tag.id }}">
+            <input type="hidden" name="kind" value="{{ item.kind }}">
+            <input type="hidden" name="tmdb_id" value="{{ item.tmdb_id }}">
+            <input type="hidden" name="next" value="{{ next }}">
+            <button type="submit" class="tag-chip-remove" aria-label="Remove the tag {{ tag.name }}" title="Remove the tag">&times;</button>
+          </form>
+        </li>
+      {% endfor %}
+      {% for tag in tags_off %}
+        <li>
+          <form method="post" action="{% url 'tag_add' %}" hx-boost="true" hx-push-url="false" hx-disabled-elt="find button">
+            {% csrf_token %}
+            <input type="hidden" name="tag_id" value="{{ tag.id }}">
+            <input type="hidden" name="kind" value="{{ item.kind }}">
+            <input type="hidden" name="tmdb_id" value="{{ item.tmdb_id }}">
+            <input type="hidden" name="next" value="{{ next }}">
+            <button type="submit" class="tag-chip-add" aria-label="Add the tag {{ tag.name }}">+ {{ tag.name }}</button>
+          </form>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+  <form method="post" action="{% url 'tag_create' %}" class="tag-new" hx-boost="true" hx-push-url="false" hx-disabled-elt="find button">
+    {% csrf_token %}
+    <input type="hidden" name="kind" value="{{ item.kind }}">
+    <input type="hidden" name="tmdb_id" value="{{ item.tmdb_id }}">
+    <input type="hidden" name="next" value="{{ next }}">
+    <input type="text" name="name" maxlength="{{ tag_max }}" required placeholder="New tag" aria-label="New tag for this title">
+    <button type="submit" class="outline secondary">Add</button>
+  </form>
+</div>

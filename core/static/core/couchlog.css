@@ -1023,3 +1023,167 @@ select.fit {
 select.fit {
   display: block;
 }
+
+/* My tags on a title's page (_tags.html): small chips that wrap onto the next line on a phone. A tag on the title is
+   off-white in a thin outline with an × to take it off; my other tags are softened, with a dashed outline and a "+",
+   to add. Pink only under the mouse (Identity/identity.md). Every chip, and the × in it, is at least 2.5rem
+   (40 px) high, so it stays easy to tap. */
+.tags-section {
+  margin-top: 1.5rem;
+}
+
+.tags-label {
+  margin-bottom: 0.4rem;
+  color: var(--pico-muted-color);
+}
+
+.tag-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  list-style: none;
+}
+
+.tag-chips li {
+  margin: 0;
+  list-style: none;
+}
+
+.tag-chips form {
+  margin: 0;
+}
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.5rem;
+  padding-inline-start: 0.85rem;
+  border: 1px solid var(--couch-soft);
+  border-radius: 999px;
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.tag-chips button {
+  width: auto;
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.2;
+}
+
+.tag-chip .tag-chip-remove {
+  min-width: 2.5rem;
+  min-height: 2.5rem;
+  padding: 0 0.6rem;
+  border: none;
+  background: transparent;
+  color: var(--pico-muted-color);
+  font-size: 1.15rem;
+}
+
+.tag-chip-add {
+  min-height: 2.5rem;
+  padding: 0.35rem 0.85rem;
+  border: 1px dashed var(--couch-soft);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--pico-muted-color);
+}
+
+.tag-chips button:is(:hover, :focus-visible) {
+  border-color: var(--couch-pink);
+  color: var(--couch-pink);
+}
+
+.tag-chip .tag-chip-remove:is(:hover, :focus-visible) {
+  background: transparent;
+}
+
+/* The box to make a new tag, with its button at the right: on a title's page and on Profile. */
+.tag-new {
+  display: flex;
+  gap: 0.5rem;
+  max-width: 20rem;
+  margin: 0;
+}
+
+.tag-new input[type="text"] {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+}
+
+.tag-new button {
+  width: auto;
+  margin: 0;
+  white-space: nowrap;
+}
+
+/* My tags on Profile: the name (and on how many titles) on the left, Rename and Delete on the right. The rename form
+   opens on its own line under them. */
+.tag-list {
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.tag-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin: 0;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--pico-muted-border-color);
+  list-style: none;
+}
+
+.tag-list-name {
+  overflow-wrap: anywhere;
+}
+
+.tag-list-name small {
+  margin-inline-start: 0.4rem;
+  color: var(--pico-muted-color);
+}
+
+.tag-list-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.tag-list-buttons form,
+.tag-list-buttons details {
+  margin: 0;
+}
+
+.tag-list-buttons :is(button, summary[role="button"]) {
+  display: inline-block;
+  width: auto;
+  margin: 0;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.8rem;
+}
+
+.tag-list-buttons summary::after {
+  display: none;
+}
+
+/* The rename form, on its own line under the tag, only while its Rename is open. */
+.tag-list .tag-rename {
+  display: none;
+  flex-basis: 100%;
+}
+
+.tag-list li:has(details[open]) .tag-rename {
+  display: flex;
+}
+
+#tags-deleted {
+  margin-bottom: 1rem;
+}

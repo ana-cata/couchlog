@@ -2,6 +2,8 @@ from zoneinfo import available_timezones
 
 from django import forms
 
+from .models import TAG_NAME_MAX_LENGTH
+
 # Only the real regions, so the list does not fill up with old aliases like "US/Eastern".
 REGIONS = (
     'Africa', 'America', 'Antarctica', 'Arctic', 'Asia', 'Atlantic',
@@ -71,3 +73,19 @@ class WatchedForm(forms.Form):
             elif day > self.today:
                 self.add_error('watched_on', 'That day has not happened yet.')
         return data
+
+
+class TagForm(forms.Form):
+    """The name of a tag, when it is made or renamed. Spaces at the ends are dropped and runs of spaces become one."""
+
+    name = forms.CharField(required=False)
+
+    def clean_name(self):
+        name = ' '.join(self.cleaned_data['name'].split())
+        if not name:
+            raise forms.ValidationError('Give the tag a name. Nothing was saved.')
+        if len(name) > TAG_NAME_MAX_LENGTH:
+            raise forms.ValidationError(
+                f'A tag can be at most {TAG_NAME_MAX_LENGTH} characters, and yours has {len(name)}. Nothing was saved.'
+            )
+        return name

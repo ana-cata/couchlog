@@ -22,7 +22,7 @@ def test_the_about_page_has_the_privacy_note_next_to_the_credit(client):
     page = ' '.join(client.get('/about/').content.decode().split())
 
     assert NOTICE in page
-    assert 'Couchlog stores what you add: your watch history, ratings and notes, your time zone and your email.' in page
+    assert 'Couchlog stores what you add: your watch history, ratings, notes and tags, your time zone and your email.' in page
     assert 'Daily backups are kept in private storage at Cloudflare R2.' in page
     assert 'the connection goes through Cloudflare' in page
     assert 'If you want your data removed, tell me.' in page

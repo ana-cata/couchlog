@@ -15,6 +15,45 @@
   </dl>
   <p><small>Every watch counts, rewatches too, and only what you register in Couchlog.</small></p>
 
+  {# My own tags: make, rename and delete them here. They go on titles from each title's page. Only I see them. #}
+  <h2>My tags</h2>
+  <p><small>Your own labels for movies and series, like “comfort” or “with family”. Put them on a title from its page. Only you see them.</small></p>
+  {% if tags %}
+    <ul class="tag-list">
+      {% for tag in tags %}
+        <li>
+          <span class="tag-list-name">{{ tag.name }} <small>{{ tag.title_count }} title{{ tag.title_count|pluralize }}</small></span>
+          <span class="tag-list-buttons">
+            {# Rename opens the small form on its own line under the tag (the stylesheet shows it while this is open). #}
+            <details>
+              <summary role="button" class="outline secondary">Rename</summary>
+            </details>
+            <form method="post" action="{% url 'tag_delete' %}">
+              {% csrf_token %}
+              <input type="hidden" name="tag_id" value="{{ tag.id }}">
+              <input type="hidden" name="next" value="{% url 'profile' %}">
+              <button type="submit" class="outline secondary" aria-label="Delete the tag {{ tag.name }}">Delete</button>
+            </form>
+          </span>
+          <form method="post" action="{% url 'tag_rename' %}" class="tag-new tag-rename">
+            {% csrf_token %}
+            <input type="hidden" name="tag_id" value="{{ tag.id }}">
+            <input type="hidden" name="next" value="{% url 'profile' %}">
+            <input type="text" name="name" value="{{ tag.name }}" maxlength="{{ tag_max }}" required aria-label="New name for {{ tag.name }}">
+            <button type="submit" class="outline secondary">Save</button>
+          </form>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+  {% include 'core/_tags_deleted.html' %}
+  <form method="post" action="{% url 'tag_create' %}" class="tag-new">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{% url 'profile' %}">
+    <input type="text" name="name" maxlength="{{ tag_max }}" required placeholder="New tag" aria-label="New tag">
+    <button type="submit" class="outline secondary">Add tag</button>
+  </form>
+
   <form method="post">
     {% csrf_token %}
     <label>
