@@ -1,10 +1,12 @@
 {% extends 'core/base.html' %}
+{% load static %}
 
 {% block title %}Welcome · Couchlog{% endblock %}
 
 {% block content %}
   {# How Couchlog works, in five short steps. A new account is sent here once (FirstStepsMiddleware); About links here. #}
-  {# Skip and Start go to the same place: opening the page already counted as seen. #}
+  {# Skip and Start go to the same place: opening the page already counted as seen. The pictures come from the demo's #}
+  {# sample titles; scripts/welcome_screenshots.py takes them again (docs/welcome.md). #}
   <p class="welcome-skip"><a href="{% url 'home' %}" role="button" class="outline secondary">Skip</a></p>
 
   <h1>Welcome to Couchlog</h1>
@@ -13,11 +15,13 @@
   <section>
     <h2>1. Find a title</h2>
     <p>Press <strong>Search</strong> at the top and type the name of a movie or series. Its page shows what it's about and where you can stream it.</p>
+    <img class="welcome-picture" src="{% static 'core/welcome/1-search.jpg' %}" width="390" height="422" alt="Search with “Dune” typed in the box, and two results with their posters" loading="lazy">
   </section>
 
   <section>
     <h2>2. Keep it for later</h2>
     <p>Press <strong>Add to To Watch</strong> on its page. Movies and series each have their own To Watch list.</p>
+    <img class="welcome-picture" src="{% static 'core/welcome/2-to-watch.jpg' %}" width="390" height="414" alt="A movie's page: its poster with the Add to To Watch button under it" loading="lazy">
   </section>
 
   <section>
@@ -27,6 +31,7 @@
       button next to an episode, or mark a whole season at once. Every watch is kept with its date, so you can watch
       something again, and anything you mark can be taken back.
     </p>
+    <img class="welcome-picture" src="{% static 'core/welcome/3-watched.jpg' %}" width="390" height="417" alt="Season 1 of a series: the Mark Season 1 as watched button, and episodes with green round buttons for watched and a grey one for the next" loading="lazy">
   </section>
 
   <section>
@@ -37,6 +42,7 @@
       <li><strong>Finished:</strong> the series you've watched to the end.</li>
       <li><strong>Dropped:</strong> the series you stopped watching. Their history is kept, and you can bring them back any time.</li>
     </ul>
+    <img class="welcome-picture" src="{% static 'core/welcome/4-series-tabs.jpg' %}" width="390" height="488" alt="The Series page with its tabs Watching, To Watch, Finished and Dropped, and two series in Watching" loading="lazy">
   </section>
 
   <section>
@@ -46,6 +52,7 @@
       each series you're watching, ready to check off. The <strong>Calendar</strong> shows the release dates of
       everything on your lists, further ahead.
     </p>
+    <img class="welcome-picture" src="{% static 'core/welcome/5-home.jpg' %}" width="390" height="405" alt="Home: News with two banners, “tomorrow” and “in 6 days”, and an Up Next card with the next episode and its round button" loading="lazy">
   </section>
 
   <p><a href="{% url 'home' %}" role="button">Start using Couchlog</a></p>
