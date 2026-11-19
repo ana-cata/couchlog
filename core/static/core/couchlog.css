@@ -963,12 +963,7 @@ button.corner-button.on-list:is(:hover, :focus-visible) {
   letter-spacing: 0.06em;
 }
 
-/* The offer to rate right after watching ("How was it?"), under "Mark as watched" on a movie's page, or in a pop-up
-   on a series' page. The form keeps the width it has in the rating box. */
-div.rate-offer {
-  margin-top: 1rem;
-}
-
+/* The pop-up offering to rate right after watching ("How was it?"). The form keeps the width it has in the rating box. */
 .rate-offer form {
   max-width: 20rem;
 }

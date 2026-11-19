@@ -86,7 +86,7 @@
               </label>
               <button type="submit"><span class="idle">{% if watches %}Watch again{% else %}Mark as watched{% endif %}</span><span class="busy">Saving…</span></button>
             </form>
-            {# Right after a watch of a film with no stars: "How was it?", under the button (_rate_offer.html). #}
+            {# Right after a watch of a film with no stars: the "How was it?" pop-up (_rate_offer.html). #}
             {% if offer %}{% include 'core/_rate_offer.html' %}{% endif %}
             {# Every watch with its date and its own button to take it back. With one watch that button is "Mark as not watched". #}
             {% if watches %}
@@ -130,7 +130,7 @@
             {# The pop-up question after the first episode marked in a series. Empty until then. #}
             <div id="ask">{% if ask %}{% include 'core/_ask_earlier.html' %}{% endif %}</div>
             {# The pop-up offer to rate the series, after the mark that watched every aired episode. Empty until then. #}
-            <div id="rate-offer">{% if offer %}{% include 'core/_rate_offer.html' with popup=True %}{% endif %}</div>
+            <div id="rate-offer">{% if offer %}{% include 'core/_rate_offer.html' %}{% endif %}</div>
           </div>
         {% endif %}
         {# At the end of the page: the streaming services in my country, loaded once the page is shown #}

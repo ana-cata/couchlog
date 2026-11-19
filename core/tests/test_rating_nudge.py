@@ -211,12 +211,13 @@ def test_another_accounts_stars_never_show_on_my_tiles(me, movie):
 # The offer after marking a movie as watched.
 
 
-def test_marking_an_unrated_movie_offers_to_rate_it_under_the_button(me, movie):
+def test_marking_an_unrated_movie_offers_to_rate_it_in_a_pop_up(me, movie):
     html = mark_movie(me).content.decode()
 
     assert offered(html)
-    # Under the button: after "Mark as watched"'s form, before the list of watches.
-    assert html.index('class="watched-form"') < html.index('class="rate-offer"') < html.index('class="watch-list"')
+    # The same pop-up as for a series.
+    assert '<dialog open class="rate-offer"' in html
+    assert "You've just watched Made-up Movie." in html
     # It is the rating form (it saves through the rating box's own Save), and "Not now" leads back to the page.
     offer = html[html.index('class="rate-offer"') :]
     assert 'action="/rating/save/"' in offer

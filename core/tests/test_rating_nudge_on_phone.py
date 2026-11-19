@@ -1,5 +1,5 @@
 """Ratings on lists, and a nudge to rate (card #118), in a real browser at phone size: the stars fit on the tiles, the
-offer opens under "Mark as watched" without moving the button (as fixed in #91 and #93), and "Not now" closes it."""
+offer pops up over the page without moving the button (as fixed in #91 and #93), and "Not now" closes it."""
 
 import os
 
@@ -64,7 +64,7 @@ def test_the_stars_fit_on_the_tiles_of_a_list_on_a_phone(live_server, page):
     assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
 
 
-def test_the_offer_opens_under_the_button_and_the_button_does_not_move(live_server, page):
+def test_the_offer_pops_up_over_the_page_and_the_button_does_not_move(live_server, page):
     make_user()
     saved_movie()
     log_in(page, live_server)
@@ -83,10 +83,12 @@ def test_the_offer_opens_under_the_button_and_the_button_does_not_move(live_serv
     expect(page.get_by_text('How was it?')).to_be_visible()
     page.wait_for_timeout(200)
 
-    # The button did not move: the small "Rate it or add a note" button above it stays, and the offer opens below.
+    # The button did not move: the pop-up is over the page, not in it.
     assert button_top('Watch again') == pytest.approx(before, abs=1)
-    offer = page.locator('.rate-offer').bounding_box()
-    assert offer['y'] > page.get_by_role('button', name='Watch again').bounding_box()['y']
+    # The pop-up fits the phone's width, and its Save can be reached.
+    offer = page.locator('.rate-offer article').bounding_box()
+    assert offer['x'] >= 0 and offer['x'] + offer['width'] <= PHONE['width']
+    expect(page.locator('.rate-offer').get_by_role('button', name='Save', exact=True)).to_be_visible()
 
 
 def test_not_now_closes_the_offer_and_saves_nothing(live_server, page):

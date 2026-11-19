@@ -207,6 +207,9 @@ def test_mark_a_movie_as_watched_see_it_in_history_then_undo(live_server, page, 
     page.get_by_role('button', name='Mark as watched').click()
     expect(page.get_by_text('Marked “Made-up Movie” as watched.')).to_be_visible()
     expect(page.get_by_role('button', name='Mark as not watched')).to_be_visible()
+    # "How was it?" pops up (the film has no stars). Not now closes it and saves nothing.
+    page.get_by_role('link', name='Not now').click()
+    expect(page.locator('.rate-offer')).to_have_count(0)
 
     # It is in History (a tab of Movies) with a date, and it has left the To Watch tab.
     page.get_by_role('link', name='Movies', exact=True).click()
