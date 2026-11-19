@@ -1,4 +1,4 @@
-{# "My tags" on a movie's or a series' page: my tags on this title as chips, each with an × that takes it off (no Undo #}
+{# "My tags" on a movie's or a series' page: my tags on this title as chips, each with a small × in its corner that takes it off (no Undo #}
 {# button: tapping it again under "add" puts it back), then my other tags as "+ name" chips to add, and a box to make a #}
 {# new tag that goes on this title at once. Every account sees only its own tags. The forms swap the page in place #}
 {# (hx-boost), like the rest of the page. Renaming and deleting a tag are on Profile. #}
@@ -9,13 +9,13 @@
       {% for tag in tags_on %}
         <li class="tag-chip">
           <span>{{ tag.name }}</span>
-          <form method="post" action="{% url 'tag_remove' %}" hx-boost="true" hx-push-url="false" hx-disabled-elt="find button">
+          <form method="post" action="{% url 'tag_remove' %}" class="tag-chip-corner" hx-boost="true" hx-push-url="false" hx-disabled-elt="find button">
             {% csrf_token %}
             <input type="hidden" name="tag_id" value="{{ tag.id }}">
             <input type="hidden" name="kind" value="{{ item.kind }}">
             <input type="hidden" name="tmdb_id" value="{{ item.tmdb_id }}">
             <input type="hidden" name="next" value="{{ next }}">
-            <button type="submit" class="tag-chip-remove" aria-label="Remove the tag {{ tag.name }}" title="Remove the tag">&times;</button>
+            <button type="submit" class="tag-chip-remove" aria-label="Remove the tag {{ tag.name }}" title="Remove the tag"><span aria-hidden="true">&times;</span></button>
           </form>
         </li>
       {% endfor %}
@@ -33,6 +33,7 @@
       {% endfor %}
     </ul>
   {% endif %}
+  {% include 'core/_tag_problems.html' %}
   <form method="post" action="{% url 'tag_create' %}" class="tag-new" hx-boost="true" hx-push-url="false" hx-disabled-elt="find button">
     {% csrf_token %}
     <input type="hidden" name="kind" value="{{ item.kind }}">

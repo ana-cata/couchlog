@@ -250,27 +250,21 @@ TAG_NAME_MAX_LENGTH = 30
 class Tag(models.Model):
     """One of an account's own tags, a label it can put on any of its titles (like "comfort" or "with family").
 
-    Deleting a tag only fills in `deleted_at`, and its titles stay linked, so Undo brings it back on all of them. Once
-    the Undo window is over, the row is deleted for good with its links.
+    Deleting a tag deletes it for good, with its links to titles: there is no Undo (my decision on card #119).
     """
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     name = models.CharField(max_length=TAG_NAME_MAX_LENGTH)
     created_at = models.DateTimeField(default=timezone.now)
-    # Empty while the tag is in use.
-    deleted_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         constraints = (
-            # Two tags of one account never have the same name, whatever the capital letters. A deleted tag waiting for
-            # its Undo does not count, so its name can be used again at once.
-            models.UniqueConstraint(
-                Lower('name'), 'user', condition=models.Q(deleted_at=None), name='one_tag_per_name'
-            ),
+            # Two tags of one account never have the same name, whatever the capital letters.
+            models.UniqueConstraint(Lower('name'), 'user', name='one_tag_per_name'),
         )
 
     def __str__(self):
-        return f'{self.user}: {self.name}' + (' (deleted)' if self.deleted_at else '')
+        return f'{self.user}: {self.name}'
 
 
 class TitleTag(models.Model):

@@ -19,41 +19,44 @@
   <h2>My tags</h2>
   <p><small>Your own labels for movies and series, like “comfort” or “with family”. Put them on a title from its page. Only you see them.</small></p>
   {# Each tag is a small chip, like on a title's page: its name, a pencil that opens a box to rename it (under the name, #}
-  {# only while it is open) and an × that deletes it (with an Undo under the chips). #}
-  {% if tags %}
-    <ul class="tag-chips">
-      {% for tag in tags %}
-        <li class="tag-chip">
-          <span>{{ tag.name }}</span>
-          <details>
-            <summary class="tag-chip-edit" aria-label="Rename the tag {{ tag.name }}" title="Rename the tag">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"/></svg>
-            </summary>
-          </details>
-          <form method="post" action="{% url 'tag_delete' %}">
-            {% csrf_token %}
-            <input type="hidden" name="tag_id" value="{{ tag.id }}">
-            <input type="hidden" name="next" value="{% url 'profile' %}">
-            <button type="submit" class="tag-chip-remove" aria-label="Delete the tag {{ tag.name }}" title="Delete the tag">&times;</button>
-          </form>
-          <form method="post" action="{% url 'tag_rename' %}" class="tag-new tag-rename">
-            {% csrf_token %}
-            <input type="hidden" name="tag_id" value="{{ tag.id }}">
-            <input type="hidden" name="next" value="{% url 'profile' %}">
-            <input type="text" name="name" value="{{ tag.name }}" maxlength="{{ tag_max }}" required aria-label="New name for {{ tag.name }}">
-            <button type="submit" class="outline secondary">Save</button>
-          </form>
-        </li>
-      {% endfor %}
-    </ul>
-  {% endif %}
-  {% include 'core/_tags_deleted.html' %}
-  <form method="post" action="{% url 'tag_create' %}" class="tag-new">
-    {% csrf_token %}
-    <input type="hidden" name="next" value="{% url 'profile' %}">
-    <input type="text" name="name" maxlength="{{ tag_max }}" required placeholder="New tag" aria-label="New tag">
-    <button type="submit" class="outline secondary">Add tag</button>
-  </form>
+  {# only while it is open) and a small × in its corner that deletes it for good (no Undo, my decision). The forms swap #}
+  {# the page in place (hx-boost) without moving it; without JavaScript they reload it. #}
+  <div class="tags-section">
+    {% if tags %}
+      <ul class="tag-chips">
+        {% for tag in tags %}
+          <li class="tag-chip">
+            <span>{{ tag.name }}</span>
+            <details>
+              <summary class="tag-chip-edit" aria-label="Rename the tag {{ tag.name }}" title="Rename the tag">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"/></svg>
+              </summary>
+            </details>
+            <form method="post" action="{% url 'tag_delete' %}" class="tag-chip-corner" hx-boost="true" hx-push-url="false" hx-disabled-elt="find button">
+              {% csrf_token %}
+              <input type="hidden" name="tag_id" value="{{ tag.id }}">
+              <input type="hidden" name="next" value="{% url 'profile' %}">
+              <button type="submit" class="tag-chip-remove" aria-label="Delete the tag {{ tag.name }}" title="Delete the tag"><span aria-hidden="true">&times;</span></button>
+            </form>
+            <form method="post" action="{% url 'tag_rename' %}" class="tag-new tag-rename" hx-boost="true" hx-push-url="false" hx-disabled-elt="find button">
+              {% csrf_token %}
+              <input type="hidden" name="tag_id" value="{{ tag.id }}">
+              <input type="hidden" name="next" value="{% url 'profile' %}">
+              <input type="text" name="name" value="{{ tag.name }}" maxlength="{{ tag_max }}" required aria-label="New name for {{ tag.name }}">
+              <button type="submit" class="outline secondary">Save</button>
+            </form>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+    {% include 'core/_tag_problems.html' %}
+    <form method="post" action="{% url 'tag_create' %}" class="tag-new" hx-boost="true" hx-push-url="false" hx-disabled-elt="find button">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{% url 'profile' %}">
+      <input type="text" name="name" maxlength="{{ tag_max }}" required placeholder="New tag" aria-label="New tag">
+      <button type="submit" class="outline secondary">Add tag</button>
+    </form>
+  </div>
 
   <form method="post">
     {% csrf_token %}

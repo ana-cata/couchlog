@@ -747,13 +747,13 @@ def rating_save(request):
 
 
 def _my_tags(user):
-    """This account's tags in use (not the deleted ones waiting for their Undo), by name."""
-    return Tag.objects.filter(user=user, deleted_at=None).order_by(Lower('name'), 'id')
+    """This account's tags, by name."""
+    return Tag.objects.filter(user=user).order_by(Lower('name'), 'id')
 
 
 def _tag_named(user, name, but=None):
-    """This account's tag in use with this name, whatever the capital letters, or None. `but` is left out (a tag being
-    renamed may change only its capital letters)."""
+    """This account's tag with this name, whatever the capital letters, or None. `but` is left out (a tag being renamed
+    may change only its capital letters)."""
     tags = _my_tags(user).filter(name__iexact=name)
     if but is not None:
         tags = tags.exclude(id=but.id)
@@ -769,17 +769,20 @@ def _posted_tag_name(request):
 
 
 def _posted_tag(request):
-    """The tag in use a button was pressed for. Another account's tag, or a deleted one, is "not found"."""
+    """The tag a button was pressed for. Another account's tag is "not found"."""
     try:
         tag_id = int(request.POST.get('tag_id', ''))
     except ValueError:
         raise BadRequest from None
-    return get_object_or_404(Tag, id=tag_id, user=request.user, deleted_at=None)
+    return get_object_or_404(Tag, id=tag_id, user=request.user)
 
 
-def _forget_deleted_tags(user):
-    """Delete for good the tags whose Undo window is over, with their links to titles."""
-    Tag.objects.filter(user=user, deleted_at__lt=timezone.now() - UNDO_WINDOW).delete()
+def _back_to_tags(request, problem, fallback):
+    """Go back to the page the tag button was on. The page is swapped in place without scrolling, so a problem is shown
+    next to the tags (with the tag `tag-problem`), not at the top of the page where it would not be seen."""
+    if problem:
+        messages.error(request, problem, extra_tags='tag-problem')
+    return _redirect_back(request, '', True, fallback)
 
 
 def _tags_box(request, kind, tmdb_id):
@@ -795,37 +798,24 @@ def _tags_box(request, kind, tmdb_id):
     }
 
 
-def _recently_deleted_tags(request):
-    """What the "Recently deleted" block under My tags on Profile shows: the tags deleted inside the Undo window."""
-    deleted = list(
-        Tag.objects.filter(user=request.user, deleted_at__gte=timezone.now() - UNDO_WINDOW).order_by('-deleted_at')
-    )
-    context = {'deleted_tags': deleted, 'undo_seconds': _undo_seconds()}
-    if deleted:
-        # As on the To Watch screen: the block asks again just after the oldest one runs out of time.
-        runs_out = min(tag.deleted_at for tag in deleted) + UNDO_WINDOW
-        context['tags_recheck_seconds'] = max(1, math.ceil((runs_out - timezone.now()).total_seconds()) + 1)
-    return context
-
-
 @require_POST
 @counts_as_change
 def tag_create(request):
     """Make a new tag, on Profile or on a title's page. On a title's page it also goes on that title, and a name that is
-    already one of my tags puts that tag on it (the title is saved from TMDB first if it is not saved yet)."""
+    already one of my tags puts that tag on it (the title is saved from TMDB first if it is not saved yet). No message
+    when it works: the new chip says it."""
     name, problem = _posted_tag_name(request)
     on_a_title = 'tmdb_id' in request.POST
     fallback = 'search' if on_a_title else 'profile'
     if problem:
-        return _redirect_back(request, problem, False, fallback)
+        return _back_to_tags(request, problem, fallback)
     existing = _tag_named(request.user, name)
 
     if not on_a_title:
         if existing:
-            return _redirect_back(request, f'You already have a tag called “{existing.name}”.', False, fallback)
+            return _back_to_tags(request, f'You already have a tag called “{existing.name}”.', fallback)
         Tag.objects.create(user=request.user, name=name)
-        # No message: the new chip says it.
-        return _redirect_back(request, '', True, fallback)
+        return _back_to_tags(request, '', fallback)
 
     kind, tmdb_id = _posted_title(request)
     try:
@@ -833,12 +823,11 @@ def tag_create(request):
     except tmdb.TmdbNotFound:
         raise Http404 from None
     except tmdb.TmdbError as problem:
-        return _redirect_back(request, str(problem), False, fallback)
+        return _back_to_tags(request, str(problem), fallback)
     with transaction.atomic():
         tag = existing or Tag.objects.create(user=request.user, name=name)
         TitleTag.objects.get_or_create(tag=tag, title=title)
-    # No message: the new chip on the page says it.
-    return _redirect_back(request, '', True, fallback)
+    return _back_to_tags(request, '', fallback)
 
 
 @require_POST
@@ -847,53 +836,20 @@ def tag_rename(request):
     tag = _posted_tag(request)
     name, problem = _posted_tag_name(request)
     if problem:
-        return _redirect_back(request, problem, False, 'profile')
-    if name == tag.name:
-        return _redirect_back(request, 'Nothing changed, so nothing was saved.', True, 'profile')
+        return _back_to_tags(request, problem, 'profile')
     if other := _tag_named(request.user, name, but=tag):
-        return _redirect_back(request, f'You already have a tag called “{other.name}”.', False, 'profile')
-    tag.name = name
-    tag.save(update_fields=['name'])
-    # No message: the chip's new name says it.
-    return _redirect_back(request, '', True, 'profile')
+        return _back_to_tags(request, f'You already have a tag called “{other.name}”.', 'profile')
+    if name != tag.name:
+        tag.name = name
+        tag.save(update_fields=['name'])
+    return _back_to_tags(request, '', 'profile')
 
 
 @require_POST
 def tag_delete(request):
-    """Delete a tag, which takes it off all its titles. Its links stay for the Undo (10 seconds)."""
-    _forget_deleted_tags(request.user)
-    tag = _posted_tag(request)
-    tag.deleted_at = timezone.now()
-    tag.save(update_fields=['deleted_at'])
-    # No message: the tag showing up under "Recently deleted", with its Undo, says it.
-    return _redirect_back(request, '', True, 'profile')
-
-
-@require_POST
-def tag_undo(request):
-    """Bring back a tag deleted a moment ago, on all the titles it was on."""
-    try:
-        tag_id = int(request.POST.get('tag_id', ''))
-    except ValueError:
-        raise BadRequest from None
-    tag = Tag.objects.filter(id=tag_id, user=request.user).exclude(deleted_at=None).first()
-    if tag is None:
-        return _redirect_back(request, 'There is nothing to undo for that tag.', False, 'profile')
-    if tag.deleted_at < timezone.now() - UNDO_WINDOW:
-        tag.delete()
-        return _redirect_back(request, f'It is too late to undo deleting “{tag.name}”.', False, 'profile')
-    if other := _tag_named(request.user, tag.name):
-        text = f'You have made a new tag called “{other.name}” since, so the old one was not brought back.'
-        return _redirect_back(request, text, False, 'profile')
-    tag.deleted_at = None
-    tag.save(update_fields=['deleted_at'])
-    return _redirect_back(request, f'Brought back the tag “{tag.name}”.', True, 'profile')
-
-
-# Only the "Recently deleted" block under My tags, which Profile asks for when time runs out.
-@never_cache
-def tags_deleted(request):
-    return render(request, 'core/_tags_deleted.html', _recently_deleted_tags(request))
+    """Delete a tag for good, which takes it off all its titles. There is no Undo (my decision on card #119)."""
+    _posted_tag(request).delete()
+    return _back_to_tags(request, '', 'profile')
 
 
 @require_POST
@@ -907,10 +863,9 @@ def tag_add(request):
     except tmdb.TmdbNotFound:
         raise Http404 from None
     except tmdb.TmdbError as problem:
-        return _redirect_back(request, str(problem), False, 'search')
+        return _back_to_tags(request, str(problem), 'search')
     TitleTag.objects.get_or_create(tag=tag, title=title)
-    # No message: the chip moving to the title's tags says it.
-    return _redirect_back(request, '', True, 'search')
+    return _back_to_tags(request, '', 'search')
 
 
 @require_POST
@@ -919,7 +874,7 @@ def tag_remove(request):
     tag = _posted_tag(request)
     kind, tmdb_id = _posted_title(request)
     TitleTag.objects.filter(tag=tag, title__kind=kind, title__tmdb_id=tmdb_id).delete()
-    return _redirect_back(request, '', True, 'search')
+    return _back_to_tags(request, '', 'search')
 
 
 def history(request):
@@ -1405,13 +1360,11 @@ def profile(request):
         form = TimeZoneForm(initial={'timezone': profile.timezone})
     movies, series = minutes_watched(request.user)
     time_spent = {'movies': describe(movies), 'series': describe(series), 'total': describe(movies + series)}
-    _forget_deleted_tags(request.user)
     context = {
         'form': form,
         'profile': profile,
         'time_spent': time_spent,
         'tags': _my_tags(request.user),
         'tag_max': TAG_NAME_MAX_LENGTH,
-        **_recently_deleted_tags(request),
     }
     return render(request, 'core/profile.html', context)

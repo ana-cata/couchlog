@@ -65,7 +65,6 @@ READS = {
     'series_dropped': '/series/dropped/',
     'calendar': '/calendar/',
     'to_watch_removed': '/to-watch/removed/?kind=series',
-    'tags_deleted': '/tags/deleted/',
     'title': '/movie/501/',
     'where_to_watch': '/movie/501/where-to-watch/',
 }
@@ -85,7 +84,6 @@ CHANGES = {
     'tag_create': '/tags/create/',
     'tag_rename': '/tags/rename/',
     'tag_delete': '/tags/delete/',
-    'tag_undo': '/tags/undo/',
     'tag_add': '/tags/add/',
     'tag_remove': '/tags/remove/',
     'watched_add': '/watched/add/',
@@ -153,13 +151,11 @@ def other(db):
     item = ToWatchItem.objects.create(user=account, title=gone)
     RemovedSeries.objects.create(user=account, title=gone, rows=serializers.serialize('json', [item]))
     item.delete()
-    # A tag on the film, and one deleted a moment ago (so its Undo is still possible).
+    # A tag on the film.
     tag = Tag.objects.create(user=account, name='Secret tag')
     TitleTag.objects.create(tag=tag, title=film)
-    deleted = Tag.objects.create(user=account, name='Deleted tag', deleted_at=NOW - datetime.timedelta(seconds=2))
-    TitleTag.objects.create(tag=deleted, title=listed)
 
-    account.film_watch, account.second_episode, account.tag, account.deleted_tag = watch, second, tag, deleted
+    account.film_watch, account.second_episode, account.tag = watch, second, tag
     return account
 
 
@@ -189,7 +185,6 @@ def form_aimed_at(other, name):
         'tag_create': {**film, 'name': 'Secret tag'},
         'tag_rename': {'tag_id': other.tag.id, 'name': 'Renamed by someone else'},
         'tag_delete': {'tag_id': other.tag.id},
-        'tag_undo': {'tag_id': other.deleted_tag.id},
         'tag_add': {**film, 'tag_id': other.tag.id},
         'tag_remove': {**film, 'tag_id': other.tag.id},
         'watched_add': {**film, 'watched_on': EARLIER.isoformat()},

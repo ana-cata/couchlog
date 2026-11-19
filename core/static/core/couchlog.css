@@ -1024,12 +1024,14 @@ select.fit {
   display: block;
 }
 
-/* My tags on a title's page (_tags.html): small chips that wrap onto the next line on a phone. A tag on the title is
-   off-white in a thin outline with an × to take it off; my other tags are softened, with a dashed outline and a "+",
-   to add. Pink only under the mouse (Identity/identity.md). Every chip, and the × in it, is at least 2.5rem
-   (40 px) high, so it stays easy to tap. */
+/* My tags (_tags.html on a title's page, and Profile): small chips that wrap onto the next line on a phone. A tag is
+   off-white in a thin rounded outline, with a small round × on its top-right corner (to take it off a title, or on
+   Profile to delete it); my other tags on a title's page are softened, with a dashed outline and a "+", to add. Pink
+   only under the mouse (Identity/identity.md). The chips and the "+" are at least 2.5rem (40 px) high; the × is drawn
+   small but its button is 1.75rem (28 px) square, so it can still be tapped. */
 .tags-section {
   margin-top: 1.5rem;
+  margin-bottom: 1.5rem;
 }
 
 .tags-label {
@@ -1037,12 +1039,13 @@ select.fit {
   color: var(--pico-muted-color);
 }
 
+/* Room above and at the right for the corner ×, and between the lines for the × of the chips below. */
 .tag-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.9rem 0.75rem;
   margin: 0 0 0.75rem;
-  padding: 0;
+  padding: 0.5rem 0.5rem 0 0;
   list-style: none;
 }
 
@@ -1056,10 +1059,11 @@ select.fit {
 }
 
 .tag-chip {
+  position: relative;
   display: inline-flex;
   align-items: center;
   min-height: 2.5rem;
-  padding-inline-start: 0.85rem;
+  padding: 0 0.85rem;
   border: 1px solid var(--couch-soft);
   border-radius: 999px;
   font-size: 0.9rem;
@@ -1073,14 +1077,44 @@ select.fit {
   line-height: 1.2;
 }
 
+/* The × on the chip's top-right corner. */
+.tag-chip-corner {
+  position: absolute;
+  top: -0.85rem;
+  right: -0.85rem;
+}
+
 .tag-chip .tag-chip-remove {
-  min-width: 2.5rem;
-  min-height: 2.5rem;
-  padding: 0 0.6rem;
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
   border: none;
   background: transparent;
+}
+
+.tag-chip-remove span {
+  display: grid;
+  place-items: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  border: 1px solid var(--couch-soft);
+  border-radius: 50%;
+  background: var(--couch-navy);
   color: var(--pico-muted-color);
-  font-size: 1.15rem;
+  font-size: 0.8rem;
+  line-height: 1;
+}
+
+.tag-chip .tag-chip-remove:is(:hover, :focus-visible) {
+  background: transparent;
+  box-shadow: none;
+}
+
+.tag-chip-remove:is(:hover, :focus-visible) span {
+  border-color: var(--couch-pink);
+  color: var(--couch-pink);
 }
 
 .tag-chip-add {
@@ -1092,13 +1126,15 @@ select.fit {
   color: var(--pico-muted-color);
 }
 
-.tag-chips button:is(:hover, :focus-visible) {
+.tag-chip-add:is(:hover, :focus-visible) {
   border-color: var(--couch-pink);
   color: var(--couch-pink);
 }
 
-.tag-chip .tag-chip-remove:is(:hover, :focus-visible) {
-  background: transparent;
+/* A problem with a tag button, next to the tags (the page does not move, so it would not be seen at the top). */
+.tag-problem {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
 }
 
 /* The box to make a new tag, with its button at the right: on a title's page and on Profile. */
@@ -1121,8 +1157,12 @@ select.fit {
   white-space: nowrap;
 }
 
-/* My tags on Profile: the same chips, each with a pencil (rename) and an × (delete). The pencil opens the rename box
+/* My tags on Profile: the same chips, each with a pencil after the name (rename). The pencil opens the rename box
    inside the chip, under the name, only while it is open; the chip then takes the whole line. */
+.tag-chip:has(details) {
+  padding-inline-end: 0.3rem;
+}
+
 .tag-chip details {
   display: flex;
   align-items: center;
@@ -1171,20 +1211,11 @@ select.fit {
 .tag-chip:has(details[open]) .tag-rename {
   display: flex;
   flex-basis: 100%;
-  padding-inline-end: 0.6rem;
+  padding-inline-end: 0.55rem;
 }
 
 .tag-chip .tag-rename :is(input[type="text"], button) {
   height: 2.5rem;
   padding: 0.3rem 0.7rem;
   font-size: 0.9rem;
-}
-
-/* Room between the New tag box on Profile and the time zone under it. */
-#tags-deleted + .tag-new {
-  margin-bottom: calc(var(--pico-spacing) * 1.5);
-}
-
-#tags-deleted {
-  margin-bottom: 1rem;
 }

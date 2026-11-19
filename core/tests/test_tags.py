@@ -1,7 +1,8 @@
 """My own tags (card #119): made, renamed and deleted on Profile, added to and removed from a title on its page.
 
-Deleting a tag can be undone for 10 seconds and brings it back on all its titles. Removing a tag from a title has no
-Undo button: adding it again is the way back. Each account sees and changes only its own tags."""
+Neither has an Undo (my decisions on the card): deleting a tag deletes it for good, and adding a tag to a title again
+is the way back after removing it. A problem is shown next to the tags, since the page does not move. Each account
+sees and changes only its own tags."""
 
 import datetime
 
@@ -82,13 +83,13 @@ def page_after(client, response):
 
 def names(client):
     """This account's tags in use, by name."""
-    return sorted(Tag.objects.filter(user=client.user, deleted_at=None).values_list('name', flat=True))
+    return sorted(Tag.objects.filter(user=client.user).values_list('name', flat=True))
 
 
 def tags_on(client, title):
     """The names of this account's tags on a title."""
     return sorted(
-        TitleTag.objects.filter(tag__user=client.user, tag__deleted_at=None, title=title).values_list('tag__name', flat=True)
+        TitleTag.objects.filter(tag__user=client.user, title=title).values_list('tag__name', flat=True)
     )
 
 
@@ -163,70 +164,39 @@ def test_renaming_to_another_tags_name_is_refused_but_capital_letters_can_change
     Tag.objects.create(user=me.user, name='family')
 
     refused = page_after(me, me.post('/tags/rename/', {'tag_id': comfort.id, 'name': 'Family'}))
-    same = page_after(me, me.post('/tags/rename/', {'tag_id': comfort.id, 'name': 'comfort'}))
     me.post('/tags/rename/', {'tag_id': comfort.id, 'name': 'Comfort'})
 
     assert 'You already have a tag called “family”.' in refused
-    assert 'Nothing changed, so nothing was saved.' in same
     assert names(me) == ['Comfort', 'family']
 
 
-def test_deleting_a_tag_takes_it_off_its_titles_and_undo_brings_it_back_on_all_of_them(me, movie, series):
+def test_deleting_a_tag_deletes_it_for_good_and_takes_it_off_all_its_titles(me, movie, series):
     tag = Tag.objects.create(user=me.user, name='comfort')
     TitleTag.objects.create(tag=tag, title=movie)
     TitleTag.objects.create(tag=tag, title=series)
-    before = everything(me)
 
     page = page_after(me, me.post('/tags/delete/', {'tag_id': tag.id, 'next': '/profile/'}))
 
-    assert names(me) == []
-    assert tags_on(me, movie) == [] and tags_on(me, series) == []
-    assert 'Deleted “comfort”' in page
-    assert 'action="/tags/undo/"' in page
+    assert everything(me) == ([], [])
+    assert 'Rename the tag comfort' not in page
+    assert 'Undo' not in page
     assert 'comfort' not in me.get(MOVIE_PAGE).content.decode()
-
-    page = page_after(me, me.post('/tags/undo/', {'tag_id': tag.id, 'next': '/profile/'}))
-
-    assert 'Brought back the tag “comfort”.' in page
-    assert everything(me) == before
-    assert tags_on(me, movie) == ['comfort'] and tags_on(me, series) == ['comfort']
+    assert Title.objects.count() == 2  # the titles themselves are never touched
+    # Its name is free again.
+    create(me, 'comfort')
+    assert names(me) == ['comfort']
 
 
-def test_after_10_seconds_a_deleted_tag_is_gone_for_good(me, movie, clock):
-    tag = Tag.objects.create(user=me.user, name='comfort')
-    TitleTag.objects.create(tag=tag, title=movie)
-    me.post('/tags/delete/', {'tag_id': tag.id})
-    clock.shift(datetime.timedelta(seconds=11))
+def test_a_problem_is_shown_next_to_the_tags_not_at_the_top(me, movie):
+    Tag.objects.create(user=me.user, name='comfort')
 
-    page = page_after(me, me.post('/tags/undo/', {'tag_id': tag.id, 'next': '/profile/'}))
+    on_profile = page_after(me, create(me, 'Comfort'))
+    on_title = page_after(me, create(me, 'x' * 31, next_page=MOVIE_PAGE, kind='movie', tmdb_id=603))
 
-    assert 'It is too late to undo deleting “comfort”.' in page
-    assert everything(me) == ([], [])
-    assert Title.objects.filter(id=movie.id).exists()  # the title itself is never touched
-
-
-def test_the_recently_deleted_block_empties_by_itself(me, clock):
-    tag = Tag.objects.create(user=me.user, name='comfort')
-    me.post('/tags/delete/', {'tag_id': tag.id})
-
-    block = me.get('/tags/deleted/').content.decode()
-    assert 'Deleted “comfort”' in block and 'hx-trigger="load delay:11s"' in block
-
-    clock.shift(datetime.timedelta(seconds=11))
-    assert 'comfort' not in me.get('/tags/deleted/').content.decode()
-    me.get('/profile/')  # opening Profile deletes it for good
-    assert everything(me) == ([], [])
-
-
-def test_a_deleted_tags_name_can_be_used_again_and_its_undo_then_says_so(me):
-    old = Tag.objects.create(user=me.user, name='comfort')
-    me.post('/tags/delete/', {'tag_id': old.id})
-    create(me, 'Comfort')
-
-    page = page_after(me, me.post('/tags/undo/', {'tag_id': old.id, 'next': '/profile/'}))
-
-    assert 'You have made a new tag called “Comfort” since, so the old one was not brought back.' in page
-    assert names(me) == ['Comfort']
+    for page in (on_profile, on_title):
+        tags = page.split('class="tags-section"')[1]
+        assert 'class="tag-problem"' in tags
+        assert 'role="status"' not in page
 
 
 # --- a title's page: add, remove, new tag ---------------------------------------------------------
@@ -358,17 +328,6 @@ def test_another_account_cannot_touch_my_tags(me, movie):
     assert everything(me) == before
 
 
-def test_another_account_cannot_undo_deleting_my_tag(me):
-    tag = Tag.objects.create(user=me.user, name='comfort')
-    me.post('/tags/delete/', {'tag_id': tag.id})
-    friend = make_client('friend')
-
-    page = page_after(friend, friend.post('/tags/undo/', {'tag_id': tag.id, 'next': '/profile/'}))
-
-    assert 'There is nothing to undo for that tag.' in page
-    assert names(me) == []
-
-
 # --- the demo -------------------------------------------------------------------------------------
 
 
@@ -380,13 +339,12 @@ def test_in_the_demo_only_making_and_adding_a_tag_count_as_changes(me, movie, se
     title = {'tag_id': tag.id, 'kind': 'movie', 'tmdb_id': 603}
     me.post('/tags/add/', title)
 
-    # The limit is reached, but renaming, removing, deleting and its Undo still work and are not counted.
+    # The limit is reached, but renaming, removing and deleting still work and are not counted.
     create(me, 'refused')
     me.post('/tags/rename/', {'tag_id': tag.id, 'name': 'cosy'})
     me.post('/tags/remove/', title)
-    me.post('/tags/delete/', {'tag_id': tag.id})
-    me.post('/tags/undo/', {'tag_id': tag.id})
-
     assert names(me) == ['cosy']
     assert tags_on(me, movie) == []
+    me.post('/tags/delete/', {'tag_id': tag.id})
+    assert names(me) == []
     assert DemoEvent.objects.filter(kind=DemoEvent.Kind.CHANGE, user=me.user).count() == 2
