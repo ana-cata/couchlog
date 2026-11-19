@@ -15,6 +15,7 @@
   - shows **Time spent watching** (see below);
   - shows the time zone and lets you change it;
   - has the Log out button.
+  - The time zone box and the two buttons (**Save time zone**, light pink, and **Log out**, a quiet outline) are only as wide as what they say, on the left, not across the whole page.
 - **Time spent watching:** the total time you have spent watching, in **Movies**, **Series** and a **Total**, as years, months, days, hours and minutes. Units that are zero are left out: a 100-minute film is "1 hour 40 minutes", and when nothing is watched yet it says "0 minutes". It only covers what you register in Couchlog, so it starts at zero.
   - **Every watch counts its runtime,** rewatches too. A film watched 3 more times adds 3 runtimes, an episode pressed twice counts twice, and "Watch Season N again" adds the runtimes of every episode of the season that has aired.
   - **An episode with no runtime** uses its series' typical episode runtime. Anything TMDB has no runtime for counts as 0 minutes.
@@ -61,6 +62,7 @@
 - `FirstStepsMiddleware` (`core/middleware.py`) sends a logged-in account without a time zone to `/profile/`, and then, once, to the welcome page ([welcome.md](welcome.md)). The Profile page, Log out and the welcome page are exempt. Saving the first time zone leads to the welcome page.
 - The list comes from Python's time zone data and keeps only real regions (Africa, America, Antarctica, Arctic, Asia, Atlantic, Australia, Europe, Indian, Pacific) plus `UTC`. Old aliases such as `US/Eastern` are left out. The server refuses any name not in the list.
 - The browser's time zone is pre-selected by a few lines of JavaScript on the Profile page, only when no time zone is saved yet.
+- **Widths.** Pico CSS makes every drop-down list and every submit button as wide as the page. On the Profile page the box and its two buttons have the class `fit` (`core/static/core/couchlog.css`), which makes them as wide as their content, never wider than the screen, with the box on its own line under its label. Other pages keep Pico's full width. `core/tests/test_profile_look.py` measures them in a browser at computer and phone width.
 - The time zone also gives the country whose streaming services a title's page shows (Where to watch, see [search.md](search.md)).
 
 **Time spent watching** (`core/time_spent.py`, shown by `profile` in `core/views.py`)

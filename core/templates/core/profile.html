@@ -19,19 +19,19 @@
     {% csrf_token %}
     <label>
       Time zone
-      <select name="timezone" id="id_timezone" required {% if form.errors %}aria-invalid="true"{% endif %}>
+      <select name="timezone" id="id_timezone" class="fit" required {% if form.errors %}aria-invalid="true"{% endif %}>
         {% for value, label in form.fields.timezone.choices %}
           <option value="{{ value }}" {% if value == form.timezone.value %}selected{% endif %}>{{ label }}</option>
         {% endfor %}
       </select>
       {% if form.errors %}<small>Choose a time zone from the list.</small>{% endif %}
     </label>
-    <button type="submit">Save time zone</button>
+    <button type="submit" class="fit">Save time zone</button>
   </form>
 
   <form method="post" action="{% url 'logout' %}">
     {% csrf_token %}
-    <button type="submit" class="secondary">Log out</button>
+    <button type="submit" class="secondary fit">Log out</button>
   </form>
 
   {# Until a time zone is saved, suggest the one the browser reports. #}

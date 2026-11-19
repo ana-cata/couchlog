@@ -53,6 +53,18 @@ def test_the_saved_time_zone_is_shown_and_selected_on_the_profile_page(logged_in
     assert '<option value="Asia/Tokyo" selected>' in page
 
 
+def test_the_time_zone_box_and_the_two_buttons_are_only_as_wide_as_what_they_say(logged_in, user):
+    Profile.objects.create(user=user, timezone='Europe/Lisbon')
+
+    page = logged_in.get('/profile/').content.decode()
+
+    # The class "fit" undoes Pico's full width (couchlog.css). Only these three get it.
+    assert '<select name="timezone" id="id_timezone" class="fit"' in page
+    assert '<button type="submit" class="fit">Save time zone</button>' in page
+    assert '<button type="submit" class="secondary fit">Log out</button>' in page
+    assert page.count('class="fit"') + page.count(' fit"') == 3
+
+
 @pytest.mark.parametrize('value', ['', 'Mars/Olympus_Mons', 'US/Eastern', 'Etc/GMT+5'])
 def test_a_time_zone_that_is_not_in_the_list_is_refused(logged_in, user, value):
     Profile.objects.create(user=user, timezone='Europe/Lisbon')
