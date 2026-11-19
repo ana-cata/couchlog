@@ -993,3 +993,16 @@ button.corner-button.on-list:is(:hover, :focus-visible) {
   border: 1px solid rgba(254, 247, 247, 0.2);
   border-radius: var(--pico-border-radius);
 }
+
+/* The Profile page's time zone box and its two buttons (Save time zone, Log out): only as wide as what they say, not
+   the whole page as Pico makes them. On a phone they never grow past the screen, and they keep Pico's height, so they
+   stay easy to tap. The box stays on its own line, under the words "Time zone". */
+button.fit[type="submit"],
+select.fit {
+  width: auto;
+  max-width: 100%;
+}
+
+select.fit {
+  display: block;
+}
