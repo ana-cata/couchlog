@@ -1,0 +1,23 @@
+{# The offer to rate a title right after watching it: "How was it?" with the stars, the note and Save, and "Not now". #}
+{# Only for a title with no stars yet (core/views.py, `_offer_for_movie` and `_offer_for_series`). Nothing is saved #}
+{# until Save is pressed. "Not now" takes the offer off the page; without JavaScript it reloads the page, which no #}
+{# longer offers. #}
+{# A movie: in the page, under "Mark as watched". A series: a pop-up over the page (`popup`), because the last episode #}
+{# is often far down a long season, where the rating box at the top is out of sight. Pico shows a <dialog open> as a #}
+{# pop-up, as for the question about earlier episodes. #}
+{% if popup %}
+  <dialog open class="rate-offer" aria-labelledby="rate-offer-title">
+    <article>
+      <h3 id="rate-offer-title">How was it?</h3>
+      <p>You've watched every episode of {{ item.title }} so far.</p>
+      {% include 'core/_rating_form.html' %}
+      <p class="rate-offer-later"><a href="{{ next }}" onclick="this.closest('.rate-offer').remove(); return false">Not now</a></p>
+    </article>
+  </dialog>
+{% else %}
+  <div class="rate-offer">
+    <p><strong>How was it?</strong></p>
+    {% include 'core/_rating_form.html' %}
+    <p class="rate-offer-later"><a href="{{ next }}" onclick="this.closest('.rate-offer').remove(); return false">Not now</a></p>
+  </div>
+{% endif %}

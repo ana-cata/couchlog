@@ -1,4 +1,6 @@
 {# The clickable part of a tile: poster, name and year. `tile` is a search result or a saved title. #}
+{# On my lists (To Watch, History, the Series tabs) a title I gave stars has them under the year, small and light #}
+{# pink (`my_rating`, set by `_with_my_rating` in core/views.py). Search and Home tiles never have it. #}
 <a class="tile" href="{% url 'title' tile.kind tile.tmdb_id %}" title="{{ tile.title }}">
   {% if tile.poster_url %}
     <img class="poster" src="{{ tile.poster_url }}" alt="" loading="lazy">
@@ -7,4 +9,7 @@
   {% endif %}
   <strong>{{ tile.title }}</strong>
   <small>{{ tile.year|default:"Year unknown" }} · {{ tile.kind|capfirst }}</small>
+  {% if tile.my_rating %}
+    <small class="tile-stars"><span aria-hidden="true">{{ tile.my_rating.stars_text }}</span><span class="visually-hidden">Your rating: {{ tile.my_rating.stars }} of 5</span></small>
+  {% endif %}
 </a>

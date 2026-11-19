@@ -163,9 +163,10 @@ def test_one_press_of_back_is_enough_after_marking_watching_again_and_rating(liv
     expect(page.get_by_text('Marked “Made-up Movie” as watched.')).to_be_visible()
     page.get_by_role('button', name='Watch again').click()
     expect(page.get_by_text('Watched 2 times')).to_be_visible()
-    page.get_by_text('Rate it or add a note').click()
-    page.get_by_label('4 out of 5 stars').check()
-    page.get_by_role('button', name='Save', exact=True).click()
+    # The film has no stars, so "How was it?" is offered under the button: rating from it is one more change in place.
+    offer = page.locator('.rate-offer')
+    offer.get_by_label('4 out of 5 stars').check()
+    offer.get_by_role('button', name='Save', exact=True).click()
     expect(page.get_by_text('Your rating: ★★★★☆')).to_be_visible()
     page.get_by_role('button', name='Remove this watch').first.click()
     expect(page.get_by_role('button', name='Mark as not watched')).to_be_visible()

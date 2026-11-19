@@ -78,8 +78,14 @@ Series has four tabs, in this order: **Watching, To Watch, Finished, Dropped**. 
 - **Specials** (season 0) do not have to be watched to finish a series. Episodes that have not aired yet, or have no air date, do not count either. "Aired" follows your time zone.
 - If TMDB has not given a status yet (it is empty until the first refresh), the series cannot be finished: it stays in Watching.
 - A rewatch of an episode counts once: an episode is watched if it has at least one watch (design rule 2).
-- Watching, Finished and Dropped show plain tiles (poster, name, year) with no To Watch button. Watching and Finished list the newest-marked series first, Dropped the one dropped last first. Each says what it is for when empty, with a link: Watching to Search, Finished and Dropped to Watching (see [Messages](messages.md)).
+- Watching, Finished and Dropped show plain tiles (poster, name, year, and your stars if you gave some, as on [To Watch](to-watch.md)) with no To Watch button. Watching and Finished list the newest-marked series first, Dropped the one dropped last first. Each says what it is for when empty, with a link: Watching to Search, Finished and Dropped to Watching (see [Messages](messages.md)).
 - Marking an episode does not touch your To Watch list: the entry stays, only hidden from the To Watch tab while the series is being watched. If you un-mark every episode of a series that is on your list, it is back under To Watch.
+
+## Rating after the last episode
+
+- **"How was it?"** When a mark on the series page leaves no aired episode unwatched, and the series has no stars, a pop-up asks **How was it?** with the stars, the note and **Save**, and **Not now** under them. The mark can be an episode's circle, a season's **Mark Season 2 as watched**, or **Yes** on the question about earlier episodes. Episodes that have not aired and specials do not count, as for Finished.
+- **Save** saves like the rating box at the top of the page and comes back to the same season, open. **Not now** closes the pop-up and saves nothing. Rating is never needed.
+- **Never asked:** a series that already has stars (a note alone does not count, and the note is filled in), watching an episode again, marking a special, and the check on Home's Up Next. Taking back the last episode and marking it again asks again.
 
 ## Dropped series
 
@@ -189,6 +195,12 @@ For a series you want gone completely: off every list, with everything you saved
 - `take_back_rewatch(user, episodes)` deletes the latest watch of each episode of the season that has more than one, and only those. Right after a season rewatch that is exactly the watches the rewatch added (the test `test_taking_back_a_season_rewatch_removes_exactly_the_watches_it_added` compares every saved row). If you also pressed one episode's circle again on its own, that episode keeps one more than the others: the known limit below.
 - The buttons are in `_season_rewatch.html`: `season.all_marked` decides whether "Watch Season N again" shows and `season.can_take_back` (some episode has `watch_count` above 1) whether the "−" does (`_season_info` in `core/views.py`). They sit in a `season-buttons` box next to the season button and come back in the same answers as the season button (`_bulk_result.html`, `_episode_answer.html`, marked `hx-swap-oob`), so they appear and disappear without a reload.
 - A rewatch changes no number that progress, Up Next, the tabs or the Calendar read: they count episodes with at least one watch. The test `test_a_rewatch_changes_no_progress_bar_no_up_next_no_tab_and_no_calendar` compares those pages before and after.
+
+**The offer to rate** (`_offer_for_series` in `core/views.py`, `_rate_offer.html` with `popup`)
+- After `episode_watched_add` (a first watch, not from Home), `season_watched_add` and `episodes_watched_up_to`, `_offer_for_series` says yes when the press newly marked an aired episode of a season (not a special), `progress_by_series` now gives watched = aired, and there is no rating with stars. Nothing is saved for the offer itself.
+- With htmx the answer also carries `<div id="rate-offer" hx-swap-oob="true">` with a `<dialog open>` (Pico shows it as a pop-up), which htmx puts into the empty `#rate-offer` at the end of the seasons. Its form is `_rating_form.html` (the rating box's own), with `next` set to the page and its season. "Not now" is a link to the page whose `onclick` only takes the pop-up off the page.
+- Without htmx the redirect keeps `rate_offer` (the series' kind and TMDB id) in the session, and the series page shows the pop-up once, if there are still no stars (`_offered`).
+- Tests: `core/tests/test_rating_nudge.py`; the end-to-end test in a real browser presses Not now.
 
 **The question** (`skipped_episodes` in `core/episodes.py`, `_question` and `_ask_earlier` in `core/views.py`, `_ask_earlier.html`)
 - It is asked when the episode is a regular one (not season 0) that has aired and `skipped_episodes` finds at least one skipped episode. It walks back from the pressed episode through `episodes_up_to` (the regular seasons in page order) until it reaches an episode **you** have a watch for (specials do not count; only your own watches do). The episodes it passed that have aired by your day (and have a date) are the skipped ones, and the episode it stopped at is the "last marked" the pop-up names. Reaching the start of the series without finding one is the "nothing before it is marked" case.

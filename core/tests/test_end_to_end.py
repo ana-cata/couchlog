@@ -505,6 +505,10 @@ def test_a_series_found_in_search_and_marked_shows_up_under_watching(live_server
     open_season(page)
     page.get_by_role('button', name='Mark episode 2 as watched').click()
     expect(page.get_by_role('button', name='Mark episode 2 as not watched')).to_be_visible()
+    # That was the last aired episode, so "How was it?" pops up. "Not now" closes it and saves nothing.
+    expect(page.get_by_role('heading', name='How was it?')).to_be_visible()
+    page.get_by_role('link', name='Not now').click()
+    expect(page.locator('.rate-offer')).to_have_count(0)
     page.get_by_role('link', name='Series', exact=True).click()
     page.get_by_role('link', name='Finished', exact=True).click()
     expect(page.locator('.tile')).to_contain_text('Made-up Series')
