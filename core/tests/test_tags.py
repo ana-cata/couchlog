@@ -111,14 +111,18 @@ def test_profile_has_my_tags_with_a_box_to_make_one(me):
     assert 'Only you see them' in page
 
 
-def test_making_a_tag_on_profile_shows_it_there(me):
+def test_making_a_tag_on_profile_shows_it_there_as_a_chip(me, movie):
     response = create(me, '  comfort   food ')
 
     assert response['Location'] == '/profile/'
     page = page_after(me, response)
-    assert 'Made the tag “comfort food”.' in page
     assert names(me) == ['comfort food']
-    assert '0 titles' in page
+    assert 'aria-label="Rename the tag comfort food"' in page
+    assert 'aria-label="Delete the tag comfort food"' in page
+    # No message (the chip says it), and no count of titles.
+    assert 'role="status"' not in page
+    TitleTag.objects.create(tag=Tag.objects.get(user=me.user), title=movie)
+    assert '1 title' not in me.get('/profile/').content.decode()
 
 
 def test_a_tag_needs_a_name_and_at_most_30_characters(me):
@@ -146,7 +150,8 @@ def test_renaming_a_tag_keeps_it_on_its_titles(me, movie):
 
     page = page_after(me, me.post('/tags/rename/', {'tag_id': tag.id, 'name': 'cosy', 'next': '/profile/'}))
 
-    assert 'Renamed “comfort” to “cosy”.' in page
+    assert 'aria-label="Rename the tag cosy"' in page
+    assert 'role="status"' not in page  # no message: the chip's new name says it
     assert tags_on(me, movie) == ['cosy']
     # Renaming it back is the undo.
     me.post('/tags/rename/', {'tag_id': tag.id, 'name': 'comfort'})
@@ -176,7 +181,7 @@ def test_deleting_a_tag_takes_it_off_its_titles_and_undo_brings_it_back_on_all_o
 
     assert names(me) == []
     assert tags_on(me, movie) == [] and tags_on(me, series) == []
-    assert 'Deleted “comfort”' in page and 'from 2 titles' in page
+    assert 'Deleted “comfort”' in page
     assert 'action="/tags/undo/"' in page
     assert 'comfort' not in me.get(MOVIE_PAGE).content.decode()
 

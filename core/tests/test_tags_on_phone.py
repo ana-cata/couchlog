@@ -99,26 +99,37 @@ def test_a_new_tag_typed_on_the_titles_page_shows_as_a_chip(live_server, page):
     expect(page.get_by_role('button', name='Remove the tag to show a friend')).to_be_visible()
 
 
-def test_profiles_tags_fit_a_phone_and_delete_can_be_undone(live_server, page):
+def test_profiles_tags_are_chips_that_fit_a_phone_and_delete_can_be_undone(live_server, page):
     user = make_user()
-    Tag.objects.create(user=user, name='thirty characters long tag xyz')
+    for name in ['comfort', 'cosy', 'with family', 'thirty characters long tag xyz']:
+        Tag.objects.create(user=user, name=name)
     log_in(page, live_server)
     page.goto(live_server.url + '/profile/')
 
+    chips = page.locator('.tag-chip')
+    expect(chips).to_have_count(4)
+    # Small chips, several on a line, inside the screen, and their buttons easy to tap.
+    boxes = [chip.bounding_box() for chip in chips.all()]
+    assert len({round(box['y']) for box in boxes}) < 4
+    assert all(box['height'] < 50 for box in boxes)
     assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
-    # Rename opens its box on its own line under the tag, still inside the screen.
+    for button in page.locator('.tag-chip :is(summary, .tag-chip-remove)').all():
+        assert button.bounding_box()['height'] >= TAP_HEIGHT - 0.5
+
+    # The pencil opens the rename box under the name, still inside the screen. No Save until then.
     box = page.get_by_label('New name for thirty characters long tag xyz')
     expect(box).to_be_hidden()
-    page.get_by_text('Rename', exact=True).click()
+    expect(page.get_by_role('button', name='Save', exact=True)).to_have_count(0)
+    page.get_by_label('Rename the tag thirty characters long tag xyz').click()
     expect(box).to_be_visible()
     assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
     box.fill('thirty characters long tag abc')
     page.get_by_role('button', name='Save', exact=True).click()
-    expect(page.get_by_text('Renamed “thirty characters long tag xyz” to “thirty characters long tag abc”.')).to_be_visible()
+    expect(page.get_by_label('Rename the tag thirty characters long tag abc')).to_be_visible()
 
     page.get_by_role('button', name='Delete the tag thirty characters long tag abc').click()
     expect(page.get_by_text('Deleted “thirty characters long tag abc”')).to_be_visible()
 
     page.get_by_role('button', name='Undo').click()
     expect(page.get_by_text('Brought back the tag')).to_be_visible()
-    assert Tag.objects.get(user=user).deleted_at is None
+    assert Tag.objects.get(user=user, name='thirty characters long tag abc').deleted_at is None

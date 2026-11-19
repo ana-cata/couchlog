@@ -1121,67 +1121,68 @@ select.fit {
   white-space: nowrap;
 }
 
-/* My tags on Profile: the name (and on how many titles) on the left, Rename and Delete on the right. The rename form
-   opens on its own line under them. */
-.tag-list {
-  margin: 0 0 1rem;
-  padding: 0;
-  list-style: none;
-}
-
-.tag-list li {
+/* My tags on Profile: the same chips, each with a pencil (rename) and an × (delete). The pencil opens the rename box
+   inside the chip, under the name, only while it is open; the chip then takes the whole line. */
+.tag-chip details {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem 1rem;
   margin: 0;
-  padding: 0.5rem 0;
-  border-bottom: 1px solid var(--pico-muted-border-color);
-  list-style: none;
 }
 
-.tag-list-name {
-  overflow-wrap: anywhere;
-}
-
-.tag-list-name small {
-  margin-inline-start: 0.4rem;
+.tag-chip summary.tag-chip-edit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.25rem;
+  min-height: 2.5rem;
+  margin-inline-start: 0.2rem;
   color: var(--pico-muted-color);
+  list-style: none;
+  cursor: pointer;
 }
 
-.tag-list-buttons {
-  display: flex;
+.tag-chip summary.tag-chip-edit::after,
+.tag-chip summary.tag-chip-edit::-webkit-details-marker {
+  display: none;
+}
+
+.tag-chip summary.tag-chip-edit:is(:hover, :focus-visible),
+.tag-chip details[open] summary.tag-chip-edit {
+  color: var(--couch-pink);
+}
+
+/* Pico puts room under an open summary; here the pencil stays on the name's line. */
+.tag-chip details[open] > summary {
+  margin-bottom: 0;
+}
+
+.tag-chip .tag-rename {
+  display: none;
+}
+
+.tag-chip:has(details[open]) {
   flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 0.5rem;
-}
-
-.tag-list-buttons form,
-.tag-list-buttons details {
-  margin: 0;
-}
-
-.tag-list-buttons :is(button, summary[role="button"]) {
-  display: inline-block;
-  width: auto;
-  margin: 0;
-  padding: 0.25rem 0.75rem;
-  font-size: 0.8rem;
-}
-
-.tag-list-buttons summary::after {
-  display: none;
-}
-
-/* The rename form, on its own line under the tag, only while its Rename is open. */
-.tag-list .tag-rename {
-  display: none;
   flex-basis: 100%;
+  max-width: 20rem;
+  padding-bottom: 0.6rem;
+  border-radius: var(--pico-border-radius);
 }
 
-.tag-list li:has(details[open]) .tag-rename {
+.tag-chip:has(details[open]) .tag-rename {
   display: flex;
+  flex-basis: 100%;
+  padding-inline-end: 0.6rem;
+}
+
+.tag-chip .tag-rename :is(input[type="text"], button) {
+  height: 2.5rem;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.9rem;
+}
+
+/* Room between the New tag box on Profile and the time zone under it. */
+#tags-deleted + .tag-new {
+  margin-bottom: calc(var(--pico-spacing) * 1.5);
 }
 
 #tags-deleted {

@@ -18,23 +18,24 @@
   {# My own tags: make, rename and delete them here. They go on titles from each title's page. Only I see them. #}
   <h2>My tags</h2>
   <p><small>Your own labels for movies and series, like “comfort” or “with family”. Put them on a title from its page. Only you see them.</small></p>
+  {# Each tag is a small chip, like on a title's page: its name, a pencil that opens a box to rename it (under the name, #}
+  {# only while it is open) and an × that deletes it (with an Undo under the chips). #}
   {% if tags %}
-    <ul class="tag-list">
+    <ul class="tag-chips">
       {% for tag in tags %}
-        <li>
-          <span class="tag-list-name">{{ tag.name }} <small>{{ tag.title_count }} title{{ tag.title_count|pluralize }}</small></span>
-          <span class="tag-list-buttons">
-            {# Rename opens the small form on its own line under the tag (the stylesheet shows it while this is open). #}
-            <details>
-              <summary role="button" class="outline secondary">Rename</summary>
-            </details>
-            <form method="post" action="{% url 'tag_delete' %}">
-              {% csrf_token %}
-              <input type="hidden" name="tag_id" value="{{ tag.id }}">
-              <input type="hidden" name="next" value="{% url 'profile' %}">
-              <button type="submit" class="outline secondary" aria-label="Delete the tag {{ tag.name }}">Delete</button>
-            </form>
-          </span>
+        <li class="tag-chip">
+          <span>{{ tag.name }}</span>
+          <details>
+            <summary class="tag-chip-edit" aria-label="Rename the tag {{ tag.name }}" title="Rename the tag">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"/></svg>
+            </summary>
+          </details>
+          <form method="post" action="{% url 'tag_delete' %}">
+            {% csrf_token %}
+            <input type="hidden" name="tag_id" value="{{ tag.id }}">
+            <input type="hidden" name="next" value="{% url 'profile' %}">
+            <button type="submit" class="tag-chip-remove" aria-label="Delete the tag {{ tag.name }}" title="Delete the tag">&times;</button>
+          </form>
           <form method="post" action="{% url 'tag_rename' %}" class="tag-new tag-rename">
             {% csrf_token %}
             <input type="hidden" name="tag_id" value="{{ tag.id }}">

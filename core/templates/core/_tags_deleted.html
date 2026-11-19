@@ -6,7 +6,7 @@
     <ul class="removed">
       {% for tag in deleted_tags %}
         <li>
-          <span>Deleted “{{ tag.name }}” <small>{% if tag.title_count %}from {{ tag.title_count }} title{{ tag.title_count|pluralize }}{% else %}on no titles{% endif %}</small></span>
+          <span>Deleted “{{ tag.name }}”</span>
           <form method="post" action="{% url 'tag_undo' %}">
             {% csrf_token %}
             <input type="hidden" name="tag_id" value="{{ tag.id }}">

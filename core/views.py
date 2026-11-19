@@ -10,7 +10,7 @@ from django.contrib.auth.decorators import login_not_required
 from django.core import serializers
 from django.core.exceptions import BadRequest
 from django.db import transaction
-from django.db.models import Count, F, Q
+from django.db.models import F, Q
 from django.db.models.functions import Lower
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -798,9 +798,7 @@ def _tags_box(request, kind, tmdb_id):
 def _recently_deleted_tags(request):
     """What the "Recently deleted" block under My tags on Profile shows: the tags deleted inside the Undo window."""
     deleted = list(
-        Tag.objects.filter(user=request.user, deleted_at__gte=timezone.now() - UNDO_WINDOW)
-        .annotate(title_count=Count('links'))
-        .order_by('-deleted_at')
+        Tag.objects.filter(user=request.user, deleted_at__gte=timezone.now() - UNDO_WINDOW).order_by('-deleted_at')
     )
     context = {'deleted_tags': deleted, 'undo_seconds': _undo_seconds()}
     if deleted:
@@ -826,7 +824,8 @@ def tag_create(request):
         if existing:
             return _redirect_back(request, f'You already have a tag called “{existing.name}”.', False, fallback)
         Tag.objects.create(user=request.user, name=name)
-        return _redirect_back(request, f'Made the tag “{name}”.', True, fallback)
+        # No message: the new chip says it.
+        return _redirect_back(request, '', True, fallback)
 
     kind, tmdb_id = _posted_title(request)
     try:
@@ -853,10 +852,10 @@ def tag_rename(request):
         return _redirect_back(request, 'Nothing changed, so nothing was saved.', True, 'profile')
     if other := _tag_named(request.user, name, but=tag):
         return _redirect_back(request, f'You already have a tag called “{other.name}”.', False, 'profile')
-    old = tag.name
     tag.name = name
     tag.save(update_fields=['name'])
-    return _redirect_back(request, f'Renamed “{old}” to “{name}”.', True, 'profile')
+    # No message: the chip's new name says it.
+    return _redirect_back(request, '', True, 'profile')
 
 
 @require_POST
@@ -1411,8 +1410,7 @@ def profile(request):
         'form': form,
         'profile': profile,
         'time_spent': time_spent,
-        # My tags, each with how many titles it is on.
-        'tags': _my_tags(request.user).annotate(title_count=Count('links')),
+        'tags': _my_tags(request.user),
         'tag_max': TAG_NAME_MAX_LENGTH,
         **_recently_deleted_tags(request),
     }

@@ -23,10 +23,10 @@
   - **Undo:** it follows every undo by itself. Taking a watch back (Remove this watch, the "−", Mark as not watched) takes its minutes off again. There is nothing to undo on the page itself.
   - **Only your own watches count:** each account sees its own total.
 - **My tags** (card #119): your own labels for movies and series, like "comfort" or "with family". Only you see them. They go on a title from its page ([Search and title pages](search.md)).
-  - **Make one:** type a name in the **New tag** box and press **Add tag** (you can also make one from a title's page). A name has 1 to 30 characters; spaces at the ends are dropped. Two tags cannot have the same name, whatever the capital letters ("Comfort" and "comfort" are the same).
-  - **The list** shows each tag by name, with how many titles it is on, and two small buttons:
-    - **Rename** opens a box on its own line under the tag, with the name filled in, and **Save**. The tag stays on its titles. Changing only the capital letters is allowed. Undo: rename it back.
-    - **Delete** takes the tag off all its titles at once. It shows under the list as "Deleted “comfort” from 3 titles" with an **Undo** for 10 seconds, which brings it back on all of them. After that it is gone for good, and the line goes away by itself.
+  - **Make one:** type a name in the **New tag** box and press **Add tag** (you can also make one from a title's page). The new chip appears; there is no message. A name has 1 to 30 characters; spaces at the ends are dropped. Two tags cannot have the same name, whatever the capital letters ("Comfort" and "comfort" are the same).
+  - **Your tags** show as small **chips**, the same as on a title's page, several on a line: the name, a small **pencil** and an **×**. No count of titles (my decision on review).
+    - **The pencil** (rename) opens a box inside the chip, under the name, with the name filled in, and **Save**. The chip takes the whole line while it is open; the pencil again closes it. There is no Save until then. The tag stays on its titles, there is no message, and changing only the capital letters is allowed. Undo: rename it back.
+    - **The ×** (delete) takes the tag off all its titles at once. Under the chips, "Deleted “comfort”" shows with an **Undo** for 10 seconds, which brings it back on all of them. After that it is gone for good, and the line goes away by itself.
   - A deleted tag's name can be used again at once. If you do, its Undo says the old one was not brought back.
   - Undo for making a tag: delete it.
 - **Time zone undo:** to undo a time zone change, choose the old one again. There is no separate undo button.
@@ -83,12 +83,12 @@
 - **Titles saved before this card** have no runtime until `uv run python manage.py refresh_calendar` has run once (it now also asks about films you have watched that have no runtime saved). Until then they count as 0 minutes.
 
 **My tags** (in `core/views.py`: `profile`, `tag_create`, `tag_rename`, `tag_delete`, `tag_undo`, `tags_deleted`; templates `profile.html` and `_tags_deleted.html`; form `TagForm` in `core/forms.py`; tables `core_tag` and `core_titletag`, see [data-model.md](data-model.md))
-- Plain forms that reload the page with a message: `/tags/create/` (`name`), `/tags/rename/` (`tag_id`, `name`), `/tags/delete/` and `/tags/undo/` (`tag_id`). `TagForm` cleans the name (spaces at the ends dropped, runs of spaces made one) and refuses an empty one or one over 30 characters. "Same name" is checked with `iexact`, and the table also refuses it (`one_tag_per_name`, on the lower-case name, among tags in use).
+- Plain forms that reload the page (a message only for a problem or an Undo): `/tags/create/` (`name`), `/tags/rename/` (`tag_id`, `name`), `/tags/delete/` and `/tags/undo/` (`tag_id`). `TagForm` cleans the name (spaces at the ends dropped, runs of spaces made one) and refuses an empty one or one over 30 characters. "Same name" is checked with `iexact`, and the table also refuses it (`one_tag_per_name`, on the lower-case name, among tags in use).
 - **Delete** only fills in the tag's `deleted_at`; its links to titles stay. Every list of tags leaves out deleted ones, so it is off its titles at once. **Undo** clears `deleted_at` if it is under 10 seconds old (`UNDO_WINDOW`, the same as To Watch) and no tag in use has its name now. Opening Profile, or deleting another tag, deletes for good the tags past the window, with their links.
 - The "Recently deleted" block (`_tags_deleted.html`, `/tags/deleted/`) asks the server again just after the oldest Undo runs out, like "Recently removed" on To Watch, so it empties by itself.
-- Rename opens with a `<details>` that holds only the button; the rename form is next to it in the row and `couchlog.css` shows it (on its own line) while the details is open (`li:has(details[open])`). No JavaScript.
+- The chips use the title page's `.tag-chips` and `.tag-chip` styles. The pencil is a `<details>` that holds only its `<summary>`; the rename form is the chip's last child, and `couchlog.css` shows it (on its own line, with the chip as wide as the line) while the details is open (`.tag-chip:has(details[open])`). No JavaScript.
 - A tag is only found among the account's own, so another account's tag id is "not found" (404). In the demo, making a tag counts as a change; renaming, deleting and Undo do not.
-- Tests: `core/tests/test_tags.py` (make, the name rules, rename, delete and Undo, too late, the block emptying, a name used again, other accounts, the demo) and `test_tags_on_phone.py` (Profile fits a phone, rename, delete and Undo in a real browser).
+- Tests: `core/tests/test_tags.py` (make, the name rules, rename, delete and Undo, too late, the block emptying, a name used again, other accounts, the demo) and `test_tags_on_phone.py` (Profile's chips share lines, fit a phone and are easy to tap; no Save until the pencil; rename, delete and Undo in a real browser).
 
 **Creating an account**
 1. `uv run python manage.py createsuperuser` makes the first account (you choose the username and password in the terminal).
