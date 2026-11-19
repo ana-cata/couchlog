@@ -208,7 +208,7 @@ def start_account(time_zone):
     `tmdb.TmdbError` when the sample titles cannot be loaded; either way no account is made.
 
     The account has a random name, no usable password, and `time_zone` (the browser's, UTC if it is not a real one),
-    so it skips the time zone step. Accounts older than a day are deleted first.
+    so it skips the time zone step and goes to the welcome page first. Accounts older than a day are deleted first.
     """
     if is_full():
         raise DemoFull
@@ -219,7 +219,7 @@ def start_account(time_zone):
     with transaction.atomic():
         delete_old_accounts()
         user = User.objects.create_user(username=USERNAME_PREFIX + secrets.token_hex(6))
-        Profile.objects.create(user=user, timezone=time_zone)
+        Profile.objects.create(user=user, timezone=time_zone, welcome_seen=False)
         _add_sample_data(user, titles, today)
         DemoEvent.objects.create(kind=DemoEvent.Kind.ACCOUNT)
     return user

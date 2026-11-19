@@ -1080,6 +1080,16 @@ def about(request):
     return render(request, 'core/about.html')
 
 
+# Nothing private on this page either, so a visitor can read it from About before signing in.
+@login_not_required
+def welcome(request):
+    """The welcome page: how Couchlog works, in five short steps. Opening it counts as seen, so a new account is sent
+    here once (by FirstStepsMiddleware) and never again by itself. About links to it to read it again."""
+    if request.user.is_authenticated:
+        Profile.objects.filter(user=request.user, welcome_seen=False).update(welcome_seen=True)
+    return render(request, 'core/welcome.html')
+
+
 @login_not_required
 def login(request):
     """The login page. In the demo it is only the Try the demo button: the username and password form does not exist,
@@ -1115,14 +1125,16 @@ class LogoutView(auth_views.LogoutView):
 
 
 def profile(request):
-    profile, _ = Profile.objects.get_or_create(user=request.user)
+    # A row made here is a new account's first sign-in, so it has not seen the welcome page yet.
+    profile, _ = Profile.objects.get_or_create(user=request.user, defaults={'welcome_seen': False})
     if request.method == 'POST':
         form = TimeZoneForm(request.POST)
         if form.is_valid():
             profile.timezone = form.cleaned_data['timezone']
             profile.save()
             messages.success(request, 'Time zone saved.')
-            return redirect('profile')
+            # A new account's next step after its time zone is the welcome page.
+            return redirect('profile' if profile.welcome_seen else 'welcome')
     else:
         form = TimeZoneForm(initial={'timezone': profile.timezone})
     movies, series = minutes_watched(request.user)

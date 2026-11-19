@@ -44,6 +44,8 @@ EVIL = 'https://evil.example/stolen'
 # Open to everyone, logged in or not.
 OPEN = {
     'about': '/about/',
+    # Signed in, opening it only notes that the welcome page was seen: nothing of the account's own data.
+    'welcome': '/welcome/',
     'login': '/login/',
     'demo_start': '/demo/start/',  # "not found" outside the demo
 }

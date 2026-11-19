@@ -39,7 +39,9 @@ def test_the_first_time_zone_is_saved_with_the_account(logged_in, user):
 
     assert response.status_code == 302
     assert saved_timezone(user) == 'Europe/Lisbon'
-    # Now that a time zone exists, the other pages open.
+    # Now that a time zone exists, a new account's next step is the welcome page, and then the other pages open.
+    assert response['Location'] == '/welcome/'
+    assert logged_in.get('/welcome/').status_code == 200
     assert logged_in.get('/').status_code == 200
 
 

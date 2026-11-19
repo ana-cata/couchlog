@@ -57,7 +57,8 @@ The rule: **pink means "you are here" or "you can press this". Everything else i
 ### Only these four colours
 - There is no second navy. Cards, search boxes and tables use the same navy as the page.
 - They are told apart from the page by a thin line (1 px) in off-white at low opacity (about 20%), not by a different background.
-- The only colours outside the palette are the grey and the green of the round check button (see below).
+- The only colours outside the palette are the grey and the green of the round check button (see below), and the red of the numbered arrows on the welcome page's pictures.
+- **The welcome arrows** (card #117, my decision): red `#ff3b3b` with a thin navy edge and white numbers, only drawn on the pictures of the welcome page, to show where to press. Red because it must stand out on the navy and pink of the pages in the pictures. It is never used in the app's own pages.
 
 ## What this means for the app today
 Built in card #48.

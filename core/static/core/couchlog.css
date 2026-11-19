@@ -971,3 +971,25 @@ button.corner-button.on-list:is(:hover, :focus-visible) {
   color: var(--couch-light-pink);
   font-size: 0.875rem;
 }
+
+/* The welcome page (docs/welcome.md): Skip sits on the right, above the title, and stays small. */
+.welcome-skip {
+  margin: 0;
+  text-align: right;
+}
+
+.welcome-skip a {
+  padding: 0.25rem 0.75rem;
+  font-size: 0.875rem;
+}
+
+/* The small pictures on the welcome page: phone-sized, with the thin line that sets cards apart from the page. */
+.welcome-picture {
+  display: block;
+  width: 100%;
+  max-width: 320px;
+  height: auto;
+  margin: 0 0 var(--pico-spacing);
+  border: 1px solid rgba(254, 247, 247, 0.2);
+  border-radius: var(--pico-border-radius);
+}

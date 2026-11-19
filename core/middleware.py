@@ -74,8 +74,11 @@ class DemoMiddleware:
         return self.get_response(request)
 
 
-class TimeZoneChosenMiddleware:
-    """Sends a logged-in account to the Profile page until it has chosen a time zone."""
+class FirstStepsMiddleware:
+    """A new account's first steps: the Profile page until it has chosen a time zone, then the welcome page once.
+
+    Profile and Log out are always open, and the welcome page too, so a new account is never stuck in a loop.
+    """
 
     def __init__(self, get_response):
         self.get_response = get_response
@@ -84,11 +87,14 @@ class TimeZoneChosenMiddleware:
         if request.user.is_authenticated and request.path not in (
             reverse('profile'),
             reverse('logout'),
+            reverse('welcome'),
         ):
-            has_timezone = (
-                Profile.objects.filter(user=request.user).exclude(timezone='').exists()
+            timezone, welcome_seen = (
+                Profile.objects.filter(user=request.user).values_list('timezone', 'welcome_seen').first() or ('', False)
             )
-            if not has_timezone:
+            if not timezone:
                 messages.info(request, 'Choose your time zone to continue.')
                 return redirect('profile')
+            if not welcome_seen:
+                return redirect('welcome')
         return self.get_response(request)
