@@ -1,5 +1,6 @@
 """My own tags (card #119) in a real browser at phone size: the chips wrap onto new lines and stay easy to tap, the ×
-sits small on each chip's corner, a tap adds, removes, renames or deletes a tag, and the page does not move."""
+sits small on each chip's corner, Profile lists the tags one per line with a small × and pencil, a tap adds, removes,
+renames or deletes a tag, and the page does not move."""
 
 import os
 
@@ -124,30 +125,40 @@ def test_a_new_tag_typed_on_the_titles_page_shows_as_a_chip(live_server, page):
     expect(page.get_by_role('button', name='Remove the tag to show a friend')).to_be_visible()
 
 
-def test_profiles_tags_are_chips_that_fit_a_phone(live_server, page):
+def test_profile_lists_my_tags_one_per_line_with_small_buttons(live_server, page):
     user = make_user()
-    for name in ['comfort', 'cosy', 'with family', 'thirty characters long tag xyz']:
+    for name in ['comfort', 'friends', 'thirty characters long tag xyz']:
         Tag.objects.create(user=user, name=name)
     log_in(page, live_server)
     page.goto(live_server.url + '/profile/')
 
-    chips = page.locator('.tag-chip')
-    expect(chips).to_have_count(4)
-    # Small chips, several on a line, inside the screen, the pencil easy to tap and the × on the corner.
-    boxes = [chip.bounding_box() for chip in chips.all()]
-    assert len({round(box['y']) for box in boxes}) < 4
-    assert all(box['height'] < 50 for box in boxes)
+    # The New tag box comes first, then the list.
+    box = page.get_by_label('New tag', exact=True).bounding_box()
+    rows = page.locator('.tag-list > li')
+    expect(rows).to_have_count(3)
+    expect(rows.first).to_contain_text('comfort')
+    tops = [row.bounding_box()['y'] for row in rows.all()]
+    assert box['y'] < tops[0]
+    assert tops == sorted(tops) and len({round(top) for top in tops}) == 3  # one tag per line
     assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
-    for pencil in page.locator('.tag-chip summary').all():
-        assert pencil.bounding_box()['height'] >= TAP_HEIGHT - 0.5
-    for chip in chips.all():
-        assert_corner_x(chip)
+    for row in rows.all():
+        name = row.locator('.tag-list-name').bounding_box()
+        x = row.locator('.tag-x').bounding_box()
+        drawn = row.locator('.tag-x span').bounding_box()
+        pencil = row.locator('summary').bounding_box()
+        # Small buttons: the × right after the name and a little higher, then the pencil.
+        assert drawn['width'] <= 18 and x['width'] <= 26 and pencil['width'] <= 26
+        assert name['x'] + name['width'] <= x['x'] + 6
+        assert x['y'] < name['y']
+        assert pencil['x'] > x['x'] + x['width']
 
 
 def test_on_profile_a_tag_is_made_renamed_and_deleted_without_moving_the_page(live_server, page):
     user = make_user()
     Tag.objects.create(user=user, name='thirty characters long tag xyz')
     log_in(page, live_server)
+    # A short screen, so the page scrolls and a jump to the top would show.
+    page.set_viewport_size({'width': PHONE['width'], 'height': 450})
     page.goto(live_server.url + '/profile/')
     page.wait_for_load_state('load')
     before = scrolled_to(page, '.tags-section')

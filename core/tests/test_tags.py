@@ -109,7 +109,6 @@ def test_profile_has_my_tags_with_a_box_to_make_one(me):
 
     assert 'My tags' in page
     assert 'action="/tags/create/"' in page
-    assert 'Only you see them' in page
 
 
 def test_making_a_tag_on_profile_shows_it_there_as_a_chip(me, movie):
@@ -194,7 +193,7 @@ def test_a_problem_is_shown_next_to_the_tags_not_at_the_top(me, movie):
     on_title = page_after(me, create(me, 'x' * 31, next_page=MOVIE_PAGE, kind='movie', tmdb_id=603))
 
     for page in (on_profile, on_title):
-        tags = page.split('class="tags-section"')[1]
+        tags = page.split('class="tags-section')[1]
         assert 'class="tag-problem"' in tags
         assert 'role="status"' not in page
 
