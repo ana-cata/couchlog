@@ -15,7 +15,7 @@
             <input type="hidden" name="kind" value="{{ item.kind }}">
             <input type="hidden" name="tmdb_id" value="{{ item.tmdb_id }}">
             <input type="hidden" name="next" value="{{ next }}">
-            <button type="submit" class="tag-chip-remove" aria-label="Remove the tag {{ tag.name }}" title="Remove the tag"><span aria-hidden="true">&times;</span></button>
+            <button type="submit" class="tag-chip-remove" aria-label="Remove the tag {{ tag.name }}" title="Remove the tag"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg></button>
           </form>
         </li>
       {% endfor %}

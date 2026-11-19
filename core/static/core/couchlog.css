@@ -1094,17 +1094,27 @@ select.fit {
   background: transparent;
 }
 
-.tag-chip-remove span {
-  display: grid;
-  place-items: center;
+/* The × is a drawn icon (a circle with a cross, the same line style as the pencil), so it is sharp and centred
+   whatever the font. On a chip's corner its circle is filled with navy, so the chip's outline does not show through. */
+.tag-chip-remove svg,
+.tag-x svg {
+  display: block;
   width: 1.1rem;
   height: 1.1rem;
-  border: 1px solid var(--couch-soft);
-  border-radius: 50%;
-  background: var(--couch-navy);
+}
+
+.tag-chip-remove svg {
   color: var(--pico-muted-color);
-  font-size: 0.8rem;
-  line-height: 1;
+}
+
+/* On Profile it is the pencil's size. */
+.tag-x svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.tag-chip-remove svg circle {
+  fill: var(--couch-navy);
 }
 
 .tag-chip .tag-chip-remove:is(:hover, :focus-visible) {
@@ -1112,8 +1122,7 @@ select.fit {
   box-shadow: none;
 }
 
-.tag-chip-remove:is(:hover, :focus-visible) span {
-  border-color: var(--couch-pink);
+.tag-chip-remove:is(:hover, :focus-visible) svg {
   color: var(--couch-pink);
 }
 
@@ -1210,16 +1219,6 @@ select.fit {
   top: -0.45rem;
 }
 
-.tag-x span {
-  display: grid;
-  place-items: center;
-  width: 1rem;
-  height: 1rem;
-  border: 1px solid currentColor;
-  border-radius: 50%;
-  font-size: 0.75rem;
-  line-height: 1;
-}
 
 .tag-list .tag-x:is(:hover, :focus-visible),
 .tag-list-edit summary:is(:hover, :focus-visible),

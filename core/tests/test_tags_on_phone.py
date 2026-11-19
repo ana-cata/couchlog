@@ -59,7 +59,7 @@ def assert_corner_x(chip):
     """The × is small and on the chip's top-right corner, and can still be tapped."""
     tag = chip.bounding_box()
     button = chip.locator('.tag-chip-remove').bounding_box()
-    drawn = chip.locator('.tag-chip-remove span').bounding_box()
+    drawn = chip.locator('.tag-chip-remove svg').bounding_box()
     centre_x, centre_y = drawn['x'] + drawn['width'] / 2, drawn['y'] + drawn['height'] / 2
     assert drawn['width'] <= 20
     assert abs(centre_x - (tag['x'] + tag['width'])) <= 8
@@ -144,7 +144,7 @@ def test_profile_lists_my_tags_one_per_line_with_small_buttons(live_server, page
     for row in rows.all():
         name = row.locator('.tag-list-name').bounding_box()
         x = row.locator('.tag-x').bounding_box()
-        drawn = row.locator('.tag-x span').bounding_box()
+        drawn = row.locator('.tag-x svg').bounding_box()
         pencil = row.locator('summary').bounding_box()
         # Small buttons: the × right after the name and a little higher, then the pencil.
         assert drawn['width'] <= 18 and x['width'] <= 26 and pencil['width'] <= 26
