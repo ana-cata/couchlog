@@ -186,11 +186,15 @@ def test_deleting_a_tag_deletes_it_for_good_and_takes_it_off_all_its_titles(me, 
     assert names(me) == ['comfort']
 
 
-def test_a_problem_is_shown_next_to_the_tags_not_at_the_top(me, movie):
-    Tag.objects.create(user=me.user, name='comfort')
+def test_a_problem_is_shown_next_to_the_tags_not_at_the_top(me, series, respx_mock):
+    respx_mock.get(MOVIE_URL).mock(side_effect=httpx.ConnectError('no network'))
+    tag = Tag.objects.create(user=me.user, name='comfort')
 
     on_profile = page_after(me, create(me, 'Comfort'))
-    on_title = page_after(me, create(me, 'x' * 31, next_page=MOVIE_PAGE, kind='movie', tmdb_id=603))
+    # A movie not saved yet while TMDB does not answer, pressed from the series' page (which does not ask TMDB).
+    on_title = page_after(
+        me, me.post('/tags/add/', {'tag_id': tag.id, 'kind': 'movie', 'tmdb_id': 603, 'next': SERIES_PAGE})
+    )
 
     for page in (on_profile, on_title):
         tags = page.split('class="tags-section')[1]
@@ -198,17 +202,25 @@ def test_a_problem_is_shown_next_to_the_tags_not_at_the_top(me, movie):
         assert 'role="status"' not in page
 
 
-# --- a title's page: add, remove, new tag ---------------------------------------------------------
+# --- a title's page: add and remove (tags are only made on Profile) ------------------------------
 
 
-def test_a_titles_page_has_my_tags_and_a_box_for_a_new_one(me, movie):
+def test_a_titles_page_has_my_tags_under_the_poster_buttons_and_no_box_for_a_new_one(me, movie):
     Tag.objects.create(user=me.user, name='comfort')
 
     page = me.get(MOVIE_PAGE).content.decode()
 
-    assert 'My tags' in page
-    assert '+ comfort' in page
-    assert 'aria-label="New tag for this title"' in page
+    poster_column = page.split('class="title-poster"')[1].split('class="title-details"')[0]
+    assert 'My tags' in poster_column
+    assert poster_column.index('poster-actions') < poster_column.index('tags-section')
+    assert '+ comfort' in poster_column
+    assert 'action="/tags/create/"' not in page
+
+
+def test_with_no_tags_a_titles_page_says_to_make_them_on_profile(me, movie):
+    page = me.get(MOVIE_PAGE).content.decode()
+
+    assert 'Make your own tags on your <a href="/profile/">Profile</a>, then add them here.' in page
 
 
 def test_adding_a_tag_to_a_title_shows_it_as_a_chip_and_removing_it_takes_it_off(me, movie):
@@ -251,29 +263,21 @@ def test_tags_work_on_a_series_page_too(me, series):
     assert 'aria-label="Remove the tag with family"' in page
 
 
-def test_a_new_tag_on_a_titles_page_is_made_and_put_on_the_title(me, movie):
+def test_a_new_tag_is_only_made_on_profile_even_if_a_title_is_sent(me, movie):
     response = create(me, 'comfort', next_page=MOVIE_PAGE, kind='movie', tmdb_id=603)
 
     assert response['Location'] == MOVIE_PAGE
     assert names(me) == ['comfort']
-    assert tags_on(me, movie) == ['comfort']
-
-
-def test_a_new_tag_with_the_name_of_one_i_have_puts_that_one_on_the_title(me, movie):
-    Tag.objects.create(user=me.user, name='comfort')
-
-    create(me, 'Comfort', next_page=MOVIE_PAGE, kind='movie', tmdb_id=603)
-
-    assert names(me) == ['comfort']
-    assert tags_on(me, movie) == ['comfort']
+    assert tags_on(me, movie) == []
 
 
 def test_tagging_a_title_not_saved_yet_saves_it_from_tmdb_first(me, respx_mock):
     route = respx_mock.get(MOVIE_URL).respond(json=MADE_UP_MOVIE)
-    tag = Tag.objects.create(user=me.user, name='comfort')
+    comfort = Tag.objects.create(user=me.user, name='comfort')
+    friend = Tag.objects.create(user=me.user, name='to show a friend')
 
-    me.post('/tags/add/', {'tag_id': tag.id, 'kind': 'movie', 'tmdb_id': 603, 'next': MOVIE_PAGE})
-    create(me, 'to show a friend', next_page=MOVIE_PAGE, kind='movie', tmdb_id=603)
+    me.post('/tags/add/', {'tag_id': comfort.id, 'kind': 'movie', 'tmdb_id': 603, 'next': MOVIE_PAGE})
+    me.post('/tags/add/', {'tag_id': friend.id, 'kind': 'movie', 'tmdb_id': 603, 'next': MOVIE_PAGE})
 
     movie = Title.objects.get(kind='movie', tmdb_id=603)
     assert movie.title == 'Made-up Movie'
@@ -286,12 +290,10 @@ def test_when_tmdb_does_not_answer_nothing_is_saved_and_a_friendly_message_shows
     tag = Tag.objects.create(user=me.user, name='comfort')
 
     response = me.post('/tags/add/', {'tag_id': tag.id, 'kind': 'movie', 'tmdb_id': 603, 'next': '/profile/'})
-    create(me, 'new one', kind='movie', tmdb_id=603)
 
     assert 'Could not reach TMDB' in page_after(me, response)
     assert not Title.objects.exists()
     assert not TitleTag.objects.exists()
-    assert names(me) == ['comfort']  # the new tag was not made either
 
 
 # --- each account has its own ---------------------------------------------------------------------

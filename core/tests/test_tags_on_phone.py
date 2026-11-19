@@ -15,9 +15,9 @@ from core.models import Profile, Tag, Title, TitleTag
 os.environ.setdefault('DJANGO_ALLOW_ASYNC_UNSAFE', 'true')
 
 PHONE = {'width': 390, 'height': 700}
-# Easy to tap: the chips and the "+" at least 40 px high (2.5rem). The small × in a chip's corner is drawn small, but
+# Easy to tap: the "+" chips at least 36 px high (2.25rem). The small × in a chip's corner is drawn small, but
 # what can be tapped is 28 px square (1.75rem).
-TAP_HEIGHT = 40
+TAP_HEIGHT = 36
 CORNER_TAP = 28
 
 
@@ -97,6 +97,8 @@ def test_a_tap_adds_a_tag_and_another_takes_it_off_without_moving_the_page(live_
     movie = saved_movie()
     Tag.objects.create(user=user, name='comfort')
     log_in(page, live_server)
+    # A short screen, so the page scrolls and a jump to the top would show.
+    page.set_viewport_size({'width': PHONE['width'], 'height': 450})
     page.goto(live_server.url + '/movie/603/')
     page.wait_for_load_state('load')
     before = scrolled_to(page, '.tags-section')
@@ -113,16 +115,21 @@ def test_a_tap_adds_a_tag_and_another_takes_it_off_without_moving_the_page(live_
     assert page.evaluate('window.scrollY') == pytest.approx(before, abs=2)
 
 
-def test_a_new_tag_typed_on_the_titles_page_shows_as_a_chip(live_server, page):
-    make_user()
+def test_on_a_titles_page_the_tags_are_under_the_poster_buttons(live_server, page):
+    user = make_user()
     saved_movie()
+    Tag.objects.create(user=user, name='thirty characters long tag xyz')
     log_in(page, live_server)
     page.goto(live_server.url + '/movie/603/')
 
-    page.get_by_label('New tag for this title').fill('to show a friend')
-    page.get_by_role('button', name='Add', exact=True).click()
-
-    expect(page.get_by_role('button', name='Remove the tag to show a friend')).to_be_visible()
+    buttons = page.locator('.poster-actions').bounding_box()
+    tags = page.locator('.tags-section').bounding_box()
+    poster = page.locator('.title-poster').bounding_box()
+    assert tags['y'] >= buttons['y'] + buttons['height']
+    # Inside the poster's column, a long name included, and no box to make a new tag there.
+    chip = page.locator('.tag-chip-add').bounding_box()
+    assert chip['x'] + chip['width'] <= poster['x'] + poster['width'] + 1
+    expect(page.get_by_label('New tag')).to_have_count(0)
 
 
 def test_profile_lists_my_tags_one_per_line_with_small_buttons(live_server, page):
@@ -146,8 +153,10 @@ def test_profile_lists_my_tags_one_per_line_with_small_buttons(live_server, page
         x = row.locator('.tag-x').bounding_box()
         drawn = row.locator('.tag-x svg').bounding_box()
         pencil = row.locator('summary').bounding_box()
-        # Small buttons: the × right after the name and a little higher, then the pencil.
+        drawn_pencil = row.locator('summary svg').bounding_box()
+        # Small buttons of the same size: the × right after the name and a little higher, then the pencil.
         assert drawn['width'] <= 18 and x['width'] <= 26 and pencil['width'] <= 26
+        assert drawn_pencil['width'] == drawn['width'] and drawn_pencil['height'] == drawn['height']
         assert name['x'] + name['width'] <= x['x'] + 6
         assert x['y'] < name['y']
         assert pencil['x'] > x['x'] + x['width']

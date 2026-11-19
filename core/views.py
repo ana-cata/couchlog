@@ -801,33 +801,15 @@ def _tags_box(request, kind, tmdb_id):
 @require_POST
 @counts_as_change
 def tag_create(request):
-    """Make a new tag, on Profile or on a title's page. On a title's page it also goes on that title, and a name that is
-    already one of my tags puts that tag on it (the title is saved from TMDB first if it is not saved yet). No message
-    when it works: the new chip says it."""
+    """Make a new tag. Only on Profile (my decision on review): a title's page only adds and removes my tags. No message
+    when it works: the new tag in the list says it."""
     name, problem = _posted_tag_name(request)
-    on_a_title = 'tmdb_id' in request.POST
-    fallback = 'search' if on_a_title else 'profile'
     if problem:
-        return _back_to_tags(request, problem, fallback)
-    existing = _tag_named(request.user, name)
-
-    if not on_a_title:
-        if existing:
-            return _back_to_tags(request, f'You already have a tag called “{existing.name}”.', fallback)
-        Tag.objects.create(user=request.user, name=name)
-        return _back_to_tags(request, '', fallback)
-
-    kind, tmdb_id = _posted_title(request)
-    try:
-        title = _saved_title(kind, tmdb_id)
-    except tmdb.TmdbNotFound:
-        raise Http404 from None
-    except tmdb.TmdbError as problem:
-        return _back_to_tags(request, str(problem), fallback)
-    with transaction.atomic():
-        tag = existing or Tag.objects.create(user=request.user, name=name)
-        TitleTag.objects.get_or_create(tag=tag, title=title)
-    return _back_to_tags(request, '', fallback)
+        return _back_to_tags(request, problem, 'profile')
+    if existing := _tag_named(request.user, name):
+        return _back_to_tags(request, f'You already have a tag called “{existing.name}”.', 'profile')
+    Tag.objects.create(user=request.user, name=name)
+    return _back_to_tags(request, '', 'profile')
 
 
 @require_POST

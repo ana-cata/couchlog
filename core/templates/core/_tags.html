@@ -1,7 +1,8 @@
-{# "My tags" on a movie's or a series' page: my tags on this title as chips, each with a small × in its corner that takes it off (no Undo #}
-{# button: tapping it again under "add" puts it back), then my other tags as "+ name" chips to add, and a box to make a #}
-{# new tag that goes on this title at once. Every account sees only its own tags. The forms swap the page in place #}
-{# (hx-boost), like the rest of the page. Renaming and deleting a tag are on Profile. #}
+{# "My tags" on a movie's or a series' page, under the buttons below the poster: my tags on this title as chips, each #}
+{# with a small × in its corner that takes it off (no Undo: tapping it again under "add" puts it back), then my other #}
+{# tags as "+ name" chips to add. Tags are only made, renamed and deleted on Profile (my decision on review), so with #}
+{# none yet there is a link there. Every account sees only its own tags. The forms swap the page in place (hx-boost), #}
+{# like the rest of the page. #}
 <div class="tags-section">
   <p class="tags-label"><small>My tags</small></p>
   {% if tags_on or tags_off %}
@@ -32,14 +33,8 @@
         </li>
       {% endfor %}
     </ul>
+  {% else %}
+    <p class="tags-none"><small>Make your own tags on your <a href="{% url 'profile' %}">Profile</a>, then add them here.</small></p>
   {% endif %}
   {% include 'core/_tag_problems.html' %}
-  <form method="post" action="{% url 'tag_create' %}" class="tag-new" hx-boost="true" hx-push-url="false" hx-disabled-elt="find button">
-    {% csrf_token %}
-    <input type="hidden" name="kind" value="{{ item.kind }}">
-    <input type="hidden" name="tmdb_id" value="{{ item.tmdb_id }}">
-    <input type="hidden" name="next" value="{{ next }}">
-    <input type="text" name="name" maxlength="{{ tag_max }}" required placeholder="New tag" aria-label="New tag for this title">
-    <button type="submit" class="outline secondary">Add</button>
-  </form>
 </div>

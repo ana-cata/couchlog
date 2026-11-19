@@ -1249,3 +1249,42 @@ select.fit {
 .tag-list li:has(.tag-list-edit[open]) .tag-rename {
   display: flex;
 }
+
+/* The pencil is drawn like the ×: a thin circle with a small pencil inside, the same size. */
+.tag-list-edit summary svg {
+  display: block;
+  width: 1rem;
+  height: 1rem;
+}
+
+/* On a title's page the tags sit in the narrow column under the poster, after its small buttons (which never wrap and
+   use a smaller font). The chips keep their own look there: a long name wraps inside its chip. */
+.title-poster .tags-section {
+  margin: 1rem 0 0;
+}
+
+.title-poster .tag-chips {
+  gap: 0.75rem 0.6rem;
+}
+
+.title-poster .tag-chip {
+  min-height: 2.25rem;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.85rem;
+}
+
+.title-poster .tag-chips .tag-chip-add {
+  min-height: 2.25rem;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.85rem;
+  white-space: normal;
+  text-align: start;
+}
+
+.title-poster .tag-chip .tag-chip-remove {
+  padding: 0;
+}
+
+.tags-none {
+  margin: 0;
+}
