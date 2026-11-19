@@ -143,6 +143,16 @@ Without those settings (as on the PC), the backup says what is missing and does 
 
 To turn it off again, remove those three lines and run `docker compose up -d`. Couchlog then asks for its username and password after the code again.
 
+**The login page's look** (done once, card #113). The page where you type your email and the code is Cloudflare's, not Couchlog's, so it is set in the dashboard, not in the code. It follows [Identity/identity.md](../Identity/identity.md).
+1. In Zero Trust, **Reusable components**, **Custom pages**, **Access login page**, select **Manage**.
+2. **Organization name:** `by ana-cata`, the author. Cloudflare requires one, and `Couchlog` would repeat the logo next to it.
+3. **Logo:** `https://raw.githubusercontent.com/ana-cata/couchlog/main/Identity/logoCouchlog_hotpink.svg`, the main logo straight from this public repo. It has to be an address anyone can open without signing in, so it cannot come from Couchlog itself, which is behind the email step.
+4. **Background color:** navy `#0a192f`.
+5. Leave the header and footer text empty. **Save**, and check the **Preview**: the logo is sharp, not stretched and not cut off.
+6. Check it on the phone with Wi-Fi off and on the PC: open the address, see the logo, sign in with the code.
+
+The screen has no setting for the button or the text colour, so the button stays Cloudflare's blue and the text Cloudflare's own. If `Identity/logoCouchlog_hotpink.svg` is ever moved or renamed, change the address in step 3 at the same time, or the page loses its logo.
+
 **Add a friend:** in Zero Trust, under **Access controls**, **Policies**, add their full email to `Allowed emails`. Their account appears, empty, the first time they sign in. Do nothing in Couchlog.
 
 **Remove a friend:**
@@ -249,4 +259,4 @@ The demo ([demo.md](demo.md)) is a separate copy of Couchlog at `https://couchlo
 - If the 5 GB limit is ever reached, backups stop until copies are deleted from the bucket by hand, and the only sign is the line in `docker compose logs daily`. Only Couchlog's copies are counted, not other files or other buckets.
 - A failed backup is only tried again 24 hours later; `docker compose exec daily python manage.py backup_db` makes one at once.
 - Cloudflare sits in the middle of the outside connection, so it could technically see what passes through. Accepted (plan.md, section 2).
-- The login page's logo needs a public web address, and everything under `couchlog.ana-cata.com` is behind the email step, so the page has no logo for now.
+- The login page's logo is loaded from GitHub, because everything under `couchlog.ana-cata.com` is behind the email step. If GitHub is down, the page shows no logo, but signing in still works.
