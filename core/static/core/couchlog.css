@@ -744,12 +744,25 @@ button.corner-button.on-list:is(:hover, :focus-visible) {
   margin: 0;
 }
 
-.title-poster button {
+.title-poster button,
+.title-poster [role="button"] {
   width: auto;
   margin: 0;
   padding: 0.25rem 0.6rem;
   font-size: 0.75rem;
   white-space: nowrap;
+}
+
+/* Share (a link that looks like the other small buttons) with "Link copied" beside it once it is pressed. */
+.share {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.share-said {
+  font-size: 0.75rem;
+  color: var(--pico-muted-color);
 }
 
 .title-details {

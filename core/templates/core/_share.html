@@ -1,0 +1,11 @@
+{# The Share button on a title's page (feature 20). It sends the title's TMDB page, so a friend can open it without a #}
+{# Couchlog account: https://www.themoviedb.org/movie/<id> or /tv/<id> (TMDB calls a series "tv"). Nothing is saved. #}
+{# share.js opens the phone's share menu, or copies the link on a computer and says so in the line beside it. #}
+{# Without JavaScript (or where the browser allows neither) it is a plain link that opens the TMDB page in a new tab. #}
+<div class="share">
+  <a href="https://www.themoviedb.org/{% if item.kind == 'series' %}tv{% else %}movie{% endif %}/{{ item.tmdb_id }}"
+     target="_blank" rel="noopener" role="button" class="outline secondary"
+     data-share data-share-text="{{ item.title }}{% if item.year %} ({{ item.year }}){% endif %}">Share</a>
+  {# aria-live: screen readers read "Link copied" when it appears. Not role="status", which is for the page's messages. #}
+  <small class="share-said" aria-live="polite"></small>
+</div>
