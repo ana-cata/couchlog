@@ -1288,3 +1288,69 @@ select.fit {
 .tags-none {
   margin: 0;
 }
+
+/* The filter bar above a list on Movies and Series (feature 18): small boxes in a row (two per row on a phone), with
+   their names in softened off-white. On a phone it starts folded under "Filter and sort", which keeps Pico's arrow.
+   On a wider screen it is always open and that line is not shown. Only in a browser that can show a folded box's
+   inside (::details-content): any other one keeps the line, so the filters can always be reached. */
+.list-filters {
+  margin-bottom: 1.5rem;
+}
+
+.list-filters summary {
+  color: var(--pico-muted-color);
+  font-size: 0.9rem;
+}
+
+.list-filters form {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  gap: 0.5rem 1rem;
+  margin: 0.75rem 0 0;
+}
+
+.list-filters label {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--pico-muted-color);
+}
+
+.list-filters select {
+  margin: 0.25rem 0 0;
+  padding-block: 0.4rem;
+  font-size: 0.9rem;
+}
+
+.list-filters button {
+  align-self: end;
+  margin: 0;
+  padding-block: 0.4rem;
+  font-size: 0.9rem;
+}
+
+@media (max-width: 575px) {
+  .list-filters form {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (min-width: 576px) {
+  @supports selector(::details-content) {
+    .list-filters > summary {
+      display: none;
+    }
+
+    .list-filters::details-content {
+      content-visibility: visible;
+    }
+
+    .list-filters form {
+      margin-top: 0;
+    }
+  }
+}
+
+/* "Clear filters" (and "No titles match these filters") at the top of a filtered list. */
+.filters-note {
+  font-size: 0.9rem;
+}

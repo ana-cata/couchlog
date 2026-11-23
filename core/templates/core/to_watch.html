@@ -9,13 +9,17 @@
   {# At the top because it only lasts a few seconds: a removed title can be undone until then. #}
   {% include 'core/_recently_removed.html' %}
 
-  {% if items %}
-    <ul class="results">
-      {# No button on the tiles: to take a title off the list, open it and press "Remove from To Watch". #}
-      {% for item in items %}
-        <li>{% include 'core/_tile_link.html' with tile=item.title %}</li>
-      {% endfor %}
-    </ul>
+  {% if filters.listed %}
+    {% include 'core/_list_filters.html' %}
+    <div id="list">
+      {% include 'core/_filters_note.html' %}
+      <ul class="results">
+        {# No button on the tiles: to take a title off the list, open it and press "Remove from To Watch". #}
+        {% for item in items %}
+          <li>{% include 'core/_tile_link.html' with tile=item.title %}</li>
+        {% endfor %}
+      </ul>
+    </div>
   {% else %}
     <p>Keep the {{ section }} you want to see here. <a href="{% url 'search' %}">Search</a> for one and add it to your To Watch list.</p>
   {% endif %}

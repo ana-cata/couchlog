@@ -329,7 +329,7 @@ def test_history_shows_a_film_watched_again_once_with_the_date_of_its_latest_wat
 
     assert tiles(html) == ['/movie/603/']  # one tile, not three
     assert 'Watched 1 Jun 2026' in html and 'Watched 1 May 2026' not in html and 'Date unknown' not in html
-    assert '<button' not in html  # no button on a tile: the film's page lists every watch, each with its own
+    assert '<button' not in html.split('id="list"', 1)[1]  # no button on a tile: the film's page lists every watch, each with its own
 
 
 def test_history_keeps_its_order_by_the_latest_watch_of_each_film(logged_in_client):
@@ -351,7 +351,7 @@ def test_taking_back_the_watch_a_history_tile_shows_shows_the_next_one(logged_in
 
     html = page(logged_in_client, '/movies/history/')
     assert tiles(html) == ['/movie/603/'] and 'Watched 1 May 2026' in html
-    assert '<button' not in html
+    assert '<button' not in html.split('id="list"', 1)[1]  # the filter bar's Show is not on a tile
     assert 'Mark as not watched' in page(logged_in_client, '/movie/603/')  # one watch left: the plain button again
 
 
@@ -550,7 +550,7 @@ def test_the_history_screen_has_no_buttons_and_the_undo_is_on_the_film_page(logg
     mark(logged_in_client)
     watch_id = Watch.objects.get().id
     history = page(logged_in_client, '/movies/history/')
-    assert '<button' not in history and 'action="/watched/remove/"' not in history  # nothing to press on History
+    assert '<button' not in history.split('id="list"', 1)[1] and 'action="/watched/remove/"' not in history  # nothing to press on History
     assert f'name="watch_id" value="{watch_id}"' in page(logged_in_client, '/movie/603/')  # the undo is on the page
 
     response = unmark(logged_in_client, watch_id, next='/movie/603/')

@@ -174,7 +174,8 @@ def test_the_to_watch_lists_have_no_button_on_their_tiles(me):
         assert 'class="tile"' in html
         assert round_buttons(html) == []
         assert 'action="/to-watch/remove/"' not in html
-        assert '<button' not in html
+        # The filter bar above the list has a Show button for a browser without JavaScript; the list has none.
+        assert '<button' not in html.split('id="list"', 1)[1]
 
 
 # --- on a title's own page ----------------------------------------------------------------------------------------
