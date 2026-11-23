@@ -69,7 +69,7 @@ from .models import (
 )
 from .releases import news, refresh_movie, refresh_upcoming, upcoming
 from .suggestions import suggest
-from .time_spent import describe, minutes_watched
+from .time_spent import describe, genre_chart, minutes_by_genre, minutes_watched
 from .title_line import title_line
 from .where_to_watch import country_of
 
@@ -1418,10 +1418,13 @@ def profile(request):
         form = TimeZoneForm(initial={'timezone': profile.timezone})
     movies, series = minutes_watched(request.user)
     time_spent = {'movies': describe(movies), 'series': describe(series), 'total': describe(movies + series)}
+    movie_genres, series_genres = minutes_by_genre(request.user)
     context = {
         'form': form,
         'profile': profile,
         'time_spent': time_spent,
+        'movie_genres': genre_chart(movie_genres),
+        'series_genres': genre_chart(series_genres),
         'tags': _my_tags(request.user),
         'tag_max': TAG_NAME_MAX_LENGTH,
     }

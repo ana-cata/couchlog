@@ -13,6 +13,7 @@
 - **Profile page** (`/profile/`, linked as "Profile" in the header):
   - shows the username;
   - shows **Time spent watching** (see below);
+  - shows **Movies by genre** and **Series by genre** under it (see below);
   - has **My tags** (see below);
   - shows the time zone and lets you change it;
   - has the Log out button.
@@ -22,6 +23,14 @@
   - **An episode with no runtime** uses its series' typical episode runtime. Anything TMDB has no runtime for counts as 0 minutes.
   - **Undo:** it follows every undo by itself. Taking a watch back (Remove this watch, the "−", Mark as not watched) takes its minutes off again. There is nothing to undo on the page itself.
   - **Only your own watches count:** each account sees its own total.
+- **Movies by genre and Series by genre** (card #126): two small bar charts under Time spent, with the hours you watched in each genre, from most to least: the genre, a light pink bar and the time, like "Drama 42 h". Under an hour it says minutes, like "45 min".
+  - **Counted like Time spent:** every watch counts, rewatches too, and an episode with no runtime uses its series' typical runtime.
+  - **A watch counts fully in each genre of its title:** a 2-hour Crime Drama adds 2 h to Crime and 2 h to Drama. That is why the bars add up to more than the total. The page does not say so: the line under the charts was taken out on review (my decision).
+  - **The top 8 genres, then Other.** Other adds up the hours of the remaining genres and of titles that have no genre saved, and always comes last, even when it is longer than a bar above it.
+  - The longest bar is full width; the others are its share. Movies and series are counted apart (TMDB's genre lists differ between them).
+  - **Nothing watched yet:** the chart says "Watch a movie to see your genres here." (or "a series").
+  - **Undo:** like Time spent, taking a watch back takes its hours off by itself. Nothing to undo on the charts.
+  - Shown in the demo too, from its sample titles.
 - **My tags** (card #119): your own labels for movies and series, like "comfort" or "with family". Only you see them. They go on a title from its page ([Search and title pages](search.md)). The section is kept very simple, as I sketched it on review: the **New tag** box with **Add tag** first, then the list.
   - **Make one:** type a name in the **New tag** box and press **Add tag**. This is the only place where tags are made (my decision on review). The new tag appears in the list; there is no message. A name has 1 to 30 characters; spaces at the ends are dropped. Two tags cannot have the same name, whatever the capital letters ("Comfort" and "comfort" are the same).
   - **Your tags** are a plain list, by name, one per line with a dot before it: the name, a **small round ×** just after it and a little higher, and a **small round pencil** a little further on (drawn like the ×, the same size). No count of titles (my decision on review).
@@ -40,7 +49,7 @@
 |---|---|---|
 | `/login/` | Django's built-in login form (`core/templates/core/login.html`). On the Cloudflare address it just leads to Home | No |
 | `/logout/` | Logs out. It only accepts a button press (POST), not a plain link | Yes |
-| `/profile/` | Username, time spent watching, time zone form, Log out button | Yes |
+| `/profile/` | Username, time spent watching, hours per genre, my tags, time zone form, Log out button | Yes |
 | `/admin/` | Django's admin page, with its own login screen. Refused on the Cloudflare address | Yes |
 
 **Sign-in by email code** (`CloudflareSignInMiddleware` in `core/middleware.py`, `core/cloudflare_access.py`, package `PyJWT`)
@@ -82,6 +91,12 @@
 - **The words** come from `describe(minutes)` in the same file: years, months, days, hours and minutes, with a year as 365 days and a month as 30 days (it only has to give an idea). Units that are zero are left out.
 - **Titles saved before this card** have no runtime until `uv run python manage.py refresh_calendar` has run once (it now also asks about films you have watched that have no runtime saved). Until then they count as 0 minutes.
 
+**Hours per genre** (`minutes_by_genre`, `short` and `genre_chart` in `core/time_spent.py`; template `_genre_chart.html`, included twice in `profile.html`)
+- **Nothing is stored.** `minutes_by_genre(user)` reads, for each of your watches, its minutes (the same `Coalesce` as Time spent) and its title's saved `genres` list ([data model](data-model.md)), and adds the minutes to each genre name, in Python. It returns `(movies, series)`, each a list of `(genre, minutes)`: most first, a tie in alphabetical order, at most 8 genres (`GENRES_SHOWN`), then `('Other', minutes)` for the rest plus the titles with an empty `genres` list. A watch with 0 minutes is left out. It never asks TMDB.
+- `short(minutes)` writes "45 min" under an hour, else whole hours rounded ("1 h" from 60 to 89 minutes, "2 h" from 90). `genre_chart` adds each bar's length, in percent of the longest (at least 1, so a tiny genre still shows a sliver).
+- **The chart** is a `ul.genre-chart` (`couchlog.css`): one CSS grid for the whole chart (each `li` is a `subgrid` row), so the bars start at the same place; the bar is a `span` with an inline `width`, light pink on the 20% line colour, hidden from screen readers (the time is written next to it). No JavaScript, no chart library. On a phone the genre name wraps if needed and the bar keeps at least 3rem.
+- Tests: `core/tests/test_genre_hours.py` (each genre of a title, rewatch, episode with no runtime, order, movies and series apart, other accounts, top 8 then Other, no genre goes to Other, no runtime left out, taking a watch back, the short words and the bars, the page, empty charts, and on a phone in a real browser).
+
 **My tags** (in `core/views.py`: `profile`, `tag_create`, `tag_rename`, `tag_delete`; templates `profile.html` and `_tag_problems.html`; form `TagForm` in `core/forms.py`; tables `core_tag` and `core_titletag`, see [data-model.md](data-model.md))
 - Forms with `hx-boost="true" hx-push-url="false"`, like the buttons on a title's page: htmx sends them in the background and swaps the new page in place without scrolling (`scrollIntoViewOnBoost` is off in `base.html`); without JavaScript they reload the page. `/tags/create/` (`name`), `/tags/rename/` (`tag_id`, `name`) and `/tags/delete/` (`tag_id`). `TagForm` cleans the name (spaces at the ends dropped, runs of spaces made one) and refuses an empty one or one over 30 characters. "Same name" is checked with `iexact`, and the table also refuses it (`one_tag_per_name`, on the lower-case name).
 - **Delete** deletes the `core_tag` row, and its `core_titletag` rows go with it. Nothing is kept.
@@ -104,3 +119,4 @@
 - Deleting an account whose email is still on the allow list makes a new empty one at the next sign-in. Deactivate it, or remove the email first.
 - Time spent: a very long episode (a finale or a feature-length special in a regular season) raises its series' typical runtime a little, since it is an average. An episode that has no runtime of its own is counted at that typical runtime, not at its real one. A film that TMDB has no runtime for counts as 0 minutes, and `refresh_calendar` asks about it again each time it runs.
 - Time spent: a watch with an unknown date counts too. There is no total per year or per month, only the grand total.
+- Hours per genre: a title saved before genres were kept counts in Other until `refresh_calendar` runs (or, for a series, its page is opened after a day). There are no charts per year or month, tapping a genre does not filter a list, and networks are not counted.
