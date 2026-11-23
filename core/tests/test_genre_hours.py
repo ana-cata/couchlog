@@ -218,7 +218,7 @@ def test_profile_shows_both_charts_under_time_spent(me):
     assert html.index('Series by genre') < html.index('My tags')
     assert chart_rows(html, 'Movies by genre') == [('Drama', '3 h'), ('Crime', '2 h')]
     assert chart_rows(html, 'Series by genre') == [('Comedy', '30 min')]
-    assert 'the bars add up to more than the time above' in html
+    assert 'add up to more' not in html  # the line under the charts was taken out on review
 
 
 def test_empty_charts_say_what_to_do(me):

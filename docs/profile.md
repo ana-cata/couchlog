@@ -25,7 +25,7 @@
   - **Only your own watches count:** each account sees its own total.
 - **Movies by genre and Series by genre** (card #126): two small bar charts under Time spent, with the hours you watched in each genre, from most to least: the genre, a light pink bar and the time, like "Drama 42 h". Under an hour it says minutes, like "45 min".
   - **Counted like Time spent:** every watch counts, rewatches too, and an episode with no runtime uses its series' typical runtime.
-  - **A watch counts fully in each genre of its title:** a 2-hour Crime Drama adds 2 h to Crime and 2 h to Drama. That is why the bars add up to more than the total, and a short line under the charts says so.
+  - **A watch counts fully in each genre of its title:** a 2-hour Crime Drama adds 2 h to Crime and 2 h to Drama. That is why the bars add up to more than the total. The page does not say so: the line under the charts was taken out on review (my decision).
   - **The top 8 genres, then Other.** Other adds up the hours of the remaining genres and of titles that have no genre saved, and always comes last, even when it is longer than a bar above it.
   - The longest bar is full width; the others are its share. Movies and series are counted apart (TMDB's genre lists differ between them).
   - **Nothing watched yet:** the chart says "Watch a movie to see your genres here." (or "a series").
