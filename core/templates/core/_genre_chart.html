@@ -1,0 +1,18 @@
+{# One genre chart on Profile: a row per genre with its name, a bar as long as its share of the longest, and the time. #}
+{# The bar is only a picture of the time next to it, so screen readers skip it. #}
+<section class="genre-chart-section">
+  <h3>{{ heading }}</h3>
+  {% if rows %}
+    <ul class="genre-chart">
+      {% for row in rows %}
+        <li>
+          <span class="genre-name">{{ row.name }}</span>
+          <span class="genre-bar" aria-hidden="true"><span style="width: {{ row.percent }}%"></span></span>
+          <span class="genre-time">{{ row.time }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="genre-empty"><small>Watch a {{ kind }} to see your genres here.</small></p>
+  {% endif %}
+</section>

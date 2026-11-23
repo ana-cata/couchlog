@@ -925,6 +925,61 @@ button.corner-button.on-list:is(:hover, :focus-visible) {
   margin: 0;
 }
 
+/* "Movies by genre" and "Series by genre" on the Profile page: the genre, a light pink bar (the colour of progress bars
+   in Identity/identity.md) and the time. One grid for the whole chart, so the bars all start at the same place. */
+.genre-chart-section h3 {
+  font-size: 1.1rem;
+  margin: 1.25rem 0 0.5rem;
+}
+
+.genre-chart {
+  display: grid;
+  grid-template-columns: minmax(0, max-content) minmax(3rem, 1fr) max-content;
+  gap: 0.35rem 0.75rem;
+  align-items: center;
+  max-width: 28rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.genre-chart li {
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
+  align-items: center;
+  margin: 0;
+  list-style: none;
+}
+
+.genre-name {
+  overflow-wrap: anywhere;
+}
+
+.genre-bar {
+  display: block;
+  height: 0.6rem;
+  border-radius: 0.3rem;
+  background: var(--couch-line);
+}
+
+.genre-bar span {
+  display: block;
+  height: 100%;
+  border-radius: 0.3rem;
+  background: var(--couch-light-pink);
+}
+
+.genre-time {
+  color: var(--couch-soft);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.genre-empty {
+  margin-bottom: 0.5rem;
+}
+
 /* A film's watches on its page: the date on the left, the button to take that watch back on the right. */
 .watch-list {
   list-style: none;
