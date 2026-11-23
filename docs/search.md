@@ -35,6 +35,11 @@
   - **Undo:** removing a tag from a title has no Undo button (my decision on the card): tap its "+ name" chip to put it back. Adding is undone with the ×.
   - **On a phone** the chips wrap onto new lines, and every "+" chip is at least 36 px high and a long name wraps inside its chip, and the corner × can be tapped in a 28 px square around it, so it stays easy to tap.
   - **Only yours:** each account sees and changes only its own tags. Tags have no colours of their own (all chips look the same, `Identity/identity.md`), and they are not shown on tiles or used by filters yet (#120).
+- **Share** (movies and series, card #122). A small **share icon** (three joined dots, no words) beside my rating: right after the "Rate it or add a note" button, or right of the rating box, level with the stars. Softened like the pencil, hot pink under the mouse; its hover hint and screen readers say "Share". It sends the title's **TMDB page** (like `https://www.themoviedb.org/tv/1396`), so a friend can open it without a Couchlog account.
+  - **On a phone or tablet** (a touch screen) it opens the phone's own share menu (WhatsApp, Messages, Mail…) with the name and year, "Breaking Bad (2008)", and the link. Closing the menu without picking anything does nothing.
+  - **On a computer** (a mouse) it copies the link and says "Link copied" in a small box under the icon for 3 seconds. Also on Windows, whose Chrome and Edge have a share menu too (my decision on the card).
+  - **Where neither works** (JavaScript off, or a plain `http://` address, where phones and browsers allow neither, such as the PC opened from the phone over the home Wi-Fi) it opens the TMDB page in a new tab. On the Pi (`https`) and the demo it works fully.
+  - **Nothing is saved and Couchlog sends nothing**: the phone or the browser does it. So there is nothing to undo.
 - **How the suggestions are picked**, for movies and for series separately:
   1. Your **3 most common genres** among the titles you have watched (a movie watched, or a series with at least one episode watched) or have on your To Watch list. Each title counts once for each of its genres, however often you watched it. On a tie the lower TMDB genre number goes first.
   2. The **most popular** titles of that kind in any of those genres, from TMDB.
@@ -131,7 +136,15 @@
 - A tag is only found among the account's own tags, so another account's tag id is "not found" (404). In the demo, `tag_add` counts as a change; `tag_remove` does not.
 - Tests: `core/tests/test_tags.py` (under the poster's buttons, no New tag box, add, remove, a title not saved yet, TMDB not answering, other accounts), and `test_tags_on_phone.py` in a real browser at phone width (the tags are under the poster's buttons and inside its column, the chips wrap and are easy to tap, the × is on the corner; a tap adds and removes without the page moving).
 
+**Share** (`core/templates/core/_share.html`, included next to `_rating.html` inside `.rating-and-share` in `title.html`; `core/static/core/share.js`, loaded on every page like `back.js`)
+- The icon is a link (`<a class="share-icon" aria-label="Share" target="_blank">` around an inline SVG) to `https://www.themoviedb.org/movie/<id>` or `/tv/<id>`, built in the template from the title's kind and TMDB id (no TMDB call). `data-share-text` holds "Name (year)", or only the name with no year.
+- `share.js` listens for clicks on `a[data-share]` (a click with Ctrl, Shift, Alt or Cmd is left alone). A touch screen is told apart by the CSS question `(pointer: coarse)`. Touch and `navigator.share` there: it calls the share menu with `text` and `url`. Otherwise, `navigator.clipboard` there: it copies the link and writes "Link copied" (or "Could not copy the link") in `.share-said`, which has `aria-live="polite"` so screen readers read it (not `role="status"`, which is how the page's messages are found). Neither there: the click goes on as a normal link.
+- Layout (`couchlog.css`): `.rating-and-share` is a row. With a rating box, the box takes the width that is left and the icon is moved down to the stars' line (`:has(.rating-card)`); without one, the icon follows the "Rate it" button. "Link copied" (`.share-said`) is placed over the page under the icon, so nothing moves, and is not drawn while empty.
+- No view, route or table: the server only draws the link.
+- Tests: `core/tests/test_share.py` (the movie and the series link, the words with and without a year, a plain link in a new tab, an icon beside the rating and not under the poster; and in a real browser: where the icon sits on a phone with and without a rating, the copy and "Link copied" on a computer even with a share menu there, the share menu on a phone with the right words and link, closing it, and opening TMDB where neither is there).
+
 **Known limits**
+- Share only works fully on `https` (the Pi, the demo) or on the PC itself (`localhost`).
 - Only the first 20 results; there is no "more results" button.
 - Suggestions use only the first page of each TMDB list. An account that has already watched or saved most of what is popular in its genres gets fewer than 10 (trending fills what it can). They are asked from TMDB at every load, and nothing is kept between loads.
 - The suggestions need JavaScript (htmx). A title you already rated but did not watch or save can still be suggested.
