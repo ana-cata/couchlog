@@ -357,7 +357,8 @@ def _to_watch_screen(request, kind):
         items = items.exclude(title__in=started_series(request.user)).exclude(title__in=dropped_series(request.user))
     items = list(items)
     _with_my_rating(request.user, [item.title for item in items])
-    context = {'items': items, 'section': SECTION_OF_KIND[kind], **_recently_removed(request, kind)}
+    items, filters = _filtered(request, items, lambda item: item.title)
+    context = {'items': items, 'filters': filters, 'section': SECTION_OF_KIND[kind], **_recently_removed(request, kind)}
     return render(request, 'core/to_watch.html', context)
 
 
@@ -376,7 +377,10 @@ def _series_tab(request, tab):
         watching, finished = series_tabs(request.user, _today(request))
         titles = watching if tab == 'watching' else finished
     _with_my_rating(request.user, titles)
-    return render(request, 'core/series_tab.html', {'titles': titles, 'section': 'series', 'tab': tab})
+    titles, filters = _filtered(request, titles)
+    return render(
+        request, 'core/series_tab.html', {'titles': titles, 'filters': filters, 'section': 'series', 'tab': tab}
+    )
 
 
 def series_watching(request):
@@ -702,6 +706,75 @@ def _with_my_rating(user, titles):
     return titles
 
 
+# The rating filter of the lists (feature 18): a number keeps the titles I gave at least that many stars.
+RATING_FILTERS = (
+    ('5', '5 stars'),
+    ('4', '4 stars or more'),
+    ('3', '3 stars or more'),
+    ('2', '2 stars or more'),
+    ('1', '1 star or more'),
+    ('none', 'Not rated'),
+)
+# The sorts of the lists besides their own order, which is the default.
+YEAR_SORTS = (('newest', 'Year, newest first'), ('oldest', 'Year, oldest first'))
+
+
+def _chosen(value, allowed):
+    """A value from the page's address if it is one of the choices, or '' (as if nothing was chosen)."""
+    return value if value in allowed else ''
+
+
+def _filtered(request, rows, title_of=lambda row: row):
+    """The filters and the year sort of a list on Movies or Series (feature 18), read from the page's address.
+
+    `rows` is the whole list in its own order, and `title_of` gives a row's title, with its `my_rating` already set by
+    `_with_my_rating` (so a note without stars counts as not rated). Returns the rows to show and what the filter bar
+    needs. The genres offered are the ones found in this list; the tags are this account's own. A value that is not
+    one of the choices (another account's tag, a genre not in the list) is ignored, as if it was not chosen.
+    """
+    genres = {}
+    for row in rows:
+        for genre in title_of(row).genres:
+            genres.setdefault(str(genre['id']), genre['name'])
+    tags = list(_my_tags(request.user))
+
+    genre = _chosen(request.GET.get('genre'), genres)
+    rating = _chosen(request.GET.get('rating'), dict(RATING_FILTERS))
+    tag = _chosen(request.GET.get('tag'), {str(tag.id) for tag in tags})
+    sort = _chosen(request.GET.get('sort'), dict(YEAR_SORTS))
+
+    shown = list(rows)
+    if genre:
+        shown = [row for row in shown if any(str(each['id']) == genre for each in title_of(row).genres)]
+    if rating == 'none':
+        shown = [row for row in shown if title_of(row).my_rating is None]
+    elif rating:
+        shown = [row for row in shown if title_of(row).my_rating and title_of(row).my_rating.stars >= int(rating)]
+    if tag:
+        tagged = set(TitleTag.objects.filter(tag_id=tag).values_list('title_id', flat=True))
+        shown = [row for row in shown if title_of(row).id in tagged]
+    if sort:
+        # Titles of the same year keep the list's own order. A title with no year goes last in both sorts.
+        with_year = [row for row in shown if title_of(row).year]
+        with_year.sort(key=lambda row: title_of(row).year, reverse=sort == 'newest')
+        shown = with_year + [row for row in shown if not title_of(row).year]
+
+    return shown, {
+        'listed': bool(rows),
+        'shown': len(shown),
+        'on': bool(genre or rating or tag or sort),
+        'path': request.path,
+        'genres': sorted(genres.items(), key=lambda item: item[1].lower()),
+        'ratings': RATING_FILTERS,
+        'tags': tags,
+        'sorts': YEAR_SORTS,
+        'genre': genre,
+        'rating': rating,
+        'tag': tag,
+        'sort': sort,
+    }
+
+
 @require_POST
 def rating_save(request):
     """Save, change or remove the stars and the note of a title, all in one Save.
@@ -878,8 +951,11 @@ def history(request):
             watch.times = 1
             shown[watch.title_id] = watch
     _with_my_rating(request.user, [watch.title for watch in shown.values()])
+    watches, filters = _filtered(request, list(shown.values()), lambda watch: watch.title)
     return render(
-        request, 'core/history.html', {'watches': list(shown.values()), 'section': 'movies', 'next': reverse('history')}
+        request,
+        'core/history.html',
+        {'watches': watches, 'filters': filters, 'section': 'movies', 'next': reverse('history')},
     )
 
 

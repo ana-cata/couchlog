@@ -6,16 +6,20 @@
   <h1>Movies</h1>
   {% include 'core/_section_tabs.html' with tab='history' %}
 
-  {% if watches %}
-    <ul class="results">
-      {% for watch in watches %}
-        <li>
-          {% include 'core/_tile_link.html' with tile=watch.title %}
-          {# No button here: to take a watch back, open the movie. Its page lists every watch with its own button. #}
-          <p class="watched-on"><small>{% if watch.watched_on %}Watched {{ watch.watched_on|date:"j M Y" }}{% else %}Date unknown{% endif %}</small></p>
-        </li>
-      {% endfor %}
-    </ul>
+  {% if filters.listed %}
+    {% include 'core/_list_filters.html' %}
+    <div id="list">
+      {% include 'core/_filters_note.html' %}
+      <ul class="results">
+        {% for watch in watches %}
+          <li>
+            {% include 'core/_tile_link.html' with tile=watch.title %}
+            {# No button here: to take a watch back, open the movie. Its page lists every watch with its own button. #}
+            <p class="watched-on"><small>{% if watch.watched_on %}Watched {{ watch.watched_on|date:"j M Y" }}{% else %}Date unknown{% endif %}</small></p>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
   {% else %}
     <p>Every movie you mark as watched is kept here, with its date. <a href="{% url 'search' %}">Search</a> for one you've seen.</p>
   {% endif %}

@@ -79,6 +79,7 @@ Series has four tabs, in this order: **Watching, To Watch, Finished, Dropped**. 
 - If TMDB has not given a status yet (it is empty until the first refresh), the series cannot be finished: it stays in Watching.
 - A rewatch of an episode counts once: an episode is watched if it has at least one watch (design rule 2).
 - Watching, Finished and Dropped show plain tiles (poster, name, year, and your stars if you gave some, as on [To Watch](to-watch.md)) with no To Watch button. Watching and Finished list the newest-marked series first, Dropped the one dropped last first. Each says what it is for when empty, with a link: Watching to Search, Finished and Dropped to Watching (see [Messages](messages.md)).
+- **Filter and sort** (card #120): every tab has the filter bar above its tiles (genre, my rating, my tag, sort by year, and Clear filters). The genres offered are those of the series in that tab. Details in [To Watch](to-watch.md).
 - Marking an episode does not touch your To Watch list: the entry stays, only hidden from the To Watch tab while the series is being watched. If you un-mark every episode of a series that is on your list, it is back under To Watch.
 
 ## Rating after the last episode

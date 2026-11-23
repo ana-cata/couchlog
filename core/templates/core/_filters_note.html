@@ -1,0 +1,4 @@
+{# At the top of a filtered list (feature 18), inside #list so htmx updates it with the list. #}
+{% if filters.on %}
+  <p class="filters-note">{% if not filters.shown %}No titles match these filters. {% endif %}<a href="{{ filters.path }}">Clear filters</a></p>
+{% endif %}

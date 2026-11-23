@@ -1,0 +1,49 @@
+{# The filter bar above a list on Movies and Series (feature 18). `filters` comes from `_filtered` in core/views.py. #}
+{# A plain form: the choices go in the page's address, so Back and a bookmark keep them. Without JavaScript the Show #}
+{# button sends it. With htmx a change sends it by itself and only the list (#list) is swapped; hx-history="false" #}
+{# makes Back ask Couchlog for the page again, so the list and the choices always match. On a phone the bar starts #}
+{# folded under "Filter and sort"; on a wider screen it is always open (couchlog.css). #}
+<details class="list-filters"{% if filters.on %} open{% endif %}>
+  <summary>Filter and sort</summary>
+  <form method="get" action="{{ filters.path }}" hx-get="{{ filters.path }}" hx-trigger="change" hx-target="#list" hx-select="#list" hx-swap="outerHTML" hx-push-url="true" hx-history="false">
+    {% if filters.genres %}
+      <label>Genre
+        <select name="genre">
+          <option value="">Any genre</option>
+          {% for id, name in filters.genres %}
+            <option value="{{ id }}"{% if id == filters.genre %} selected{% endif %}>{{ name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    {% endif %}
+    <label>My rating
+      <select name="rating">
+        <option value="">Any rating</option>
+        {% for value, name in filters.ratings %}
+          <option value="{{ value }}"{% if value == filters.rating %} selected{% endif %}>{{ name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    {% if filters.tags %}
+      <label>My tag
+        <select name="tag">
+          <option value="">Any tag</option>
+          {% for tag in filters.tags %}
+            {% with tag_id=tag.id|stringformat:"s" %}
+              <option value="{{ tag_id }}"{% if tag_id == filters.tag %} selected{% endif %}>{{ tag.name }}</option>
+            {% endwith %}
+          {% endfor %}
+        </select>
+      </label>
+    {% endif %}
+    <label>Sort
+      <select name="sort">
+        <option value="">List order</option>
+        {% for value, name in filters.sorts %}
+          <option value="{{ value }}"{% if value == filters.sort %} selected{% endif %}>{{ name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <noscript><button type="submit" class="outline secondary">Show</button></noscript>
+  </form>
+</details>

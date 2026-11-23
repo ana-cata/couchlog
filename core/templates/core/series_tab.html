@@ -6,12 +6,16 @@
   <h1>Series</h1>
   {% include 'core/_section_tabs.html' %}
 
-  {% if titles %}
-    <ul class="results">
-      {% for title in titles %}
-        <li>{% include 'core/_tile_link.html' with tile=title %}</li>
-      {% endfor %}
-    </ul>
+  {% if filters.listed %}
+    {% include 'core/_list_filters.html' %}
+    <div id="list">
+      {% include 'core/_filters_note.html' %}
+      <ul class="results">
+        {% for title in titles %}
+          <li>{% include 'core/_tile_link.html' with tile=title %}</li>
+        {% endfor %}
+      </ul>
+    </div>
   {% elif tab == 'watching' %}
     <p>A series shows up here once you mark one of its episodes as watched. <a href="{% url 'search' %}">Search</a> for one you're watching.</p>
   {% elif tab == 'finished' %}
