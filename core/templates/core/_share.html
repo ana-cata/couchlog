@@ -1,11 +1,14 @@
-{# The Share button on a title's page (feature 20). It sends the title's TMDB page, so a friend can open it without a #}
-{# Couchlog account: https://www.themoviedb.org/movie/<id> or /tv/<id> (TMDB calls a series "tv"). Nothing is saved. #}
-{# share.js opens the phone's share menu, or copies the link on a computer and says so in the line beside it. #}
+{# The Share icon on a title's page (feature 20), beside my rating. It sends the title's TMDB page, so a friend can open #}
+{# it without a Couchlog account: https://www.themoviedb.org/movie/<id> or /tv/<id> (TMDB calls a series "tv"). #}
+{# share.js opens the phone's share menu, or copies the link on a computer and says so under the icon. Nothing is saved. #}
 {# Without JavaScript (or where the browser allows neither) it is a plain link that opens the TMDB page in a new tab. #}
 <div class="share">
   <a href="https://www.themoviedb.org/{% if item.kind == 'series' %}tv{% else %}movie{% endif %}/{{ item.tmdb_id }}"
-     target="_blank" rel="noopener" role="button" class="outline secondary"
-     data-share data-share-text="{{ item.title }}{% if item.year %} ({{ item.year }}){% endif %}">Share</a>
+     target="_blank" rel="noopener" class="share-icon" aria-label="Share" title="Share"
+     data-share data-share-text="{{ item.title }}{% if item.year %} ({{ item.year }}){% endif %}">
+    {# Three dots joined by two lines, the usual share sign. It takes the colour of the link. #}
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+  </a>
   {# aria-live: screen readers read "Link copied" when it appears. Not role="status", which is for the page's messages. #}
   <small class="share-said" aria-live="polite"></small>
 </div>

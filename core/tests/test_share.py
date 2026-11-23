@@ -10,7 +10,7 @@ from django.test import Client
 from django.utils import timezone
 from playwright.sync_api import expect
 
-from core.models import Profile, Title
+from core.models import Profile, Rating, Title
 
 # The browser's driver runs inside an event loop, and Django refuses database calls from
 # there unless told it is fine. It is fine in a test.
@@ -92,11 +92,16 @@ def test_without_javascript_share_is_a_plain_link_to_the_tmdb_page_in_a_new_tab(
 
 
 @pytest.mark.django_db
-def test_share_is_with_the_small_buttons_under_the_poster():
+def test_share_is_an_icon_beside_the_rating_and_not_under_the_poster():
     saved_movie()
     html = logged_in_client().get('/movie/603/').content.decode()
-    actions = html[html.index('class="poster-actions"') : html.index('tags-section')]
-    assert 'data-share ' in actions
+    beside_rating = html[html.index('class="rating-and-share"') :]
+    assert 'data-share ' in beside_rating
+    assert 'data-share ' not in html[html.index('class="poster-actions"') : html.index('tags-section')]
+    # No words on it: its name is for screen readers and the hover hint.
+    link = share_link(html)
+    assert 'aria-label="Share"' in link and 'title="Share"' in link
+    assert '<svg' in html[html.index(link) : html.index('</a>', html.index(link))]
 
 
 # In a real browser.
@@ -125,7 +130,7 @@ def test_on_a_computer_share_copies_the_link_and_says_so(live_server, browser):
     page.wait_for_load_state('networkidle')
     asked.clear()
 
-    page.get_by_role('button', name='Share').click()
+    page.get_by_role('link', name='Share').click()
 
     expect(page.locator('.share-said')).to_have_text('Link copied')
     assert page.evaluate('navigator.clipboard.readText()') == MOVIE_LINK
@@ -149,7 +154,7 @@ def test_on_a_phone_share_opens_the_share_menu_with_the_name_and_link(live_serve
     log_in(page, live_server)
     page.goto(live_server.url + '/series/1396/')
 
-    page.get_by_role('button', name='Share').tap()
+    page.get_by_role('link', name='Share').tap()
 
     page.wait_for_function('window.shared !== undefined')
     assert page.evaluate('window.shared') == {'text': 'Made-up Series (2008)', 'url': SERIES_LINK}
@@ -171,7 +176,7 @@ def test_closing_the_share_menu_without_picking_does_nothing(live_server, browse
     log_in(page, live_server)
     page.goto(live_server.url + '/movie/603/')
 
-    page.get_by_role('button', name='Share').tap()
+    page.get_by_role('link', name='Share').tap()
 
     page.wait_for_function('window.asked === true')
     expect(page.locator('.share-said')).to_have_text('')
@@ -195,8 +200,36 @@ def test_where_the_browser_can_neither_share_nor_copy_the_link_opens_tmdb(live_s
     page.goto(live_server.url + '/movie/603/')
 
     with context.expect_page() as opened:
-        page.get_by_role('button', name='Share').click()
+        page.get_by_role('link', name='Share').click()
 
     assert opened.value.url == MOVIE_LINK
     assert page.url == live_server.url + '/movie/603/'
+    context.close()
+
+
+def test_the_icon_sits_beside_the_rating_on_a_phone(live_server, browser):
+    user = make_user()
+    movie = saved_movie()
+    context = browser.new_context(viewport={'width': 390, 'height': 700})
+    page = context.new_page()
+    log_in(page, live_server)
+    icon = page.get_by_role('link', name='Share')
+
+    # Nothing rated yet: right after the "Rate it or add a note" button, on the same line.
+    page.goto(live_server.url + '/movie/603/')
+    button = page.locator('summary.rating-open').bounding_box()
+    box = icon.bounding_box()
+    assert button['x'] + button['width'] <= box['x'] <= button['x'] + button['width'] + 20
+    assert abs((box['y'] + box['height'] / 2) - (button['y'] + button['height'] / 2)) <= 4
+
+    # Rated, with a long note: right of the box, at the height of the stars, and inside the screen.
+    Rating.objects.create(user=user, title=movie, stars=4, note='A made-up note that is long enough to wrap. ' * 4)
+    page.goto(live_server.url + '/movie/603/')
+    card = page.locator('.rating-card').bounding_box()
+    stars = page.locator('.rating-stars').bounding_box()
+    box = icon.bounding_box()
+    assert card['x'] + card['width'] <= box['x']
+    assert box['x'] + box['width'] <= 390
+    assert abs((box['y'] + box['height'] / 2) - (stars['y'] + stars['height'] / 2)) <= 4
+    assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
     context.close()

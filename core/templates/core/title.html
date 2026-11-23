@@ -56,8 +56,6 @@
               </form>
             {% endif %}
           {% endif %}
-          {# Share: the title's TMDB link, for a friend (_share.html). #}
-          {% include 'core/_share.html' %}
         </div>
         {# My tags on this title, under the buttons (_tags.html). #}
         {% include 'core/_tags.html' %}
@@ -68,7 +66,11 @@
         <p><small>{{ line }}</small></p>
         <p>{{ item.overview|default:"TMDB has no description for this title." }}</p>
 
-        {% include 'core/_rating.html' %}
+        {# My rating, with the Share icon beside it (the title's TMDB link, for a friend: _share.html). #}
+        <div class="rating-and-share">
+          {% include 'core/_rating.html' %}
+          {% include 'core/_share.html' %}
+        </div>
 
         {% if item.kind == 'movie' %}
           <div class="watched-section">

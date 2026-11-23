@@ -744,25 +744,12 @@ button.corner-button.on-list:is(:hover, :focus-visible) {
   margin: 0;
 }
 
-.title-poster button,
-.title-poster [role="button"] {
+.title-poster button {
   width: auto;
   margin: 0;
   padding: 0.25rem 0.6rem;
   font-size: 0.75rem;
   white-space: nowrap;
-}
-
-/* Share (a link that looks like the other small buttons) with "Link copied" beside it once it is pressed. */
-.share {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.share-said {
-  font-size: 0.75rem;
-  color: var(--pico-muted-color);
 }
 
 .title-details {
@@ -923,6 +910,64 @@ button.corner-button.on-list:is(:hover, :focus-visible) {
   padding: 0.3rem 0.8rem;
   font-size: 0.85rem;
   line-height: 1.5;
+}
+
+/* The Share icon beside my rating: right after the "Rate it" button, or right of the rating box (which keeps the whole
+   width that is left). Like the pencil, it is small and softened, and hot pink under the mouse. */
+.rating-and-share {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+}
+
+.rating-and-share .rating-section {
+  margin-top: 0;
+  min-width: 0;
+}
+
+.rating-and-share .rating-section:has(.rating-card) {
+  flex: 1 1 auto;
+}
+
+/* "Link copied" shows under the icon, over the page, so nothing moves. */
+.share {
+  position: relative;
+  flex: none;
+}
+
+/* Beside a rating box, level with its stars (the box's padding and the big stars put them a little lower). */
+.rating-and-share:has(.rating-card) .share {
+  margin-top: 0.85rem;
+}
+
+.share-icon {
+  display: inline-flex;
+  padding: 0.4rem;
+  color: var(--pico-muted-color);
+}
+
+.share-icon:is(:hover, :focus-visible) {
+  color: var(--couch-pink);
+}
+
+/* A small hint in its own box, which may lie over the rating box's edge. Empty, it is not drawn. */
+.share-said {
+  position: absolute;
+  z-index: 1;
+  top: 100%;
+  right: 0;
+  padding: 0.1rem 0.45rem;
+  border: 1px solid var(--couch-line);
+  border-radius: var(--pico-border-radius);
+  background: var(--couch-navy);
+  font-size: 0.75rem;
+  color: var(--couch-soft);
+  white-space: nowrap;
+}
+
+.share-said:empty {
+  display: none;
 }
 
 /* "Time spent watching" on the Profile page: the name on the left, the time on the right. */
